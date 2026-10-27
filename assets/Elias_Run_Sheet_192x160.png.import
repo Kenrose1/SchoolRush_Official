@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bc50028higm45"
-path="res://.godot/imported/16x32 Idle-Sheet.png-86bb6fea198424835311c865c19d3a5d.ctex"
+uid="uid://cm8d8j67186ha"
+path="res://.godot/imported/Elias_Run_Sheet_192x160.png-27902589394f35dd552ce51c815e4935.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/16x32 Idle-Sheet.png"
-dest_files=["res://.godot/imported/16x32 Idle-Sheet.png-86bb6fea198424835311c865c19d3a5d.ctex"]
+source_file="res://assets/Elias_Run_Sheet_192x160.png"
+dest_files=["res://.godot/imported/Elias_Run_Sheet_192x160.png-27902589394f35dd552ce51c815e4935.ctex"]
 
 [params]
 
