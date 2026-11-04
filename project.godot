@@ -10,14 +10,29 @@ config_version=5
 
 [application]
 
-config/name="SchoolRush"
+config/name="School Rush"
+config/description="2D three-lane arcade runner: wake up late, dodge the neighborhood, outrun the Pursuer before the bell."
+run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+Save="*res://scripts/save_data.gd"
+Sfx="*res://scripts/sfx.gd"
+
 [display]
 
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/window_width_override=1600
+window/size/window_height_override=900
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/funplay_mcp/plugin.cfg")
 
 [physics]
 
@@ -25,6 +40,8 @@ window/stretch/aspect="expand"
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.043, 0.102, 0.176, 1)

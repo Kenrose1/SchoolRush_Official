@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://dhgdjyw706n5u"]
+
+[ext_resource type="Script" uid="uid://b6tj0qs2bgapg" path="res://scripts/main.gd" id="1_85g3d"]
+[ext_resource type="PackedScene" path="res://scenes/background.tscn" id="2_choun"]
+[ext_resource type="Texture2D" uid="uid://dvl6kg3pvjf82" path="res://assets/world/ground.png" id="7_jkv2x"]
+[ext_resource type="PackedScene" path="res://scenes/title_screen.tscn" id="8_jbj1t"]
+
+[node name="Main" type="Node" unique_id=68739299]
+script = ExtResource("1_85g3d")
+
+[node name="MenuWorld" type="Node2D" parent="." unique_id=1014667848]
+
+[node name="MenuBackground" parent="MenuWorld" unique_id=1541461516 instance=ExtResource("2_choun")]
+z_index = -20
+parallax = 0.05
+idle_speed = 26.0
+
+[node name="Ground" type="Sprite2D" parent="MenuWorld" unique_id=565611433]
+z_index = -2
+position = Vector2(0, 470)
+texture = ExtResource("7_jkv2x")
+centered = false
+
+[node name="TitleScreen" parent="." unique_id=1649789969 instance=ExtResource("8_jbj1t")]
+anchors_preset = 15
+grow_horizontal = 2
+grow_vertical = 2

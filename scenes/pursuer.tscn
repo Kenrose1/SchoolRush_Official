@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/pursuer.gd" id="1_kj18i"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/guard_frames.tres" id="2_yayrt"]
+
+[node name="Pursuer" type="Node2D" unique_id=1798542703]
+z_index = -1
+position = Vector2(320, 800)
+script = ExtResource("1_kj18i")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=381667583]
+scale = Vector2(1.2, 1.2)
+sprite_frames = ExtResource("2_yayrt")
+animation = &"run"
+autoplay = "run"
+offset = Vector2(0, -83)

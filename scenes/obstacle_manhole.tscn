@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/obstacle.gd" id="1_meohu"]
+[ext_resource type="Texture2D" path="res://assets/sprites/props/haz_manhole.png" id="2_odg65"]
+
+[node name="Obstacle_manhole" type="Node2D" unique_id=1934509342]
+z_index = 2
+position = Vector2(900, 800)
+script = ExtResource("1_meohu")
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=1524811895]
+texture = ExtResource("2_odg65")
+offset = Vector2(0, -13)

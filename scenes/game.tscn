@@ -1,0 +1,51 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/game.gd" id="1_trtic"]
+[ext_resource type="PackedScene" path="res://scenes/background.tscn" id="2_ir15t"]
+[ext_resource type="Script" path="res://scripts/background.gd" id="3_ca42v"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/zone_home.png" id="4_rysoc"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/zone_street.png" id="5_ssvqc"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/zone_school.png" id="6_264po"]
+[ext_resource type="PackedScene" path="res://scenes/course.tscn" id="7_1kice"]
+[ext_resource type="Script" path="res://scripts/course.gd" id="8_5newe"]
+[ext_resource type="PackedScene" path="res://scenes/pursuer.tscn" id="9_37s47"]
+[ext_resource type="Script" path="res://scripts/pursuer.gd" id="10_bt5mj"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="11_e1j6l"]
+[ext_resource type="Script" path="res://scripts/player.gd" id="12_pl11u"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="13_bhx41"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="14_qnb83"]
+
+[node name="Game" type="Node2D" unique_id=685581111]
+script = ExtResource("1_trtic")
+
+[node name="World" type="Node2D" parent="." unique_id=1335391547]
+
+[node name="Background" type="Node2D" parent="World" unique_id=1541461516 instance=ExtResource("2_ir15t")]
+z_index = -40
+script = ExtResource("3_ca42v")
+zone_textures = Array[Texture2D]([ExtResource("4_rysoc"), ExtResource("5_ssvqc"), ExtResource("6_264po")])
+
+[node name="Course" type="Node2D" parent="World" unique_id=2128750444 instance=ExtResource("7_1kice")]
+z_index = -20
+script = ExtResource("8_5newe")
+
+[node name="Pursuer" type="Node2D" parent="World" unique_id=1798542703 instance=ExtResource("9_37s47")]
+z_index = -1
+position = Vector2(320, 800)
+script = ExtResource("10_bt5mj")
+
+[node name="Player" type="Node2D" parent="World" unique_id=1934860946 instance=ExtResource("11_e1j6l")]
+z_index = 5
+position = Vector2(560, 800)
+script = ExtResource("12_pl11u")
+
+[node name="HudLayer" type="CanvasLayer" parent="." unique_id=251906706]
+layer = 5
+
+[node name="Hud" type="Control" parent="HudLayer" unique_id=1555656389 instance=ExtResource("13_bhx41")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("14_qnb83")

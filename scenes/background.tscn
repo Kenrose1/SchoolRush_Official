@@ -1,0 +1,29 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/background.gd" id="1_wisxt"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/zone_home.png" id="2_wax1t"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/zone_street.png" id="3_1tmhi"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/zone_school.png" id="4_l5f8m"]
+[ext_resource type="Texture2D" path="res://assets/world/fade_down.png" id="5_6vm3t"]
+
+[node name="Background" type="Node2D" unique_id=1541461516]
+z_index = -40
+script = ExtResource("1_wisxt")
+zone_textures = Array[Texture2D]([ExtResource("2_wax1t"), ExtResource("3_1tmhi"), ExtResource("4_l5f8m")])
+
+[node name="BandA" type="Sprite2D" parent="." unique_id=1246686653]
+scale = Vector2(3.7903225, 3.7903225)
+texture = ExtResource("2_wax1t")
+centered = false
+
+[node name="BandB" type="Sprite2D" parent="." unique_id=99406779]
+position = Vector2(3729.6775, 0)
+scale = Vector2(3.7903225, 3.7903225)
+texture = ExtResource("2_wax1t")
+centered = false
+
+[node name="Fade" type="Sprite2D" parent="." unique_id=1801378724]
+z_index = 1
+position = Vector2(0, 229)
+texture = ExtResource("5_6vm3t")
+centered = false

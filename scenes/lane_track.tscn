@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/lane_track.gd" id="1_h2gcy"]
+[ext_resource type="Texture2D" path="res://assets/world/lane_tile.png" id="2_8h3wq"]
+
+[node name="LaneTrack" type="Node2D" unique_id=398737570]
+script = ExtResource("1_h2gcy")
+
+[node name="TileA" type="Sprite2D" parent="." unique_id=127794889]
+texture = ExtResource("2_8h3wq")
+centered = false
+
+[node name="TileB" type="Sprite2D" parent="." unique_id=1309328605]
+position = Vector2(1920, 0)
+texture = ExtResource("2_8h3wq")
+centered = false

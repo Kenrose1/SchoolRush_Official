@@ -1,0 +1,307 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/hud.gd" id="1_5ysmq"]
+[ext_resource type="Texture2D" path="res://assets/ui/heart.png" id="2_6fi6k"]
+[ext_resource type="Texture2D" path="res://assets/ui/vignette.png" id="3_uo2fv"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_047uy"]
+bg_color = Color(0.03, 0.07, 0.12, 0.85)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.07450981, 0.1882353, 0.3019608, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5pdws"]
+bg_color = Color(0.28627452, 0.7882353, 0.5411765, 1)
+border_color = Color(0.28627452, 0.7882353, 0.5411765, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hd3ao"]
+bg_color = Color(0.03, 0.07, 0.12, 0.85)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.07450981, 0.1882353, 0.3019608, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0i1j5"]
+bg_color = Color(0.28627452, 0.7882353, 0.5411765, 1)
+border_color = Color(0.28627452, 0.7882353, 0.5411765, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mphia"]
+bg_color = Color(0.03, 0.07, 0.12, 0.72)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.9607843, 0.77254903, 0.25882354, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0m4u7"]
+bg_color = Color(0.03, 0.07, 0.12, 0.65)
+border_color = Color(0, 0, 0, 0)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="Hud" type="Control" unique_id=1555656389]
+layout_mode = 3
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("1_5ysmq")
+
+[node name="Hearts" type="HBoxContainer" parent="." unique_id=239314564]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 50.0
+offset_right = 250.0
+offset_bottom = 98.0
+theme_override_constants/separation = 6
+
+[node name="Heart1" type="TextureRect" parent="Hearts" unique_id=1506512970]
+modulate = Color(0.8784314, 0.3529412, 0.30980393, 1)
+custom_minimum_size = Vector2(42, 42)
+layout_mode = 2
+texture = ExtResource("2_6fi6k")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Heart2" type="TextureRect" parent="Hearts" unique_id=1912275732]
+modulate = Color(0.8784314, 0.3529412, 0.30980393, 1)
+custom_minimum_size = Vector2(42, 42)
+layout_mode = 2
+texture = ExtResource("2_6fi6k")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Heart3" type="TextureRect" parent="Hearts" unique_id=1552189012]
+modulate = Color(0.8784314, 0.3529412, 0.30980393, 1)
+custom_minimum_size = Vector2(42, 42)
+layout_mode = 2
+texture = ExtResource("2_6fi6k")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="SpeedLabel" type="Label" parent="." unique_id=259058682]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 102.0
+offset_right = 210.0
+offset_bottom = 126.0
+theme_override_font_sizes/font_size = 19
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "SPEED"
+vertical_alignment = 1
+
+[node name="SpeedBar" type="ProgressBar" parent="." unique_id=1438400346]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 128.0
+offset_right = 318.0
+offset_bottom = 155.0
+theme_override_styles/background = SubResource("StyleBoxFlat_047uy")
+theme_override_styles/fill = SubResource("StyleBoxFlat_5pdws")
+show_percentage = false
+
+[node name="SpeedValue" type="Label" parent="." unique_id=2134181577]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 150.0
+offset_right = 250.0
+offset_bottom = 178.0
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "0 km/h"
+vertical_alignment = 1
+
+[node name="ScoreCaption" type="Label" parent="." unique_id=930031608]
+layout_mode = 0
+offset_left = 1500.0
+offset_top = 30.0
+offset_right = 1854.0
+offset_bottom = 56.0
+theme_override_font_sizes/font_size = 19
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "SCORE"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="ScoreValue" type="Label" parent="." unique_id=23571570]
+layout_mode = 0
+offset_left = 1500.0
+offset_top = 56.0
+offset_right = 1854.0
+offset_bottom = 112.0
+theme_override_font_sizes/font_size = 44
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "000000"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="ComboValue" type="Label" parent="." unique_id=2146849949]
+layout_mode = 0
+offset_left = 1500.0
+offset_top = 116.0
+offset_right = 1854.0
+offset_bottom = 146.0
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "ITEMS 0   COMBO x1"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="PursuerLabel" type="Label" parent="." unique_id=1932150679]
+layout_mode = 0
+offset_left = 1500.0
+offset_top = 150.0
+offset_right = 1854.0
+offset_bottom = 180.0
+theme_override_font_sizes/font_size = 26
+theme_override_colors/font_color = Color(0.8784314, 0.3529412, 0.30980393, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "PURSUER!"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Progress" type="Control" parent="." unique_id=124059428]
+anchors_preset = 0
+offset_left = 660.0
+offset_top = 24.0
+offset_right = 1420.0
+offset_bottom = 88.0
+mouse_filter = 2
+
+[node name="Caption" type="Label" parent="Progress" unique_id=440230970]
+layout_mode = 0
+offset_right = 600.0
+offset_bottom = 24.0
+theme_override_font_sizes/font_size = 19
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "TO CLASSROOM"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Bar" type="ProgressBar" parent="Progress" unique_id=1114048308]
+layout_mode = 0
+offset_top = 30.0
+offset_right = 600.0
+offset_bottom = 57.0
+theme_override_styles/background = SubResource("StyleBoxFlat_hd3ao")
+theme_override_styles/fill = SubResource("StyleBoxFlat_0i1j5")
+show_percentage = false
+
+[node name="Tick1" type="ColorRect" parent="Progress" unique_id=1939977715]
+layout_mode = 0
+offset_left = 200.0
+offset_top = 30.0
+offset_right = 203.0
+offset_bottom = 48.0
+color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+
+[node name="Tick2" type="ColorRect" parent="Progress" unique_id=34114011]
+layout_mode = 0
+offset_left = 400.0
+offset_top = 30.0
+offset_right = 403.0
+offset_bottom = 48.0
+color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+
+[node name="Bell" type="Label" parent="Progress" unique_id=419240765]
+layout_mode = 0
+offset_left = 620.0
+offset_top = 26.0
+offset_right = 800.0
+offset_bottom = 56.0
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "BELL 2:15"
+vertical_alignment = 1
+
+[node name="ModeLabel" type="Label" parent="." unique_id=1257713591]
+layout_mode = 0
+offset_top = 34.0
+offset_right = 1920.0
+offset_bottom = 62.0
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Prompt" type="Label" parent="." unique_id=1094676628]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+offset_left = 700.0
+offset_top = 210.0
+offset_right = 1220.0
+offset_bottom = 266.0
+theme_override_styles/normal = SubResource("StyleBoxFlat_mphia")
+theme_override_font_sizes/font_size = 30
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "SPACE // JUMP"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Banner" type="Label" parent="." unique_id=1337644143]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+offset_top = 380.0
+offset_right = 1920.0
+offset_bottom = 476.0
+theme_override_styles/normal = SubResource("StyleBoxFlat_0m4u7")
+theme_override_font_sizes/font_size = 46
+theme_override_colors/font_color = Color(0.9607843, 0.77254903, 0.25882354, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "ZONE"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Vignette" type="TextureRect" parent="." unique_id=1766630641]
+modulate = Color(0.85, 0.18, 0.18, 0)
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+texture = ExtResource("3_uo2fv")
+expand_mode = 1

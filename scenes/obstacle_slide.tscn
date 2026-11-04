@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/obstacle.gd" id="1_ot8xm"]
+[ext_resource type="Texture2D" path="res://assets/sprites/props/haz_gantry.png" id="2_y18k7"]
+
+[node name="Obstacle_slide" type="Node2D" unique_id=5659887]
+z_index = 2
+position = Vector2(900, 800)
+script = ExtResource("1_ot8xm")
+kind = "slide"
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=2031386330]
+texture = ExtResource("2_y18k7")
+offset = Vector2(0, -106)

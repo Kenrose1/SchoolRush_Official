@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/obstacle.gd" id="1_bk4vn"]
+[ext_resource type="Texture2D" path="res://assets/sprites/props/haz_sign.png" id="2_tgrxd"]
+
+[node name="Obstacle_sign" type="Node2D" unique_id=147281329]
+z_index = 2
+position = Vector2(900, 800)
+script = ExtResource("1_bk4vn")
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=1300178842]
+texture = ExtResource("2_tgrxd")
+offset = Vector2(0, -43.5)

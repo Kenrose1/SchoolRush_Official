@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/course.gd" id="1_vwyl5"]
+[ext_resource type="Texture2D" path="res://assets/world/ground.png" id="2_r5a4e"]
+[ext_resource type="PackedScene" path="res://scenes/lane_track.tscn" id="3_07v2j"]
+[ext_resource type="Script" path="res://scripts/lane_track.gd" id="4_43ab4"]
+
+[node name="Course" type="Node2D" unique_id=2128750444]
+z_index = -20
+script = ExtResource("1_vwyl5")
+
+[node name="Ground" type="Sprite2D" parent="." unique_id=1144063158]
+z_index = -1
+position = Vector2(0, 470)
+texture = ExtResource("2_r5a4e")
+centered = false
+
+[node name="Track0" type="Node2D" parent="." unique_id=398737570 instance=ExtResource("3_07v2j")]
+position = Vector2(0, 574)
+script = ExtResource("4_43ab4")
+lane = 0
+shade = 0.8
+
+[node name="Track1" type="Node2D" parent="." unique_id=1448347125 instance=ExtResource("3_07v2j")]
+position = Vector2(0, 754)
+script = ExtResource("4_43ab4")
+
+[node name="Track2" type="Node2D" parent="." unique_id=8327747 instance=ExtResource("3_07v2j")]
+position = Vector2(0, 934)
+script = ExtResource("4_43ab4")
+lane = 2
+shade = 1.16

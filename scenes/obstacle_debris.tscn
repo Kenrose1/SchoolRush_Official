@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/obstacle.gd" id="1_t3lq3"]
+[ext_resource type="Texture2D" path="res://assets/sprites/props/haz_debris.png" id="2_68r6t"]
+
+[node name="Obstacle_debris" type="Node2D" unique_id=1776213844]
+z_index = 2
+position = Vector2(900, 800)
+script = ExtResource("1_t3lq3")
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=725906686]
+texture = ExtResource("2_68r6t")
+offset = Vector2(0, -32)

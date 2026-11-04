@@ -1,0 +1,339 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/result_screen.gd" id="1_y7kih"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p64tj"]
+bg_color = Color(0.05, 0.1, 0.17, 0.98)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.9607843, 0.77254903, 0.25882354, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rdjqi"]
+bg_color = Color(0.12156863, 0.5411765, 0.36078432, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_raeeo"]
+bg_color = Color(0.81666666, 0.6566667, 0.22000001, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_im14c"]
+bg_color = Color(0.9607843, 0.77254903, 0.25882354, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l46iw"]
+bg_color = Color(0.9607843, 0.77254903, 0.25882354, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wrniu"]
+bg_color = Color(0.07450981, 0.1882353, 0.3019608, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nj5ho"]
+bg_color = Color(0.81666666, 0.6566667, 0.22000001, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_et5d2"]
+bg_color = Color(0.9607843, 0.77254903, 0.25882354, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bsfim"]
+bg_color = Color(0.9607843, 0.77254903, 0.25882354, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="ResultScreen" type="Control" unique_id=1380849926]
+layout_mode = 3
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_y7kih")
+
+[node name="Veil" type="ColorRect" parent="." unique_id=1497202145]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.02, 0.04, 0.08, 0.82)
+
+[node name="Panel" type="Panel" parent="." unique_id=360072906]
+layout_mode = 0
+offset_left = 500.0
+offset_top = 190.0
+offset_right = 1420.0
+offset_bottom = 910.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_p64tj")
+
+[node name="Title" type="Label" parent="." unique_id=1629440840]
+layout_mode = 0
+offset_left = 500.0
+offset_top = 220.0
+offset_right = 1420.0
+offset_bottom = 290.0
+theme_override_font_sizes/font_size = 56
+theme_override_colors/font_color = Color(0.9607843, 0.77254903, 0.25882354, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "MADE IT BEFORE THE BELL"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Line" type="Label" parent="." unique_id=2036954513]
+layout_mode = 0
+offset_left = 540.0
+offset_top = 292.0
+offset_right = 1380.0
+offset_bottom = 332.0
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScoreCap" type="Label" parent="." unique_id=538050440]
+layout_mode = 0
+offset_left = 560.0
+offset_top = 364.0
+offset_right = 920.0
+offset_bottom = 390.0
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "SCORE"
+vertical_alignment = 1
+
+[node name="ScoreValue" type="Label" parent="." unique_id=154462948]
+layout_mode = 0
+offset_left = 560.0
+offset_top = 386.0
+offset_right = 920.0
+offset_bottom = 436.0
+theme_override_font_sizes/font_size = 40
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "000000"
+vertical_alignment = 1
+
+[node name="ItemsCap" type="Label" parent="." unique_id=2029366037]
+layout_mode = 0
+offset_left = 980.0
+offset_top = 364.0
+offset_right = 1340.0
+offset_bottom = 390.0
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "ITEMS"
+vertical_alignment = 1
+
+[node name="ItemsValue" type="Label" parent="." unique_id=1686125652]
+layout_mode = 0
+offset_left = 980.0
+offset_top = 386.0
+offset_right = 1340.0
+offset_bottom = 436.0
+theme_override_font_sizes/font_size = 40
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "0"
+vertical_alignment = 1
+
+[node name="DistanceCap" type="Label" parent="." unique_id=1638631871]
+layout_mode = 0
+offset_left = 560.0
+offset_top = 460.0
+offset_right = 920.0
+offset_bottom = 486.0
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "DISTANCE"
+vertical_alignment = 1
+
+[node name="DistanceValue" type="Label" parent="." unique_id=1432373196]
+layout_mode = 0
+offset_left = 560.0
+offset_top = 482.0
+offset_right = 920.0
+offset_bottom = 532.0
+theme_override_font_sizes/font_size = 40
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "0 m"
+vertical_alignment = 1
+
+[node name="ComboCap" type="Label" parent="." unique_id=1612667777]
+layout_mode = 0
+offset_left = 980.0
+offset_top = 460.0
+offset_right = 1340.0
+offset_bottom = 486.0
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "BEST COMBO"
+vertical_alignment = 1
+
+[node name="ComboValue" type="Label" parent="." unique_id=1053466567]
+layout_mode = 0
+offset_left = 980.0
+offset_top = 482.0
+offset_right = 1340.0
+offset_bottom = 532.0
+theme_override_font_sizes/font_size = 40
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "x1"
+vertical_alignment = 1
+
+[node name="Record" type="Label" parent="." unique_id=1524486833]
+layout_mode = 0
+offset_left = 500.0
+offset_top = 558.0
+offset_right = 1420.0
+offset_bottom = 594.0
+theme_override_font_sizes/font_size = 30
+theme_override_colors/font_color = Color(0.9607843, 0.77254903, 0.25882354, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "NEW HIGH SCORE"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Retry" type="Button" parent="." unique_id=1690091118]
+layout_mode = 0
+offset_left = 560.0
+offset_top = 620.0
+offset_right = 940.0
+offset_bottom = 686.0
+theme_override_styles/normal = SubResource("StyleBoxFlat_rdjqi")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_raeeo")
+theme_override_styles/hover = SubResource("StyleBoxFlat_im14c")
+theme_override_styles/focus = SubResource("StyleBoxFlat_l46iw")
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_focus_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_colors/font_pressed_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_colors/font_hover_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_font_sizes/font_size = 30
+text = "RUN AGAIN  [ENTER]"
+
+[node name="Menu" type="Button" parent="." unique_id=807686037]
+layout_mode = 0
+offset_left = 960.0
+offset_top = 620.0
+offset_right = 1340.0
+offset_bottom = 686.0
+theme_override_styles/normal = SubResource("StyleBoxFlat_wrniu")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_nj5ho")
+theme_override_styles/hover = SubResource("StyleBoxFlat_et5d2")
+theme_override_styles/focus = SubResource("StyleBoxFlat_bsfim")
+theme_override_colors/font_color = Color(0.91764706, 0.9490196, 0.9843137, 1)
+theme_override_colors/font_focus_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_colors/font_pressed_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_colors/font_hover_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_font_sizes/font_size = 30
+text = "MAIN MENU  [ESC]"
+
+[node name="Best" type="Label" parent="." unique_id=1691561639]
+layout_mode = 0
+offset_left = 500.0
+offset_top = 726.0
+offset_right = 1420.0
+offset_bottom = 754.0
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "Best: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Runs" type="Label" parent="." unique_id=901921385]
+layout_mode = 0
+offset_left = 500.0
+offset_top = 754.0
+offset_right = 1420.0
+offset_bottom = 782.0
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.5647059, 0.6627451, 0.76862746, 1)
+theme_override_colors/font_outline_color = Color(0.02745098, 0.0627451, 0.11372549, 1)
+theme_override_constants/outline_size = 10
+text = "Total runs: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
