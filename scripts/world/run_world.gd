@@ -1,10 +1,10 @@
 class_name RunWorld
 extends Node2D
-## The M3 gray-box course.
+## The M4 gray-box course.
 ##
-## Owns forward speed, distance, the hazard director, School Items, and scoring.
-## Draws the three lane tiers plus a placeholder skyline and hosts the player
-## and the hearts HUD. The pursuer arrives in M4.
+## Owns forward speed, distance, the hazard director, School Items, scoring,
+## and the pursuer. Draws the three lane tiers plus a placeholder skyline and
+## hosts the player and the hearts HUD. Zones arrive in M5.
 
 const SKY_COLOR := Color("#6fb7e8")
 const SUN_COLOR := Color("#fff3b0")
@@ -17,31 +17,43 @@ const LANE_EDGE := Color(0.83, 0.88, 0.96, 0.55)
 const GROUND_TICK := Color(0.85, 0.9, 0.98, 0.35)
 
 @onready var player: Player = $Player
+@onready var pursuer: Pursuer = $Pursuer
 @onready var hazards: Node2D = $Hazards
 @onready var director: SpawnDirector = $SpawnDirector
 @onready var hud: HeartsHud = $Hud
 @onready var score_hud: ScoreHud = $ScoreHud
 @onready var game_over_root: Control = $GameOver/Root
+@onready var game_over_label: Label = $GameOver/Root/Label
+@onready var caught_label: Label = $GameOver/Root/CaughtLabel
 @onready var _debug_label: Label = $DebugOverlay/Label
 
-## Forward speed in px/s. Stays at the base value until ramping lands in M5.
+## Base forward speed. The momentum dip lowers it temporarily after a hit.
 var speed: float = GameConfig.RUN_SPEED
 ## Distance travelled this run, in pixels.
 var distance: float = 0.0
-## False after the last heart is lost; the world freezes until [R].
+## False after the last heart is lost or the tanod catches Elias; frozen until [R].
 var is_running: bool = true
 ## Pure score system: distance points, hazard passes, School Item pickups.
 var score_system: ScoreSystem = ScoreSystem.new()
+## Seconds of momentum dip hold remaining, then seconds of eased recovery.
+var momentum_time_left: float = 0.0
+var momentum_recover_time_left: float = 0.0
+## True once the chase-ending lunge has started (caught or hazard-hit mid-chase).
+var _caught: bool = false
 
 
 func _ready() -> void:
 	_debug_label.visible = GameConfig.DEBUG_OVERLAY
 	game_over_root.visible = false
+	caught_label.visible = false
 
 	player.health_changed.connect(_on_health_changed)
 	player.died.connect(_on_player_died)
+	player.caught.connect(_on_player_caught)
 	player.item_collected.connect(_on_item_collected)
 	player.damaged.connect(_on_player_damaged)
+	pursuer.caught.connect(_on_pursuer_caught)
+	pursuer.lunge_finished.connect(_on_lunge_finished)
 	hud.set_hearts(player.health, GameConfig.MAX_HEARTS)
 
 	score_system.score_changed.connect(score_hud.set_score)
@@ -52,16 +64,40 @@ func _ready() -> void:
 	score_hud.set_items(0)
 
 	director.hazard_passed.connect(score_system.add_hazard_passed)
-	director.item_missed.connect(score_system.reset_combo)
+	director.item_missed.connect(_on_item_missed)
 	director.setup(hazards, randi())
 
 
 func _physics_process(delta: float) -> void:
 	if not is_running:
 		return
+	if momentum_time_left > 0.0:
+		momentum_time_left = maxf(momentum_time_left - delta, 0.0)
+		speed = GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR
+		if momentum_time_left <= 0.0:
+			momentum_recover_time_left = GameConfig.MOMENTUM_RECOVER_TIME
+	elif momentum_recover_time_left > 0.0:
+		momentum_recover_time_left = maxf(momentum_recover_time_left - delta, 0.0)
+		var t := 1.0 - clampf(
+			momentum_recover_time_left / GameConfig.MOMENTUM_RECOVER_TIME, 0.0, 1.0)
+		speed = lerpf(
+			GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR,
+			GameConfig.RUN_SPEED,
+			t,
+		)
+	else:
+		speed = GameConfig.RUN_SPEED
+	# Keep live hazards/items on the exact current world speed so they ride
+	# the road with no slide through the dip and the ease-back.
+	for child in hazards.get_children():
+		if child is Hazard or child is Collectible:
+			child.speed = speed
 	distance += speed * delta
 	director.tick(delta, speed, distance)
 	score_system.add_distance(distance)
+	pursuer.set_world_speed(speed)
+	pursuer.track(player.lane_y)
+	player.pursuer_active = pursuer.is_active()
 	queue_redraw()
 	_update_debug()
 
@@ -91,11 +127,45 @@ func _on_item_collected(_kind: int) -> void:
 
 func _on_player_damaged(_remaining: int) -> void:
 	score_system.reset_combo()
+	momentum_time_left = GameConfig.MOMENTUM_DIP_TIME
+	momentum_recover_time_left = 0.0
+	pursuer.wake()
+
+
+func _on_item_missed() -> void:
+	score_system.reset_combo()
+	pursuer.wake()
+
+
+func _on_player_caught() -> void:
+	if _caught:
+		return
+	_caught = true
+	_freeze_world()
+	pursuer.start_lunge()
+
+
+func _on_pursuer_caught() -> void:
+	if _caught:
+		return
+	_caught = true
+	_freeze_world()
+	# The tanod already entered LUNGE on catch; just wait for lunge_finished.
+
+
+func _on_lunge_finished() -> void:
+	_show_game_over(true)
 
 
 func _on_player_died() -> void:
+	if _caught:
+		return  # The lunge flow shows the CAUGHT! overlay.
+	_freeze_world()
+	_show_game_over(false)
+
+
+func _freeze_world() -> void:
 	is_running = false
-	game_over_root.visible = true
 	hazards.process_mode = Node.PROCESS_MODE_DISABLED
 	director.process_mode = Node.PROCESS_MODE_DISABLED
 	player.set_physics_process(false)
@@ -104,10 +174,17 @@ func _on_player_died() -> void:
 	_update_debug()
 
 
+func _show_game_over(caught: bool) -> void:
+	game_over_root.visible = true
+	game_over_label.visible = not caught
+	caught_label.visible = caught
+	_update_debug()
+
+
 func _update_debug() -> void:
 	if not _debug_label.visible:
 		return
-	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nAIR   %.0f px   SLIDE %s\nHEARTS %d/%d   IFRAME %.2f s\nSCORE %d   x%d   ITEMS %d\nFPS   %d\n[F3] hide" % [
+	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nAIR   %.0f px   SLIDE %s\nHEARTS %d/%d   IFRAME %.2f s\nSCORE %d   x%d   ITEMS %d\nCHASE %s  GAP %.0f px\nFPS   %d\n[F3] hide" % [
 		player.lane,
 		player.lane_y,
 		speed,
@@ -120,6 +197,8 @@ func _update_debug() -> void:
 		score_system.score,
 		GameConfig.combo_multiplier(score_system.chain),
 		score_system.item_count,
+		["DORMANT", "CHASE", "FADE", "LUNGE"][pursuer.state],
+		pursuer.gap,
 		Engine.get_frames_per_second(),
 	]
 

@@ -10,13 +10,13 @@ extends Node
 
 const OUT_DIR := "user://captures"
 
-## Showcase placement: one of every hazard kind, right of the player.
+## Showcase placement: one of every active hazard kind, right of the player.
+## Dog is parked for M4 (re-adds in M6), so it is not staged.
 const SHOWCASE := [
 	[GameConfig.HazardKind.MANHOLE, GameConfig.LANE_BOTTOM, 760.0],
 	[GameConfig.HazardKind.DEBRIS, GameConfig.LANE_MIDDLE, 960.0],
 	[GameConfig.HazardKind.SIGN, GameConfig.LANE_TOP, 1160.0],
 	[GameConfig.HazardKind.GANTRY, GameConfig.LANE_MIDDLE, 1400.0],
-	[GameConfig.HazardKind.DOG, GameConfig.LANE_BOTTOM, 1660.0],
 ]
 
 ## Showcase for School Items: one of each kind across the lanes.
@@ -55,15 +55,15 @@ func _ready() -> void:
 	await _wait(2)
 	await _shot("m3_03_combo")
 
-	world.player.take_damage()
-	await _wait(2)
-	await _shot("m3_04_damage")
+	# M4: wake the tanod and capture the chase, then the CAUGHT! lunge.
+	world.is_running = true
+	world._on_player_damaged(2)
+	await _wait(30)
+	await _shot("m4_01_chase")
 
-	for i in GameConfig.MAX_HEARTS:
-		world.player.invulnerable_time_left = 0.0
-		world.player.take_damage()
-	await _wait(2)
-	await _shot("m3_05_game_over")
+	world._on_player_caught()
+	await _wait(30)
+	await _shot("m4_02_caught")
 
 	get_tree().quit(0)
 

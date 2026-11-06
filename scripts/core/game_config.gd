@@ -147,7 +147,8 @@ const HAZARD_WEIGHT := {
 	HazardKind.DEBRIS: 3.0,
 	HazardKind.GANTRY: 2.5,
 	HazardKind.SIGN: 1.5,
-	HazardKind.DOG: 1.5,
+	## Dog is parked for M4 (re-adds in M6 with a proper pass).
+	HazardKind.DOG: 0.0,
 }
 
 # --- School Items ------------------------------------------------------------
@@ -200,6 +201,35 @@ const TWO_LANE_CHANCE_MAX := 0.6
 
 const SPAWN_X := 2140.0
 const DESPAWN_X := -400.0
+
+# --- Pursuer (tanod) ---------------------------------------------------------
+
+## Chase speed as a fraction of RUN_SPEED. 0.95 = 399 px/s at base speed.
+const PURSUER_CHASE_FACTOR := 0.95
+## Eases toward full speed if a chase drags on (seconds to reach 1.0x).
+const PURSUER_CHASE_RAMP_TIME := 10.0
+## Gap (px behind the player) at which the tanod catches Elias.
+const PURSUER_CATCH_DISTANCE := 60.0
+## Gap (px) when the tanod wakes up (slides in visible behind the player).
+const PURSUER_WAKE_GAP := 300.0
+## Dormant gap (px behind the player, off-screen left).
+const PURSUER_DORMANT_GAP := 1000.0
+## Seconds of chase survived before the tanod gives up and fades.
+const PURSUER_FADE_AFTER := 8.0
+## Fade-out time (seconds).
+const PURSUER_FADE_TIME := 0.6
+## Lunge (death animation) duration (seconds).
+const PURSUER_LUNGE_TIME := 0.4
+## Tanod sprite scale (source 104x166, Elias is 0.6).
+const PURSUER_SCALE := 0.6
+const PURSUER_SPRITE_HEIGHT := 166.0
+
+## On damage, speed dips for this long (seconds).
+const MOMENTUM_DIP_TIME := 1.0
+## Speed multiplier while the dip is active (0.75 = 315 px/s at base).
+const MOMENTUM_DIP_FACTOR := 0.75
+## After the hold, speed eases back to full over this long (seconds).
+const MOMENTUM_RECOVER_TIME := 1.5
 
 # --- HUD ---------------------------------------------------------------------
 

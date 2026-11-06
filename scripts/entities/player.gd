@@ -15,6 +15,7 @@ signal damaged(remaining_hearts: int)
 signal health_changed(current: int, maximum: int)
 signal item_collected(kind: int)
 signal died
+signal caught
 
 ## Current lane tier (GameConfig.LANE_TOP / MIDDLE / BOTTOM).
 var lane: int = GameConfig.PLAYER_START_LANE
@@ -30,6 +31,9 @@ var slide_time_left: float = 0.0
 
 var health: int = GameConfig.MAX_HEARTS
 var invulnerable_time_left: float = 0.0
+## Set by RunWorld each frame from the pursuer. While true, a hazard hit is an
+## instant loss (hearts and i-frames are ignored).
+var pursuer_active: bool = false
 
 var _lean: float = 0.0
 var _hurt_time_left: float = 0.0
@@ -196,6 +200,11 @@ func _end_slide() -> void:
 
 func _on_hitbox_area_entered(area: Area2D) -> void:
 	if area is Hazard:
+		if pursuer_active:
+			# Instant loss while chased: no heart loss, no i-frame check.
+			caught.emit()
+			died.emit()
+			return
 		take_damage()
 	elif area is Collectible:
 		area.collect()

@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://d2cxjh4pkkec0" path="res://scripts/world/spawn_director.gd" id="3_director"]
 [ext_resource type="PackedScene" uid="uid://b7yyoa3oxewcp" path="res://scenes/hearts_hud.tscn" id="4_hearts"]
 [ext_resource type="Script" uid="uid://1f153lp72fw2" path="res://scripts/ui/score_hud.gd" id="5_score"]
+[ext_resource type="PackedScene" path="res://scenes/pursuer.tscn" id="6_pursuer"]
 
 [node name="RunWorld" type="Node2D" unique_id=894551756]
 position = Vector2(484, 105)
@@ -13,6 +14,8 @@ script = ExtResource("1_world")
 [node name="Hazards" type="Node2D" parent="." unique_id=1347232564]
 
 [node name="Player" parent="." unique_id=1576742457 instance=ExtResource("2_player")]
+
+[node name="Pursuer" parent="." instance=ExtResource("6_pursuer")]
 
 [node name="SpawnDirector" type="Node" parent="." unique_id=1285426724]
 script = ExtResource("3_director")
@@ -57,6 +60,25 @@ theme_override_constants/shadow_offset_x = 4
 theme_override_constants/shadow_offset_y = 4
 theme_override_font_sizes/font_size = 72
 text = "OUT OF HEARTS
+
+[R] retry"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CaughtLabel" type="Label" parent="GameOver/Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.62, 0.52, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_font_sizes/font_size = 72
+text = "CAUGHT!
 
 [R] retry"
 horizontal_alignment = 1

@@ -41,6 +41,9 @@ func _ready() -> void:
 	_section("Pickup director")
 	_test_pickup_director()
 
+	_section("Pursuer")
+	await _test_pursuer()
+
 	_section("Scenes")
 	_test_scenes()
 
@@ -501,7 +504,8 @@ func _test_spawn_director() -> void:
 	var late_kinds := {}
 	for i in 2000:
 		late_kinds[SpawnDirector.pick_kind(60000.0, rng_late)] = true
-	_check_eq(late_kinds.size(), GameConfig.HAZARD_DATA.size(), "all five kinds spawn once unlocked")
+	# Dog is parked for M4 (weight 0), so 4 kinds spawn.
+	_check_eq(late_kinds.size(), GameConfig.HAZARD_DATA.size() - 1, "four kinds spawn once unlocked")
 
 
 func _test_score_system() -> void:
@@ -741,6 +745,151 @@ func _test_pickup_director() -> void:
 	director.queue_free()
 
 
+func _test_pursuer() -> void:
+	# Config contract.
+	_check_near(GameConfig.PURSUER_CHASE_FACTOR, 0.95, 0.001, "chase factor is 95%")
+	_check_near(
+		GameConfig.RUN_SPEED * GameConfig.PURSUER_CHASE_FACTOR,
+		399.0,
+		0.01,
+		"chase speed is 399 px/s at base",
+	)
+	_check_near(GameConfig.MOMENTUM_DIP_TIME, 1.0, 0.001, "momentum dip lasts 1.0 s")
+	_check_near(GameConfig.PURSUER_CATCH_DISTANCE, 60.0, 0.01, "catch distance is 60 px")
+
+	# Scene + frames.
+	var scene := load("res://scenes/pursuer.tscn") as PackedScene
+	_check(scene != null, "pursuer scene loads")
+	if scene == null:
+		return
+	var pursuer := scene.instantiate() as Pursuer
+	add_child(pursuer)
+	pursuer.set_physics_process(false)
+	_check(pursuer.state == Pursuer.State.DORMANT, "pursuer starts dormant")
+	_check(not pursuer.visible, "pursuer is hidden while dormant")
+	_check(not pursuer.is_active(), "dormant pursuer is not active")
+	_check_near(pursuer.gap, GameConfig.PURSUER_DORMANT_GAP, 0.01, "dormant gap is off-screen left")
+	var frames := pursuer.sprite.sprite_frames
+	_check(frames != null, "pursuer scene provides sprite frames")
+	if frames != null:
+		_check(frames.resource_path.ends_with("tanod_frames.tres"), "tanod frames come from committed resource")
+		_check_eq(frames.get_animation_names().size(), 2, "two tanod animations exist")
+		_check_eq(frames.get_frame_count("run"), 9, "tanod run has 9 frames")
+		_check_eq(frames.get_frame_count("idle"), 4, "tanod idle has 4 frames")
+	_check_eq(pursuer.sprite.animation, &"idle", "tanod previews the idle animation")
+
+	# Wake.
+	var wakes := [0]
+	pursuer.chase_started.connect(func() -> void: wakes[0] += 1)
+	pursuer.wake()
+	_check(pursuer.state == Pursuer.State.CHASE, "wake enters chase")
+	_check(pursuer.visible, "pursuer becomes visible on wake")
+	_check(pursuer.is_active(), "chasing pursuer is active")
+	_check_near(pursuer.gap, GameConfig.PURSUER_WAKE_GAP, 0.01, "wake gap is 700 px")
+	_check_eq(wakes[0], 1, "chase_started fires once")
+	pursuer.wake()
+	_check_eq(wakes[0], 1, "wake during chase is a no-op")
+	_check_near(pursuer.gap, GameConfig.PURSUER_WAKE_GAP, 0.01, "wake during chase does not reset gap")
+
+	# Gap dynamics: full speed grows the gap (escape), dip shrinks it (pressure).
+	# Factor eases 0.95 -> 1.0 over 10 s, so speed is ~401 at chase_time~1.
+	pursuer.set_world_speed(GameConfig.RUN_SPEED)
+	var gap_before := pursuer.gap
+	pursuer._physics_process(1.0)
+	_check(pursuer.gap > gap_before, "full speed pulls away from the tanod")
+	_check_near(pursuer.gap, gap_before + 19.0, 3.0, "gap grows ~19 px/s at full speed")
+
+	pursuer.set_world_speed(GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR)
+	gap_before = pursuer.gap
+	pursuer._physics_process(1.0)
+	_check(pursuer.gap < gap_before, "momentum dip lets the tanod gain")
+	_check_near(pursuer.gap - gap_before, -86.0, 4.0, "gap shrinks ~86 px/s while dipped")
+
+	# Fade after surviving the chase.
+	var fades := [0]
+	pursuer.chase_faded.connect(func() -> void: fades[0] += 1)
+	pursuer.chase_time = GameConfig.PURSUER_FADE_AFTER - 0.1
+	pursuer.set_world_speed(GameConfig.RUN_SPEED)
+	pursuer._physics_process(0.2)
+	_check(pursuer.state == Pursuer.State.FADE, "surviving the chase enters fade")
+	_check_eq(fades[0], 1, "chase_faded fires once")
+	_check(not pursuer.is_active(), "fading pursuer is not active")
+	pursuer._physics_process(GameConfig.PURSUER_FADE_TIME + 0.1)
+	_check(pursuer.state == Pursuer.State.DORMANT, "fade returns to dormant")
+	_check(not pursuer.visible, "pursuer hides again when dormant")
+
+	# Catch by gap closing.
+	pursuer.wake()
+	var catches := [0]
+	pursuer.caught.connect(func() -> void: catches[0] += 1)
+	pursuer.gap = GameConfig.PURSUER_CATCH_DISTANCE - 10.0
+	pursuer.set_world_speed(GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR)
+	pursuer._physics_process(0.5)
+	_check_eq(catches[0], 1, "catch fires when the gap closes")
+	_check(pursuer.state == Pursuer.State.LUNGE, "catch enters the lunge death animation")
+	pursuer._process(GameConfig.PURSUER_LUNGE_TIME + 0.1)
+	_check_near(pursuer.gap, 0.0, 0.01, "lunge closes the gap to the player")
+
+	# Lunge from a hazard hit (world freezes, lunge still runs in _process).
+	var lunger := scene.instantiate() as Pursuer
+	add_child(lunger)
+	lunger.set_physics_process(false)
+	var lunges := [0]
+	lunger.lunge_finished.connect(func() -> void: lunges[0] += 1)
+	lunger.wake()
+	lunger.start_lunge()
+	_check(lunger.state == Pursuer.State.LUNGE, "hazard hit starts the lunge")
+	_check(lunger.is_active(), "lunging pursuer is active")
+	lunger._process(GameConfig.PURSUER_LUNGE_TIME + 0.1)
+	_check_eq(lunges[0], 1, "lunge_finished fires after the death animation")
+	lunger.queue_free()
+
+	# Player: hazard while active is instant loss, hearts and i-frames ignored.
+	var player := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
+	add_child(player)
+	player.set_physics_process(false)
+	var damaged_count := [0]
+	var caught_count := [0]
+	var died_count := [0]
+	player.damaged.connect(func(_remaining: int) -> void: damaged_count[0] += 1)
+	player.caught.connect(func() -> void: caught_count[0] += 1)
+	player.died.connect(func() -> void: died_count[0] += 1)
+
+	var live := (load("res://scenes/hazard.tscn") as PackedScene).instantiate() as Hazard
+	add_child(live)
+	live.set_physics_process(false)
+	live.setup(GameConfig.HazardKind.MANHOLE, player.lane, 0.0)
+	live.position.x = GameConfig.PLAYER_X
+
+	player.pursuer_active = true
+	player.invulnerable_time_left = 1.0  # i-frames must not save the player
+	await _physics_frames(4)
+	_check_eq(caught_count[0], 1, "hazard while chased emits caught")
+	_check_eq(died_count[0], 1, "hazard while chased emits died")
+	_check_eq(damaged_count[0], 0, "hazard while chased never emits damaged")
+	_check_eq(player.health, GameConfig.MAX_HEARTS, "hazard while chased loses no hearts")
+
+	player.reset_health()
+	caught_count[0] = 0
+	died_count[0] = 0
+	damaged_count[0] = 0
+	player.invulnerable_time_left = 0.0
+	player.pursuer_active = false
+	var live2 := (load("res://scenes/hazard.tscn") as PackedScene).instantiate() as Hazard
+	add_child(live2)
+	live2.set_physics_process(false)
+	live2.setup(GameConfig.HazardKind.MANHOLE, player.lane, 0.0)
+	live2.position.x = GameConfig.PLAYER_X
+	await _physics_frames(4)
+	_check_eq(damaged_count[0], 1, "hazard while dormant emits damaged")
+	_check_eq(caught_count[0], 0, "hazard while dormant never emits caught")
+	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "hazard while dormant loses one heart")
+	live.queue_free()
+	live2.queue_free()
+	player.queue_free()
+	pursuer.queue_free()
+
+
 func _test_scenes() -> void:
 	var main_scene := load("res://scenes/main.tscn") as PackedScene
 	_check(main_scene != null, "main scene loads")
@@ -759,6 +908,11 @@ func _test_scenes() -> void:
 		_check(world.hud != null, "run world contains the hearts HUD")
 		_check(world.score_hud != null, "run world contains the score HUD")
 		_check(world.score_system != null, "run world owns a score system")
+		_check(world.pursuer != null, "run world contains the pursuer")
+		_check(world.pursuer.state == Pursuer.State.DORMANT, "pursuer starts dormant")
+		_check_near(world.speed, GameConfig.RUN_SPEED, 0.01, "run world starts at RUN_SPEED")
+		_check(not world.caught_label.visible, "caught label starts hidden")
+		_check(world.game_over_label.visible, "out-of-hearts label is the default")
 		_check_eq(world.score_system.score, 0, "score starts at 0")
 		_check(world.is_running, "the run starts running")
 		_check(not world.game_over_root.visible, "the game over overlay starts hidden")
@@ -791,6 +945,57 @@ func _test_scenes() -> void:
 			_check(world.distance > 0.0, "distance advances while running")
 			_check(world.hazards.get_child_count() > 0, "the director spawns hazards as distance grows")
 			_check(world.score_system.score > 0, "distance scores points while running")
+
+		if world.player != null and world.pursuer != null:
+			# Damage wakes the pursuer and dips momentum (1.0 s hold + 1.5 s ease).
+			world.player.invulnerable_time_left = 0.0
+			world._on_player_damaged(world.player.health - 1)
+			_check(world.pursuer.state == Pursuer.State.CHASE, "damage wakes the pursuer through the world")
+			_check(world.momentum_time_left > 0.0, "damage starts the momentum dip")
+			for i in 60:
+				world._physics_process(1.0 / 60.0)
+			_check_near(world.speed, GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR, 0.1, "world holds at 315 px/s during the dip")
+			for i in 45:
+				world._physics_process(1.0 / 60.0)
+			_check(
+				world.speed > GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR
+				and world.speed < GameConfig.RUN_SPEED,
+				"momentum eases back gradually (%.0f px/s mid-recovery)" % world.speed,
+			)
+			for i in 60:
+				world._physics_process(1.0 / 60.0)
+			_check_near(world.speed, GameConfig.RUN_SPEED, 0.1, "momentum recovers after the ease")
+
+			# Hazards ride the road: live speed follows the dipped world speed.
+			var sync_hazard := (load("res://scenes/hazard.tscn") as PackedScene).instantiate() as Hazard
+			world.hazards.add_child(sync_hazard)
+			sync_hazard.setup(GameConfig.HazardKind.MANHOLE, GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
+			sync_hazard.position.x = 1200.0
+			world._on_player_damaged(world.player.health - 1)
+			world._physics_process(1.0 / 60.0)
+			sync_hazard._physics_process(1.0 / 60.0)
+			_check_near(
+				sync_hazard.position.x,
+				1200.0 - world.speed * (1.0 / 60.0),
+				2.5,
+				"hazard moves with the dipped road speed",
+			)
+			sync_hazard.queue_free()
+
+			# Missed item also wakes the pursuer.
+			world.pursuer.state = Pursuer.State.DORMANT
+			world.pursuer.visible = false
+			world._on_item_missed()
+			_check(world.pursuer.state == Pursuer.State.CHASE, "missed item wakes the pursuer through the world")
+
+			# Chase death: hazard while active -> CAUGHT! after the lunge.
+			world.player.pursuer_active = true
+			world._on_player_caught()
+			_check(not world.is_running, "caught stops the run")
+			world.pursuer._process(GameConfig.PURSUER_LUNGE_TIME + 0.1)
+			_check(world.game_over_root.visible, "caught shows the game over overlay")
+			_check(world.caught_label.visible, "caught shows CAUGHT!")
+			_check(not world.game_over_label.visible, "caught hides OUT OF HEARTS")
 
 		if world.player != null:
 			# Item pickup + damage resets the combo through the world wiring.

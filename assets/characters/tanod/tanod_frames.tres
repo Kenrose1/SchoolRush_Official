@@ -1,0 +1,67 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/idle_0.png" id="1_nqxcs"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/idle_1.png" id="2_j1qji"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/idle_2.png" id="3_r5tbx"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/idle_3.png" id="4_bcr5m"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/run_0.png" id="5_ggvth"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/run_1.png" id="6_gl07f"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/run_2.png" id="7_d61vr"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/run_3.png" id="8_pby2k"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/run_4.png" id="9_bfx30"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/run_5.png" id="10_adgvr"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/run_6.png" id="11_oo1f1"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/run_7.png" id="12_tmiuy"]
+[ext_resource type="Texture2D" path="res://assets/characters/tanod/run_8.png" id="13_1rue3"]
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_nqxcs")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_j1qji")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_r5tbx")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_bcr5m")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("5_ggvth")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_gl07f")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_d61vr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_pby2k")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_bfx30")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_adgvr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_oo1f1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_tmiuy")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_1rue3")
+}],
+"loop": 1,
+"name": &"run",
+"speed": 14.0
+}]
