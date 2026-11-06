@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cpavayhne0i08"]
+
+[ext_resource type="Script" path="res://tools/capture_m1.gd" id="1_capture"]
+
+[node name="CaptureM1" type="Node" unique_id=25768547]
+script = ExtResource("1_capture")
