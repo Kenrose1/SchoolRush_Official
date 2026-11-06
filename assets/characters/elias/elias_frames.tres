@@ -1,0 +1,126 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_0.png" id="1_yrgkd"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_1.png" id="2_fihwj"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_2.png" id="3_2xvy2"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_3.png" id="4_kdj5l"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_4.png" id="5_jxeec"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_5.png" id="6_2hcdm"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_0.png" id="7_k86cr"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_1.png" id="8_78b14"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_2.png" id="9_td6qi"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_3.png" id="10_1g36s"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/jump_0.png" id="11_dmqop"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/jump_1.png" id="12_v0h0v"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/jump_2.png" id="13_ff7x1"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_0.png" id="14_1ivwn"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_1.png" id="15_b02i4"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_2.png" id="16_uuqor"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_3.png" id="17_k2lkc"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_4.png" id="18_4gq1t"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_5.png" id="19_3geqm"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_6.png" id="20_2wl5b"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_0.png" id="21_dbahl"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_1.png" id="22_lxu2p"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_2.png" id="23_eceh1"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_3.png" id="24_ks0kc"]
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_yrgkd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_fihwj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_2xvy2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_kdj5l")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_jxeec")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_2hcdm")
+}],
+"loop": 0,
+"name": &"hurt",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("7_k86cr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_78b14")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_td6qi")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_1g36s")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("11_dmqop")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_v0h0v")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_ff7x1")
+}],
+"loop": 0,
+"name": &"jump",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("14_1ivwn")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_b02i4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16_uuqor")
+}, {
+"duration": 1.0,
+"texture": ExtResource("17_k2lkc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("18_4gq1t")
+}, {
+"duration": 1.0,
+"texture": ExtResource("19_3geqm")
+}, {
+"duration": 1.0,
+"texture": ExtResource("20_2wl5b")
+}],
+"loop": 1,
+"name": &"run",
+"speed": 14.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("21_dbahl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("22_lxu2p")
+}, {
+"duration": 1.0,
+"texture": ExtResource("23_eceh1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("24_ks0kc")
+}],
+"loop": 1,
+"name": &"slide",
+"speed": 8.0
+}]

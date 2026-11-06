@@ -12,16 +12,6 @@ signal landed
 signal slide_started
 signal slide_finished
 
-## Animation definitions for the individual Elias PNG frames.
-const ANIMATIONS := {
-	"idle": {"frames": 4, "fps": 8.0, "loop": true},
-	"run": {"frames": 7, "fps": 14.0, "loop": true},
-	"jump": {"frames": 3, "fps": 10.0, "loop": false},
-	"slide": {"frames": 4, "fps": 8.0, "loop": true},
-	"hurt": {"frames": 6, "fps": 10.0, "loop": false},
-}
-const FRAME_PATH := "res://assets/characters/elias/%s_%d.png"
-
 ## Current lane tier (GameConfig.LANE_TOP / MIDDLE / BOTTOM).
 var lane: int = GameConfig.PLAYER_START_LANE
 ## Interpolated baseline Y of the current lane (the feet position).
@@ -42,7 +32,6 @@ var _current_anim: StringName = &""
 
 func _ready() -> void:
 	lane_y = GameConfig.lane_y(lane)
-	_build_frames()
 	_play(&"run")
 	_apply_pose()
 
@@ -191,20 +180,3 @@ func _draw() -> void:
 	draw_set_transform(Vector2(0.0, 4.0), 0.0, Vector2(1.0, 0.32))
 	draw_circle(Vector2.ZERO, radius, Color(0.0, 0.0, 0.0, alpha))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-## Build SpriteFrames from the per-frame PNGs in assets/characters/elias/.
-func _build_frames() -> void:
-	var frames := SpriteFrames.new()
-	for anim_name: String in ANIMATIONS:
-		var config: Dictionary = ANIMATIONS[anim_name]
-		frames.add_animation(anim_name)
-		frames.set_animation_speed(anim_name, float(config["fps"]))
-		frames.set_animation_loop(anim_name, bool(config["loop"]))
-		for index in int(config["frames"]):
-			var path := FRAME_PATH % [anim_name, index]
-			var texture := ResourceLoader.load(path) as Texture2D
-			assert(texture != null, "Missing Elias frame: %s" % path)
-			frames.add_frame(anim_name, texture)
-	frames.remove_animation("default")
-	sprite.sprite_frames = frames

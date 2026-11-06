@@ -38,7 +38,7 @@ const LANE_LEAN_SMOOTHING := 16.0
 # --- Player ------------------------------------------------------------------
 
 const PLAYER_START_LANE := LANE_MIDDLE
-const PLAYER_X := 560.0
+const PLAYER_X := 400.0
 const PLAYER_SCALE := 0.6
 
 ## Source sprite dimensions, used to keep the feet planted while squashing.

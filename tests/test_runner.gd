@@ -158,14 +158,24 @@ func _test_player() -> void:
 		player._physics_process(1.0 / 60.0)
 	_check(not player.in_air, "player lands after the slide-cancel jump")
 
-	# Presentation.
+	# Presentation: frames are authored scene data, not built at runtime.
 	var frames := player.sprite.sprite_frames
-	_check(frames != null, "player builds sprite frames")
+	_check(frames != null, "player scene provides sprite frames")
 	if frames != null:
+		_check(
+			frames.resource_path.ends_with("elias_frames.tres"),
+			"sprite frames come from the committed resource (%s)" % frames.resource_path,
+		)
 		_check_eq(frames.get_animation_names().size(), 5, "five Elias animations exist")
 		_check_eq(frames.get_frame_count("run"), 7, "run animation has 7 frames")
 		_check_eq(frames.get_frame_count("jump"), 3, "jump animation has 3 frames")
 		_check_eq(frames.get_frame_count("slide"), 4, "slide animation has 4 frames")
+		var first_run := frames.get_frame_texture("run", 0)
+		_check(first_run != null, "run frame 0 has a texture")
+		if first_run != null:
+			_check(first_run.resource_path.ends_with("run_0.png"), "run frame 0 is run_0.png")
+		_check(frames.get_animation_loop("run"), "run animation loops")
+		_check(not frames.get_animation_loop("jump"), "jump animation does not loop")
 	player._physics_process(1.0 / 60.0)
 	_check_eq(player.sprite.animation, &"run", "running animation tracks the ground state")
 
@@ -185,6 +195,12 @@ func _test_scenes() -> void:
 	if world != null:
 		_check(world.player != null, "run world contains the player")
 		_check_near(world.speed, GameConfig.RUN_SPEED, 0.01, "run world starts at RUN_SPEED")
+		if world.player != null:
+			_check_eq(
+				world.player.sprite.animation,
+				&"run",
+				"player scene previews the run animation (visible in the editor)",
+			)
 	main.queue_free()
 
 

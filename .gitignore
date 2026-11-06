@@ -1,9 +1,60 @@
-# Godot 4+ specific ignores
+# ---------------------------------------------------------------------------
+# Godot — build/cache output (always regenerated)
+# ---------------------------------------------------------------------------
 .godot/
 /android/
-.vscode/
-.opencode/
+*.translation
 
-# Gamedev agent skills (re-install: node "C:\Program Files\nodejs\node_modules\npm\bin\npx-cli.js" skills add gamedev-skills/awesome-gamedev-agent-skills --project -y)
+# Never ignore these; they are project data, not build output:
+#   *.import            engine-generated import settings (filter/compression)
+#   *.uid               stable script and scene IDs (Godot 4.4+)
+#   export_presets.cfg  export configuration (keep secrets out of it)
+
+# ---------------------------------------------------------------------------
+# Export output
+# ---------------------------------------------------------------------------
+build/
+dist/
+export/
+*.exe
+*.pck
+*.zip
+*.7z
+*.dmg
+*.app
+*.x86_64
+*.x86_32
+*.arm64
+
+# ---------------------------------------------------------------------------
+# OS / editor junk
+# ---------------------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+._*
+*~
+*.bak
+*.tmp
+*.dmp
+
+# ---------------------------------------------------------------------------
+# IDEs
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+.vs/
+*.sublime-project
+*.sublime-workspace
+
+# ---------------------------------------------------------------------------
+# Agent tooling — the project skill stays tracked
+# ---------------------------------------------------------------------------
+.opencode/*
+!.opencode/skills/
+!.opencode/skills/**
 .agents/
 skills-lock.json
+
+# Gamedev agent skills (re-install: node "C:\Program Files\nodejs\node_modules\npm\bin\npx-cli.js" skills add gamedev-skills/awesome-gamedev-agent-skills --project -y)
