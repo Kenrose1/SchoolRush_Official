@@ -2,15 +2,18 @@ class_name Player
 extends CharacterBody2D
 ## Elias, the playable runner.
 ##
-## M1 scope: automatic forward motion belongs to the world, while this node owns
-## lane switching, jumping, sliding, and presentation. Hazards, health, and
-## scoring are added in later milestones.
+## Owns lane switching, jumping, sliding, health, and presentation. Forward
+## motion and distance belong to the world; the pursuer and scoring arrive in
+## later milestones.
 
 signal lane_changed(lane: int)
 signal jumped
 signal landed
 signal slide_started
 signal slide_finished
+signal damaged(remaining_hearts: int)
+signal health_changed(current: int, maximum: int)
+signal died
 
 ## Current lane tier (GameConfig.LANE_TOP / MIDDLE / BOTTOM).
 var lane: int = GameConfig.PLAYER_START_LANE
@@ -24,22 +27,42 @@ var in_air: bool = false
 var is_sliding: bool = false
 var slide_time_left: float = 0.0
 
+var health: int = GameConfig.MAX_HEARTS
+var invulnerable_time_left: float = 0.0
+
 var _lean: float = 0.0
+var _hurt_time_left: float = 0.0
 var _current_anim: StringName = &""
 
 @onready var sprite: AnimatedSprite2D = $Sprite
+@onready var hitbox: Area2D = $Hitbox
+@onready var hitbox_shape: CollisionShape2D = $Hitbox/Shape
+
+## Per-instance copy so sliding cannot resize shapes shared between players.
+var _box: RectangleShape2D
 
 
 func _ready() -> void:
 	lane_y = GameConfig.lane_y(lane)
+	# Layers come from GameConfig so collision setup lives in one place.
+	hitbox.collision_layer = GameConfig.LAYER_PLAYER
+	hitbox.collision_mask = GameConfig.PLAYER_MASK
+	hitbox.monitoring = true
+	_box = (hitbox_shape.shape as RectangleShape2D).duplicate()
+	hitbox_shape.shape = _box
+	hitbox.area_entered.connect(_on_hitbox_area_entered)
+	_update_hitbox()
 	_play(&"run")
 	_apply_pose()
+	health_changed.emit(health, GameConfig.MAX_HEARTS)
 
 
 func _physics_process(delta: float) -> void:
 	_update_lane(delta)
 	_update_jump(delta)
 	_update_slide(delta)
+	_update_invulnerability(delta)
+	_update_hitbox()
 	_apply_pose()
 	_update_animation()
 	queue_redraw()
@@ -95,6 +118,33 @@ func slide() -> bool:
 	return true
 
 
+## Whether a hit would register right now.
+func can_take_damage() -> bool:
+	return health > 0 and invulnerable_time_left <= 0.0
+
+
+## Apply damage unless invulnerable. Returns true when the hit landed.
+func take_damage(amount: int = 1) -> bool:
+	if not can_take_damage():
+		return false
+	health = maxi(health - amount, 0)
+	invulnerable_time_left = GameConfig.I_FRAME_TIME
+	_hurt_time_left = GameConfig.HURT_ANIM_TIME
+	damaged.emit(health)
+	health_changed.emit(health, GameConfig.MAX_HEARTS)
+	if health == 0:
+		died.emit()
+	return true
+
+
+## Restore full health and clear invulnerability (used by tests and retries).
+func reset_health() -> void:
+	health = GameConfig.MAX_HEARTS
+	invulnerable_time_left = 0.0
+	_hurt_time_left = 0.0
+	health_changed.emit(health, GameConfig.MAX_HEARTS)
+
+
 # --- Movement ----------------------------------------------------------------
 
 func _update_lane(delta: float) -> void:
@@ -119,11 +169,18 @@ func _update_jump(delta: float) -> void:
 
 
 func _update_slide(delta: float) -> void:
-	if not is_sliding:
-		return
-	slide_time_left -= delta
-	if slide_time_left <= 0.0:
-		_end_slide()
+	if is_sliding:
+		slide_time_left -= delta
+		if slide_time_left <= 0.0:
+			_end_slide()
+
+	if _hurt_time_left > 0.0:
+		_hurt_time_left = maxf(_hurt_time_left - delta, 0.0)
+
+
+func _update_invulnerability(delta: float) -> void:
+	if invulnerable_time_left > 0.0:
+		invulnerable_time_left = maxf(invulnerable_time_left - delta, 0.0)
 
 
 func _end_slide() -> void:
@@ -132,6 +189,24 @@ func _end_slide() -> void:
 	is_sliding = false
 	slide_time_left = 0.0
 	slide_finished.emit()
+
+
+# --- Collision ---------------------------------------------------------------
+
+func _on_hitbox_area_entered(area: Area2D) -> void:
+	if area is Hazard:
+		take_damage()
+
+
+## Resize and re-anchor the box: feet stay at the origin, height follows slide.
+func _update_hitbox() -> void:
+	if _box == null:
+		return
+	var height := GameConfig.HITBOX_SIZE.y
+	if is_sliding:
+		height *= GameConfig.SLIDE_HITBOX_HEIGHT_FACTOR
+	_box.size = Vector2(GameConfig.HITBOX_SIZE.x, height)
+	hitbox_shape.position = Vector2(0.0, -height * 0.5)
 
 
 # --- Presentation ------------------------------------------------------------
@@ -146,8 +221,18 @@ func _apply_pose() -> void:
 	sprite.position = Vector2(0.0, -GameConfig.PLAYER_SPRITE_HEIGHT * sprite_scale.y * 0.5)
 	sprite.rotation = deg_to_rad(_lean)
 
+	# Blink while invulnerable so the i-frame window is readable.
+	if invulnerable_time_left > 0.0:
+		var phase := fmod(invulnerable_time_left * GameConfig.I_FRAME_BLINK_HZ, 1.0)
+		sprite.modulate.a = 0.35 if phase < 0.5 else 1.0
+	else:
+		sprite.modulate.a = 1.0
+
 
 func _update_animation() -> void:
+	if _hurt_time_left > 0.0:
+		_play(&"hurt")
+		return
 	if in_air:
 		_play(&"jump")
 		sprite.pause()

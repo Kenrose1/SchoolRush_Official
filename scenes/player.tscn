@@ -1,15 +1,22 @@
-[gd_scene format=3 uid="uid://rs7jm7ne7lg2"]
+[gd_scene format=3 uid="uid://clgiu61s7n6w7"]
 
 [ext_resource type="Script" uid="uid://d045t21ykph3x" path="res://scripts/entities/player.gd" id="1_player"]
 [ext_resource type="SpriteFrames" path="res://assets/characters/elias/elias_frames.tres" id="2_frames"]
 
-[node name="Player" type="CharacterBody2D" unique_id=284909797]
-scale = Vector2(1.6, 1.6)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hitbox"]
+size = Vector2(66.42, 102.06)
+
+[node name="Player" type="CharacterBody2D" unique_id=1130972107]
 collision_mask = 0
 script = ExtResource("1_player")
 
-[node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=1021640231]
+[node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=292958782]
 sprite_frames = ExtResource("2_frames")
 animation = &"run"
-frame = 6
-frame_progress = 0.8157005
+
+[node name="Hitbox" type="Area2D" parent="." unique_id=1991489567]
+collision_mask = 10
+
+[node name="Shape" type="CollisionShape2D" parent="Hitbox" unique_id=1115595088]
+position = Vector2(-1, 2)
+shape = SubResource("RectangleShape2D_hitbox")

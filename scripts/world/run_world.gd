@@ -1,10 +1,11 @@
 class_name RunWorld
 extends Node2D
-## The M1 gray-box course.
+## The M2 gray-box course.
 ##
-## Owns forward speed and distance, draws the three lane tiers plus a placeholder
-## skyline, and hosts the player. Hazards, spawns, zones, and scoring are added
-## in later milestones.
+## Owns forward speed, distance, the hazard director, and the run lifecycle.
+## Draws the three lane tiers plus a placeholder skyline and hosts the player
+## and the temporary heart HUD. Scoring, zones, and the pursuer arrive in later
+## milestones.
 
 const SKY_COLOR := Color("#6fb7e8")
 const SUN_COLOR := Color("#fff3b0")
@@ -17,41 +18,83 @@ const LANE_EDGE := Color(0.83, 0.88, 0.96, 0.55)
 const GROUND_TICK := Color(0.85, 0.9, 0.98, 0.35)
 
 @onready var player: Player = $Player
+@onready var hazards: Node2D = $Hazards
+@onready var director: SpawnDirector = $SpawnDirector
+@onready var hud: HeartsHud = $Hud
+@onready var game_over_root: Control = $GameOver/Root
 @onready var _debug_label: Label = $DebugOverlay/Label
 
 ## Forward speed in px/s. Stays at the base value until ramping lands in M5.
 var speed: float = GameConfig.RUN_SPEED
 ## Distance travelled this run, in pixels.
 var distance: float = 0.0
+## False after the last heart is lost; the world freezes until [R].
+var is_running: bool = true
 
 
 func _ready() -> void:
 	_debug_label.visible = GameConfig.DEBUG_OVERLAY
+	game_over_root.visible = false
+
+	player.health_changed.connect(_on_health_changed)
+	player.died.connect(_on_player_died)
+	hud.set_hearts(player.health, GameConfig.MAX_HEARTS)
+
+	director.setup(hazards, randi())
 
 
 func _physics_process(delta: float) -> void:
+	if not is_running:
+		return
 	distance += speed * delta
+	director.tick(delta, speed, distance)
 	queue_redraw()
 	_update_debug()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo \
-			and (event as InputEventKey).physical_keycode == KEY_F3:
-		_debug_label.visible = not _debug_label.visible
-		get_viewport().set_input_as_handled()
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	match (event as InputEventKey).physical_keycode:
+		KEY_F3:
+			_debug_label.visible = not _debug_label.visible
+			get_viewport().set_input_as_handled()
+		KEY_R:
+			if not is_running:
+				get_tree().reload_current_scene()
+				get_viewport().set_input_as_handled()
+
+
+# --- Run lifecycle -----------------------------------------------------------
+
+func _on_health_changed(current: int, maximum: int) -> void:
+	hud.set_hearts(current, maximum)
+
+
+func _on_player_died() -> void:
+	is_running = false
+	game_over_root.visible = true
+	hazards.process_mode = Node.PROCESS_MODE_DISABLED
+	director.process_mode = Node.PROCESS_MODE_DISABLED
+	player.set_physics_process(false)
+	player.set_process_unhandled_input(false)
+	player.sprite.modulate.a = 1.0
+	_update_debug()
 
 
 func _update_debug() -> void:
 	if not _debug_label.visible:
 		return
-	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nAIR   %.0f px   SLIDE %s\nFPS   %d\n[F3] hide" % [
+	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nAIR   %.0f px   SLIDE %s\nHEARTS %d/%d   IFRAME %.2f s\nFPS   %d\n[F3] hide" % [
 		player.lane,
 		player.lane_y,
 		speed,
 		distance / 100.0,
 		player.air_height,
 		"yes" if player.is_sliding else "no",
+		player.health,
+		GameConfig.MAX_HEARTS,
+		player.invulnerable_time_left,
 		Engine.get_frames_per_second(),
 	]
 
