@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dplutw307eew1"
-path="res://.godot/imported/slide_1.png-9a101c8deb239ec3717485afb284694a.ctex"
+path="res://.godot/imported/slide_1.png-d87dbd1e6c109408c46aebdbc172bf89.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/elias/slide_1.png"
-dest_files=["res://.godot/imported/slide_1.png-9a101c8deb239ec3717485afb284694a.ctex"]
+source_file="res://assets/characters/elias/slide_1.png"
+dest_files=["res://.godot/imported/slide_1.png-d87dbd1e6c109408c46aebdbc172bf89.ctex"]
 
 [params]
 

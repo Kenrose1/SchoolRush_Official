@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cc7rx2g6daelr"
-path="res://.godot/imported/run_1.png-80ba393003e191f3d943da7244d75d1f.ctex"
+path="res://.godot/imported/run_1.png-dbbd1ac36b2b7913377123eee8ac0b77.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/elias/run_1.png"
-dest_files=["res://.godot/imported/run_1.png-80ba393003e191f3d943da7244d75d1f.ctex"]
+source_file="res://assets/characters/elias/run_1.png"
+dest_files=["res://.godot/imported/run_1.png-dbbd1ac36b2b7913377123eee8ac0b77.ctex"]
 
 [params]
 

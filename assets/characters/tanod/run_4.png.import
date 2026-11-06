@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://6l760lplrhfc"
-path="res://.godot/imported/run_4.png-8264a3b6025d615e58a9c85d9a5df529.ctex"
+path="res://.godot/imported/run_4.png-d4ac60255e2364d6bb598ad890526a88.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/guard/run_4.png"
-dest_files=["res://.godot/imported/run_4.png-8264a3b6025d615e58a9c85d9a5df529.ctex"]
+source_file="res://assets/characters/tanod/run_4.png"
+dest_files=["res://.godot/imported/run_4.png-d4ac60255e2364d6bb598ad890526a88.ctex"]
 
 [params]
 
