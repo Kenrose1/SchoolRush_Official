@@ -1,11 +1,10 @@
 class_name RunWorld
 extends Node2D
-## The M2 gray-box course.
+## The M3 gray-box course.
 ##
-## Owns forward speed, distance, the hazard director, and the run lifecycle.
+## Owns forward speed, distance, the hazard director, School Items, and scoring.
 ## Draws the three lane tiers plus a placeholder skyline and hosts the player
-## and the temporary heart HUD. Scoring, zones, and the pursuer arrive in later
-## milestones.
+## and the hearts HUD. The pursuer arrives in M4.
 
 const SKY_COLOR := Color("#6fb7e8")
 const SUN_COLOR := Color("#fff3b0")
@@ -21,6 +20,7 @@ const GROUND_TICK := Color(0.85, 0.9, 0.98, 0.35)
 @onready var hazards: Node2D = $Hazards
 @onready var director: SpawnDirector = $SpawnDirector
 @onready var hud: HeartsHud = $Hud
+@onready var score_hud: ScoreHud = $ScoreHud
 @onready var game_over_root: Control = $GameOver/Root
 @onready var _debug_label: Label = $DebugOverlay/Label
 
@@ -30,6 +30,8 @@ var speed: float = GameConfig.RUN_SPEED
 var distance: float = 0.0
 ## False after the last heart is lost; the world freezes until [R].
 var is_running: bool = true
+## Pure score system: distance points, hazard passes, School Item pickups.
+var score_system: ScoreSystem = ScoreSystem.new()
 
 
 func _ready() -> void:
@@ -38,8 +40,19 @@ func _ready() -> void:
 
 	player.health_changed.connect(_on_health_changed)
 	player.died.connect(_on_player_died)
+	player.item_collected.connect(_on_item_collected)
+	player.damaged.connect(_on_player_damaged)
 	hud.set_hearts(player.health, GameConfig.MAX_HEARTS)
 
+	score_system.score_changed.connect(score_hud.set_score)
+	score_system.combo_changed.connect(score_hud.set_combo)
+	score_system.item_count_changed.connect(score_hud.set_items)
+	score_hud.set_score(score_system.score)
+	score_hud.set_combo(1, 0)
+	score_hud.set_items(0)
+
+	director.hazard_passed.connect(score_system.add_hazard_passed)
+	director.item_missed.connect(score_system.reset_combo)
 	director.setup(hazards, randi())
 
 
@@ -48,6 +61,7 @@ func _physics_process(delta: float) -> void:
 		return
 	distance += speed * delta
 	director.tick(delta, speed, distance)
+	score_system.add_distance(distance)
 	queue_redraw()
 	_update_debug()
 
@@ -71,6 +85,14 @@ func _on_health_changed(current: int, maximum: int) -> void:
 	hud.set_hearts(current, maximum)
 
 
+func _on_item_collected(_kind: int) -> void:
+	score_system.add_item_pickup()
+
+
+func _on_player_damaged(_remaining: int) -> void:
+	score_system.reset_combo()
+
+
 func _on_player_died() -> void:
 	is_running = false
 	game_over_root.visible = true
@@ -85,7 +107,7 @@ func _on_player_died() -> void:
 func _update_debug() -> void:
 	if not _debug_label.visible:
 		return
-	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nAIR   %.0f px   SLIDE %s\nHEARTS %d/%d   IFRAME %.2f s\nFPS   %d\n[F3] hide" % [
+	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nAIR   %.0f px   SLIDE %s\nHEARTS %d/%d   IFRAME %.2f s\nSCORE %d   x%d   ITEMS %d\nFPS   %d\n[F3] hide" % [
 		player.lane,
 		player.lane_y,
 		speed,
@@ -95,6 +117,9 @@ func _update_debug() -> void:
 		player.health,
 		GameConfig.MAX_HEARTS,
 		player.invulnerable_time_left,
+		score_system.score,
+		GameConfig.combo_multiplier(score_system.chain),
+		score_system.item_count,
 		Engine.get_frames_per_second(),
 	]
 

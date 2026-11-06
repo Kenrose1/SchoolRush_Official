@@ -6,6 +6,8 @@ extends Area2D
 ## travel left at the world speed and despawn behind the player. Static and
 ## moving kinds alike stay locked to their spawn lane for now.
 
+signal passed_player
+
 ## Vertical offset of the sprite/hitbox when it is not pushed up by clearance.
 const FRAME_FPS := 10.0
 
@@ -21,6 +23,7 @@ var lane_locked: bool = true
 
 var _data: Dictionary = {}
 var _frame_timer: float = 0.0
+var _passed: bool = false
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var shape: CollisionShape2D = $Shape
@@ -47,6 +50,9 @@ func setup(new_kind: GameConfig.HazardKind, new_lane: int, world_speed: float) -
 
 func _physics_process(delta: float) -> void:
 	position.x -= (speed + float(_data.get("extra_speed", 0.0))) * delta
+	if not _passed and position.x < GameConfig.PLAYER_X:
+		_passed = true
+		passed_player.emit()
 	if position.x < GameConfig.DESPAWN_X:
 		queue_free()
 

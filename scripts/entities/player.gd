@@ -13,6 +13,7 @@ signal slide_started
 signal slide_finished
 signal damaged(remaining_hearts: int)
 signal health_changed(current: int, maximum: int)
+signal item_collected(kind: int)
 signal died
 
 ## Current lane tier (GameConfig.LANE_TOP / MIDDLE / BOTTOM).
@@ -196,6 +197,10 @@ func _end_slide() -> void:
 func _on_hitbox_area_entered(area: Area2D) -> void:
 	if area is Hazard:
 		take_damage()
+	elif area is Collectible:
+		area.collect()
+		var collected_kind: int = area.get_kind()
+		item_collected.emit(collected_kind)
 
 
 ## Resize and re-anchor the box: feet stay at the origin, height follows slide.

@@ -19,6 +19,14 @@ const SHOWCASE := [
 	[GameConfig.HazardKind.DOG, GameConfig.LANE_BOTTOM, 1660.0],
 ]
 
+## Showcase for School Items: one of each kind across the lanes.
+const ITEM_SHOWCASE := [
+	[GameConfig.ItemKind.PENCIL, GameConfig.LANE_TOP, 740.0],
+	[GameConfig.ItemKind.ERASER, GameConfig.LANE_MIDDLE, 940.0],
+	[GameConfig.ItemKind.BOOK, GameConfig.LANE_BOTTOM, 1140.0],
+	[GameConfig.ItemKind.BAG, GameConfig.LANE_MIDDLE, 1340.0],
+]
+
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
@@ -27,27 +35,35 @@ func _ready() -> void:
 	var world := main.get_node("RunWorld") as RunWorld
 
 	await _wait(20)
-	await _shot("m2_01_run")
+	await _shot("m3_01_run")
 
-	# Freeze spawning, clear the live hazards, then stage one of every kind.
+	# Freeze spawning, clear the live objects, then stage hazards + items.
 	world.is_running = false
 	for child in world.hazards.get_children():
 		child.queue_free()
 	await _wait(2)
 	for entry: Array in SHOWCASE:
 		_spawn(world, entry[0], entry[1], entry[2])
+	for entry: Array in ITEM_SHOWCASE:
+		_spawn_item(world, entry[0], entry[1], entry[2])
 	await _wait(2)
-	await _shot("m2_02_hazards")
+	await _shot("m3_02_items_and_hazards")
+
+	# Build a combo so the multiplier readout is populated.
+	for i in 12:
+		world.score_system.add_item_pickup()
+	await _wait(2)
+	await _shot("m3_03_combo")
 
 	world.player.take_damage()
 	await _wait(2)
-	await _shot("m2_03_damage")
+	await _shot("m3_04_damage")
 
 	for i in GameConfig.MAX_HEARTS:
 		world.player.invulnerable_time_left = 0.0
 		world.player.take_damage()
 	await _wait(2)
-	await _shot("m2_04_game_over")
+	await _shot("m3_05_game_over")
 
 	get_tree().quit(0)
 
@@ -57,6 +73,13 @@ func _spawn(world: RunWorld, kind: GameConfig.HazardKind, lane: int, x: float) -
 	world.hazards.add_child(hazard)
 	hazard.setup(kind, lane, 0.0)
 	hazard.position.x = x
+
+
+func _spawn_item(world: RunWorld, kind: GameConfig.ItemKind, lane: int, x: float) -> void:
+	var item := (load("res://scenes/collectible.tscn") as PackedScene).instantiate() as Collectible
+	world.hazards.add_child(item)
+	item.setup(kind, lane, 0.0)
+	item.position.x = x
 
 
 func _wait(frames: int) -> void:

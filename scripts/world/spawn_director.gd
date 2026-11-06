@@ -1,23 +1,30 @@
 class_name SpawnDirector
 extends Node
-## Spawns hazard rows ahead of the player.
+## Spawns hazard rows ahead of the player and School Items on their own clock.
 ##
 ## Timing is expressed in travelled distance rather than wall-clock seconds so
 ## the course density stays identical when RUN_SPEED changes in M5. Patterns are
 ## pure static functions so the headless fuzz suite can hammer them without a
 ## scene tree.
 
+signal hazard_passed
+signal item_missed
+
 const HAZARD_SCENE := preload("res://scenes/hazard.tscn")
+const COLLECTIBLE_SCENE := preload("res://scenes/collectible.tscn")
 
 var hazards: Node2D = null
 var _rng := RandomNumberGenerator.new()
 var _distance_since_row: float = GameConfig.ROW_GAP_START
+var _distance_since_pickup: float = 0.0
+var _pickup_gap: float = 0.0
 
 
 ## Attach to the container that receives hazard instances.
 func setup(parent: Node2D, seed_value: int = 0) -> void:
 	hazards = parent
 	_rng.seed = seed_value
+	_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX)
 
 
 ## Advance the spawn clock. Call once per physics frame with the world speed.
@@ -31,6 +38,12 @@ func tick(delta: float, speed: float, distance: float) -> void:
 		spawn_row(distance, speed)
 		gap = GameConfig.row_gap(distance)
 
+	_distance_since_pickup += speed * delta
+	while _distance_since_pickup >= _pickup_gap:
+		_distance_since_pickup -= _pickup_gap
+		spawn_pickup(distance, speed)
+		_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX)
+
 
 ## Spawn one row. At most two lanes are blocked, so one is always open.
 func spawn_row(distance: float, speed: float = GameConfig.RUN_SPEED) -> Array[int]:
@@ -40,7 +53,48 @@ func spawn_row(distance: float, speed: float = GameConfig.RUN_SPEED) -> Array[in
 		hazards.add_child(hazard)
 		hazard.setup(pick_kind(distance, _rng), lane, speed)
 		hazard.position.x = GameConfig.SPAWN_X
+		hazard.passed_player.connect(_on_hazard_passed)
 	return lanes
+
+
+## Spawn one School Item on a lane clear of nearby hazards.
+## Returns the lane used, or -1 when the pickup was skipped.
+func spawn_pickup(distance: float, speed: float = GameConfig.RUN_SPEED) -> int:
+	var occupied: Array[int] = []
+	for child in hazards.get_children():
+		if child is Hazard:
+			var hazard_node := child as Hazard
+			if absf(hazard_node.position.x - GameConfig.SPAWN_X) < GameConfig.PICKUP_LANE_CLEARANCE:
+				if not occupied.has(hazard_node.lane):
+					occupied.append(hazard_node.lane)
+
+	var lane := choose_pickup_lane(occupied, _rng)
+	if lane < 0:
+		return -1
+
+	var kinds: Array[GameConfig.ItemKind] = [
+		GameConfig.ItemKind.PENCIL,
+		GameConfig.ItemKind.ERASER,
+		GameConfig.ItemKind.BOOK,
+		GameConfig.ItemKind.BAG,
+	]
+	var item := COLLECTIBLE_SCENE.instantiate() as Collectible
+	hazards.add_child(item)
+	item.setup(kinds[_rng.randi() % kinds.size()], lane, speed)
+	item.position.x = GameConfig.SPAWN_X
+	item.missed.connect(_on_item_missed)
+	return lane
+
+
+## Pure lane choice for the pickup clock. Returns -1 when no lane is open.
+static func choose_pickup_lane(occupied: Array[int], rng: RandomNumberGenerator) -> int:
+	var open_lanes: Array[int] = []
+	for lane in GameConfig.LANE_COUNT:
+		if not occupied.has(lane):
+			open_lanes.append(lane)
+	if open_lanes.is_empty():
+		return -1
+	return open_lanes[rng.randi() % open_lanes.size()]
 
 
 ## Lane indices blocked by one row, sorted ascending.
@@ -90,3 +144,11 @@ static func pick_kind(distance: float, rng: RandomNumberGenerator) -> GameConfig
 		if roll <= 0.0:
 			return kind
 	return GameConfig.HazardKind.MANHOLE
+
+
+func _on_hazard_passed() -> void:
+	hazard_passed.emit()
+
+
+func _on_item_missed() -> void:
+	item_missed.emit()

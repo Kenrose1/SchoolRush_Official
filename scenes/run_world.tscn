@@ -1,46 +1,56 @@
-[gd_scene load_steps=6 format=3 uid="uid://drmgu8gr2edhm"]
+[gd_scene format=3 uid="uid://drmgu8gr2edhm"]
 
 [ext_resource type="Script" uid="uid://bjqbq0fq7dbm3" path="res://scripts/world/run_world.gd" id="1_world"]
-[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
-[ext_resource type="Script" path="res://scripts/world/spawn_director.gd" id="3_director"]
-[ext_resource type="Script" path="res://scripts/ui/hearts_hud.gd" id="4_hud"]
+[ext_resource type="PackedScene" uid="uid://clgiu61s7n6w7" path="res://scenes/player.tscn" id="2_player"]
+[ext_resource type="Script" uid="uid://d2cxjh4pkkec0" path="res://scripts/world/spawn_director.gd" id="3_director"]
+[ext_resource type="PackedScene" uid="uid://b7yyoa3oxewcp" path="res://scenes/hearts_hud.tscn" id="4_hearts"]
+[ext_resource type="Script" uid="uid://1f153lp72fw2" path="res://scripts/ui/score_hud.gd" id="5_score"]
 
-[node name="RunWorld" type="Node2D"]
+[node name="RunWorld" type="Node2D" unique_id=894551756]
+position = Vector2(484, 105)
 script = ExtResource("1_world")
 
-[node name="Hazards" type="Node2D" parent="."]
+[node name="Hazards" type="Node2D" parent="." unique_id=1347232564]
 
-[node name="Player" parent="." instance=ExtResource("2_player")]
+[node name="Player" parent="." unique_id=1576742457 instance=ExtResource("2_player")]
 
-[node name="SpawnDirector" type="Node" parent="."]
+[node name="SpawnDirector" type="Node" parent="." unique_id=1285426724]
 script = ExtResource("3_director")
 
-[node name="Hud" type="CanvasLayer" parent="."]
-script = ExtResource("4_hud")
+[node name="Hud" parent="." unique_id=156043162 instance=ExtResource("4_hearts")]
 
-[node name="GameOver" type="CanvasLayer" parent="."]
+[node name="ScoreHud" type="CanvasLayer" parent="." unique_id=78894855]
+script = ExtResource("5_score")
+
+[node name="GameOver" type="CanvasLayer" parent="." unique_id=1271252008]
 layer = 20
 
-[node name="Root" type="Control" parent="GameOver"]
+[node name="Root" type="Control" parent="GameOver" unique_id=2124762756]
 visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 
-[node name="Dim" type="ColorRect" parent="GameOver/Root"]
+[node name="Dim" type="ColorRect" parent="GameOver/Root" unique_id=461408495]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0.04, 0.05, 0.08, 0.66)
 
-[node name="Label" type="Label" parent="GameOver/Root"]
+[node name="Label" type="Label" parent="GameOver/Root" unique_id=1819648649]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
 theme_override_constants/shadow_offset_x = 4
@@ -52,11 +62,11 @@ text = "OUT OF HEARTS
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="DebugOverlay" type="CanvasLayer" parent="."]
+[node name="DebugOverlay" type="CanvasLayer" parent="." unique_id=1933827120]
 process_mode = 3
 layer = 10
 
-[node name="Label" type="Label" parent="DebugOverlay"]
+[node name="Label" type="Label" parent="DebugOverlay" unique_id=881636510]
 offset_left = 28.0
 offset_top = 908.0
 offset_right = 760.0

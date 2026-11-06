@@ -87,7 +87,7 @@ const LAYER_HAZARD := 2
 const LAYER_COLLECTIBLE := 4
 const LAYER_FX := 8
 
-const PLAYER_MASK := LAYER_HAZARD | LAYER_FX
+const PLAYER_MASK := LAYER_HAZARD | LAYER_COLLECTIBLE | LAYER_FX
 
 ## The hitbox is 10% smaller than the sprite so edge grazes do not count.
 const HITBOX_SHRINK := 0.9
@@ -150,6 +150,42 @@ const HAZARD_WEIGHT := {
 	HazardKind.DOG: 1.5,
 }
 
+# --- School Items ------------------------------------------------------------
+
+enum ItemKind { PENCIL, ERASER, BOOK, BAG }
+
+## Per-kind art. All items float at the same hover height and share one hitbox.
+const ITEM_DATA := {
+	ItemKind.PENCIL: {"texture": "res://assets/props/item_pencil.png", "scale": 0.44},
+	ItemKind.ERASER: {"texture": "res://assets/props/item_eraser.png", "scale": 0.42},
+	ItemKind.BOOK: {"texture": "res://assets/props/item_book.png", "scale": 0.55},
+	ItemKind.BAG: {"texture": "res://assets/props/item_bag.png", "scale": 0.50},
+}
+
+## School Items run on their own distance clock, between hazard rows.
+const PICKUP_GAP_MIN := 1200.0
+const PICKUP_GAP_MAX := 1800.0
+
+## An item never spawns in a lane with a hazard within this x distance.
+const PICKUP_LANE_CLEARANCE := 200.0
+
+const ITEM_HOVER_HEIGHT := 62.0
+const ITEM_HITBOX_SIZE := Vector2(44.0, 44.0)
+const ITEM_BOB_HEIGHT := 6.0
+const ITEM_BOB_SPEED := 4.0
+
+# --- Score -------------------------------------------------------------------
+
+const SCORE_DISTANCE_DIVISOR := 10.0
+const SCORE_PER_HAZARD := 10
+const SCORE_PER_ITEM := 50
+
+## Pickup chain thresholds. The combo is built only by School Items and resets
+## when the player is hit or lets an item scroll past.
+const COMBO_THRESHOLD_2 := 3
+const COMBO_THRESHOLD_3 := 6
+const COMBO_THRESHOLD_5 := 10
+
 # --- Spawning ----------------------------------------------------------------
 
 ## Distance between hazard rows, easing from start toward the floor.
@@ -198,3 +234,14 @@ static func lane_y(lane: int) -> float:
 static func row_gap(distance: float) -> float:
 	var t := clampf(distance / ROW_GAP_RAMP_DISTANCE, 0.0, 1.0)
 	return lerpf(ROW_GAP_START, ROW_GAP_MIN, t)
+
+
+## Score multiplier for a pickup chain length.
+static func combo_multiplier(chain: int) -> int:
+	if chain >= COMBO_THRESHOLD_5:
+		return 5
+	if chain >= COMBO_THRESHOLD_3:
+		return 3
+	if chain >= COMBO_THRESHOLD_2:
+		return 2
+	return 1

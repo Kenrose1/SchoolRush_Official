@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://b7yyoa3oxewcp"]
+
+[ext_resource type="Script" uid="uid://ch554k806fdhs" path="res://scripts/ui/hearts_hud.gd" id="1_hud"]
+[ext_resource type="Texture2D" uid="uid://cne1vj437o8pt" path="res://assets/heart/heart.png" id="2_heart"]
+
+[node name="HeartsHud" type="CanvasLayer" unique_id=151054007]
+script = ExtResource("1_hud")
+
+[node name="Row" type="HBoxContainer" parent="." unique_id=1360099758]
+offset_left = 46.0
+offset_top = 38.0
+offset_right = 206.0
+offset_bottom = 86.0
+theme_override_constants/separation = 8
+
+[node name="Heart1" type="TextureRect" parent="Row" unique_id=51474148]
+texture_filter = 1
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+texture = ExtResource("2_heart")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Heart2" type="TextureRect" parent="Row" unique_id=988600699]
+texture_filter = 1
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+texture = ExtResource("2_heart")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Heart3" type="TextureRect" parent="Row" unique_id=2127933133]
+texture_filter = 1
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+texture = ExtResource("2_heart")
+expand_mode = 1
+stretch_mode = 5

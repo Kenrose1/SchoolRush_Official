@@ -32,6 +32,15 @@ func _ready() -> void:
 	_section("Spawn director")
 	_test_spawn_director()
 
+	_section("Score system")
+	_test_score_system()
+
+	_section("School Items")
+	await _test_collectible()
+
+	_section("Pickup director")
+	_test_pickup_director()
+
 	_section("Scenes")
 	_test_scenes()
 
@@ -495,6 +504,243 @@ func _test_spawn_director() -> void:
 	_check_eq(late_kinds.size(), GameConfig.HAZARD_DATA.size(), "all five kinds spawn once unlocked")
 
 
+func _test_score_system() -> void:
+	# Combo thresholds.
+	_check_eq(GameConfig.combo_multiplier(0), 1, "chain 0 is x1")
+	_check_eq(GameConfig.combo_multiplier(2), 1, "chain 2 is x1")
+	_check_eq(GameConfig.combo_multiplier(3), 2, "chain 3 is x2")
+	_check_eq(GameConfig.combo_multiplier(5), 2, "chain 5 is x2")
+	_check_eq(GameConfig.combo_multiplier(6), 3, "chain 6 is x3")
+	_check_eq(GameConfig.combo_multiplier(9), 3, "chain 9 is x3")
+	_check_eq(GameConfig.combo_multiplier(10), 5, "chain 10 is x5")
+	_check_eq(GameConfig.combo_multiplier(99), 5, "chain 99 is x5")
+	_check(
+		GameConfig.PICKUP_GAP_MIN < GameConfig.PICKUP_GAP_MAX,
+		"pickup gap range is sane",
+	)
+
+	var system := ScoreSystem.new()
+	_check_eq(system.score, 0, "score starts at 0")
+	_check_eq(system.item_count, 0, "item count starts at 0")
+	_check_eq(system.chain, 0, "chain starts at 0")
+
+	# Distance trickle: floor(distance / 10), incremental, no double count.
+	system.add_distance(0.0)
+	_check_eq(system.score, 0, "no distance points at 0")
+	system.add_distance(99.0)
+	_check_eq(system.score, 9, "99 px is 9 points")
+	system.add_distance(150.0)
+	_check_eq(system.score, 15, "150 px is 15 points total")
+	system.add_distance(150.0)
+	_check_eq(system.score, 15, "re-adding the same distance adds nothing")
+
+	# Hazard passes are flat +10 with no combo effect.
+	system.add_hazard_passed()
+	_check_eq(system.score, 25, "hazard pass is +10")
+	_check_eq(system.chain, 0, "hazard passes do not build the combo")
+
+	# Item pickups: 1-2 x1, 3-5 x2, 6-9 x3, 10 x5.
+	var fresh := ScoreSystem.new()
+	for i in 2:
+		fresh.add_item_pickup()
+	_check_eq(fresh.score, 100, "two x1 pickups are +100")
+	_check_eq(fresh.chain, 2, "two pickups build a chain of 2")
+	_check_eq(fresh.item_count, 2, "two pickups count as two items")
+	fresh.add_item_pickup()
+	_check_eq(fresh.score, 200, "third pickup is x2 (+100)")
+	_check_eq(GameConfig.combo_multiplier(fresh.chain), 2, "chain 3 reports x2")
+
+	for i in 7:
+		fresh.add_item_pickup()
+	_check_eq(fresh.item_count, 10, "ten pickups count as ten items")
+	_check_eq(fresh.chain, 10, "ten pickups build a chain of 10")
+	_check_eq(GameConfig.combo_multiplier(fresh.chain), 5, "chain 10 reports x5")
+	# 2*50 + 3*100 + 4*150 + 1*250 = 1250
+	_check_eq(fresh.score, 1250, "ten pickups score 1250 points")
+
+	# Reset breaks the chain but keeps score and item count.
+	fresh.reset_combo()
+	_check_eq(fresh.chain, 0, "reset clears the chain")
+	_check_eq(fresh.score, 1250, "reset keeps the score")
+	_check_eq(fresh.item_count, 10, "reset keeps the item count")
+	fresh.add_item_pickup()
+	_check_eq(fresh.score, 1300, "pickup after reset is x1 again")
+	# reset on an already-empty chain is a no-op (no signal spam / crash).
+	fresh.reset_combo()
+	fresh.reset_combo()
+	_check_eq(fresh.chain, 0, "repeated reset stays at 0")
+
+
+func _test_collectible() -> void:
+	var scene := load("res://scenes/collectible.tscn") as PackedScene
+	_check(scene != null, "collectible scene loads")
+	if scene == null:
+		return
+
+	var item := scene.instantiate() as Collectible
+	add_child(item)
+	item.set_physics_process(false)
+	item.setup(GameConfig.ItemKind.PENCIL, GameConfig.LANE_MIDDLE, 0.0)
+	_check_eq(item.collision_layer, GameConfig.LAYER_COLLECTIBLE, "item sits on the collectible layer")
+	_check_eq(item.collision_mask, 0, "item does not scan for areas itself")
+	_check(not item.monitoring, "item is passive; the player's hitbox detects it")
+	var texture := item.sprite.texture
+	_check(texture != null, "pencil item has a texture")
+	if texture != null:
+		_check_eq(texture.resource_path, "res://assets/props/item_pencil.png", "pencil uses its configured art")
+	var box := item.shape.shape as RectangleShape2D
+	_check(box != null, "item has a rectangle shape")
+	if box != null:
+		_check_eq(box.size, GameConfig.ITEM_HITBOX_SIZE, "item hitbox matches config")
+		_check_near(
+			item.box_y_range().y,
+			item.box_y_range().x + GameConfig.ITEM_HITBOX_SIZE.y,
+			0.01,
+			"item box has positive height",
+		)
+	_check_near(
+		item.position.y,
+		GameConfig.lane_y(GameConfig.LANE_MIDDLE),
+		0.01,
+		"item sits on its lane baseline",
+	)
+	item.queue_free()
+
+	for kind: int in GameConfig.ITEM_DATA:
+		var prop := scene.instantiate() as Collectible
+		add_child(prop)
+		prop.set_physics_process(false)
+		prop.setup(kind, GameConfig.LANE_TOP, 0.0)
+		var data: Dictionary = GameConfig.ITEM_DATA[kind]
+		var prop_tex := prop.sprite.texture
+		_check(prop_tex != null, "item kind %d has a texture" % kind)
+		if prop_tex != null:
+			_check_eq(prop_tex.resource_path, String(data["texture"]), "item kind %d uses its configured art" % kind)
+		prop.queue_free()
+
+	# collect() succeeds once, then refuses.
+	var once := scene.instantiate() as Collectible
+	add_child(once)
+	once.set_physics_process(false)
+	once.setup(GameConfig.ItemKind.BOOK, GameConfig.LANE_MIDDLE, 0.0)
+	var picked := [0]
+	once.picked_up.connect(func(_kind: int) -> void: picked[0] += 1)
+	_check(once.collect(), "collect succeeds the first time")
+	_check_eq(picked[0], 1, "picked_up fires once")
+	_check(not once.collect(), "collect refuses the second time")
+	_check_eq(picked[0], 1, "picked_up does not fire twice")
+	once.queue_free()
+
+	# missed fires when it scrolls behind the player.
+	var drifter := scene.instantiate() as Collectible
+	add_child(drifter)
+	drifter.set_physics_process(false)
+	drifter.setup(GameConfig.ItemKind.ERASER, GameConfig.LANE_MIDDLE, 100.0)
+	var missed_count := [0]
+	drifter.missed.connect(func() -> void: missed_count[0] += 1)
+	drifter.position.x = GameConfig.PLAYER_X
+	drifter._physics_process(0.5)
+	_check_eq(missed_count[0], 1, "missed fires when the item passes the player")
+	drifter._physics_process(0.5)
+	_check_eq(missed_count[0], 1, "missed fires only once")
+	_check(not drifter.collect(), "a missed item cannot be collected")
+	drifter.queue_free()
+
+	# Live physics: grounded player collects, jumping player misses.
+	var player := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
+	add_child(player)
+	player.set_physics_process(false)
+	var collected_events: Array = []
+	player.item_collected.connect(func(kind: int) -> void: collected_events.append(kind))
+
+	var live := scene.instantiate() as Collectible
+	add_child(live)
+	live.set_physics_process(false)
+	live.setup(GameConfig.ItemKind.BAG, GameConfig.LANE_MIDDLE, 0.0)
+	live.position.x = GameConfig.PLAYER_X
+	await _physics_frames(4)
+	_check(collected_events.size() >= 1, "grounded player collects the item (live physics)")
+	if collected_events.size() > 0:
+		_check_eq(int(collected_events[0]), int(GameConfig.ItemKind.BAG), "collected kind matches the spawn")
+
+	player.reset_health()
+	collected_events.clear()
+	var live_high := scene.instantiate() as Collectible
+	add_child(live_high)
+	live_high.set_physics_process(false)
+	live_high.setup(GameConfig.ItemKind.PENCIL, GameConfig.LANE_MIDDLE, 0.0)
+	live_high.position.x = GameConfig.PLAYER_X
+	player.air_height = GameConfig.JUMP_APEX
+	player._apply_pose()
+	await _physics_frames(4)
+	_check(collected_events.is_empty(), "jumping player misses the floating item (live physics)")
+	live_high.queue_free()
+	player.queue_free()
+
+
+func _test_pickup_director() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1234
+	_check_eq(SpawnDirector.choose_pickup_lane([0, 1, 2], rng), -1, "no lane open means no pickup")
+	_check(SpawnDirector.choose_pickup_lane([], rng) >= 0, "empty row still yields a lane")
+
+	# Fuzz: the chosen lane must never be occupied.
+	var fuzz_violations := 0
+	var fuzz_skips := 0
+	for i in 10000:
+		var occupied: Array[int] = []
+		for lane in GameConfig.LANE_COUNT:
+			if rng.randi() % 3 == 0:
+				occupied.append(lane)
+		var chosen := SpawnDirector.choose_pickup_lane(occupied, rng)
+		if occupied.size() >= GameConfig.LANE_COUNT:
+			if chosen != -1:
+				fuzz_violations += 1
+			fuzz_skips += 1
+		elif chosen < 0 or chosen >= GameConfig.LANE_COUNT or occupied.has(chosen):
+			fuzz_violations += 1
+	_check_eq(fuzz_violations, 0, "10000 fuzzed pickups never pick an occupied lane")
+	_check(fuzz_skips > 0, "some fuzzed rows are fully blocked (%d of 10000)" % fuzz_skips)
+
+	# spawn_pickup respects PICKUP_LANE_CLEARANCE around SPAWN_X.
+	var container := Node2D.new()
+	add_child(container)
+	var director := SpawnDirector.new()
+	add_child(director)
+	director.setup(container, 42)
+
+	var blocker := (load("res://scenes/hazard.tscn") as PackedScene).instantiate() as Hazard
+	container.add_child(blocker)
+	blocker.set_physics_process(false)
+	blocker.setup(GameConfig.HazardKind.MANHOLE, GameConfig.LANE_TOP, 0.0)
+	blocker.position.x = GameConfig.SPAWN_X
+	var lane := director.spawn_pickup(0.0, 0.0)
+	_check(lane >= 0, "pickup spawns when a lane is clear")
+	if lane >= 0:
+		_check(lane != GameConfig.LANE_TOP, "pickup avoids the lane blocked at SPAWN_X")
+
+	# tick() spawns pickups on its own clock (gap < 1800, so 5 s at 420 px/s triggers one).
+	var before := container.get_child_count()
+	for i in 5:
+		director.tick(1.0, GameConfig.RUN_SPEED, float(i * 420))
+	_check(container.get_child_count() > before, "tick spawns pickups between hazard rows")
+
+	# Hazard passed signal flows to the director.
+	var passer := (load("res://scenes/hazard.tscn") as PackedScene).instantiate() as Hazard
+	add_child(passer)
+	passer.set_physics_process(false)
+	passer.setup(GameConfig.HazardKind.MANHOLE, GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
+	passer.position.x = GameConfig.PLAYER_X + 10.0
+	var direct_passed := [0]
+	passer.passed_player.connect(func() -> void: direct_passed[0] += 1)
+	passer._physics_process(1.0)
+	_check(direct_passed[0] >= 1, "hazard crossing the player emits passed_player")
+	passer.queue_free()
+
+	container.queue_free()
+	director.queue_free()
+
+
 func _test_scenes() -> void:
 	var main_scene := load("res://scenes/main.tscn") as PackedScene
 	_check(main_scene != null, "main scene loads")
@@ -511,6 +757,9 @@ func _test_scenes() -> void:
 		_check(world.hazards != null, "run world contains a hazard container")
 		_check(world.director != null, "run world contains a spawn director")
 		_check(world.hud != null, "run world contains the hearts HUD")
+		_check(world.score_hud != null, "run world contains the score HUD")
+		_check(world.score_system != null, "run world owns a score system")
+		_check_eq(world.score_system.score, 0, "score starts at 0")
 		_check(world.is_running, "the run starts running")
 		_check(not world.game_over_root.visible, "the game over overlay starts hidden")
 		_check_near(world.speed, GameConfig.RUN_SPEED, 0.01, "run world starts at RUN_SPEED")
@@ -541,8 +790,19 @@ func _test_scenes() -> void:
 				world._physics_process(0.25)
 			_check(world.distance > 0.0, "distance advances while running")
 			_check(world.hazards.get_child_count() > 0, "the director spawns hazards as distance grows")
+			_check(world.score_system.score > 0, "distance scores points while running")
 
 		if world.player != null:
+			# Item pickup + damage resets the combo through the world wiring.
+			world.score_system.add_item_pickup()
+			world.score_system.add_item_pickup()
+			_check_eq(world.score_system.chain, 2, "world pickups build the chain")
+			world.player.invulnerable_time_left = 0.0
+			world.player.take_damage()
+			world._on_player_damaged(2)
+			_check_eq(world.score_system.chain, 0, "damage resets the combo through the world")
+			_check_eq(world.score_system.item_count, 2, "items survive a combo reset")
+
 			for i in GameConfig.MAX_HEARTS:
 				world.player.invulnerable_time_left = 0.0
 				world.player.take_damage()
