@@ -15,7 +15,7 @@ script = ExtResource("1_world")
 
 [node name="Player" parent="." unique_id=1576742457 instance=ExtResource("2_player")]
 
-[node name="Pursuer" parent="." instance=ExtResource("6_pursuer")]
+[node name="Pursuer" parent="." unique_id=1509322962 instance=ExtResource("6_pursuer")]
 
 [node name="SpawnDirector" type="Node" parent="." unique_id=1285426724]
 script = ExtResource("3_director")
@@ -65,7 +65,7 @@ text = "OUT OF HEARTS
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="CaughtLabel" type="Label" parent="GameOver/Root"]
+[node name="CaughtLabel" type="Label" parent="GameOver/Root" unique_id=1095298068]
 visible = false
 layout_mode = 1
 anchors_preset = 15
@@ -89,12 +89,13 @@ process_mode = 3
 layer = 10
 
 [node name="Label" type="Label" parent="DebugOverlay" unique_id=881636510]
-offset_left = 28.0
-offset_top = 908.0
-offset_right = 760.0
-offset_bottom = 1056.0
+offset_left = 24.0
+offset_top = 707.0
+offset_right = 756.0
+offset_bottom = 855.0
 theme_override_colors/font_color = Color(0.93, 0.97, 1, 0.92)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.65)
 theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 20
+metadata/_edit_use_anchors_ = true
