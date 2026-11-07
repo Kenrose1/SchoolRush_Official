@@ -49,11 +49,9 @@ Desktop.ini
 *.sublime-workspace
 
 # ---------------------------------------------------------------------------
-# Agent tooling — the project skill stays tracked
+# Agent tooling
 # ---------------------------------------------------------------------------
-.opencode/*
-!.opencode/skills/
-!.opencode/skills/**
+.opencode/
 .agents/
 skills-lock.json
 
