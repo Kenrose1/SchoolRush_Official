@@ -14,10 +14,13 @@ extends SceneTree
 
 const TARGET := "res://assets/characters/tanod/tanod_frames.tres"
 const FRAME_PATH := "res://assets/characters/tanod/run_%d.png"
+const ARREST_PATH := "res://assets/characters/tanod/arrest_%d.png"
 
 const RUN_FRAMES := 10
 const RUN_FPS := 14.0
 const IDLE_FPS := 8.0
+const ARREST_FRAMES := 7
+const ARREST_FPS := 10.0
 
 
 func _init() -> void:
@@ -43,6 +46,19 @@ func _init() -> void:
 			quit(1)
 			return
 		frames.add_frame("run", texture)
+
+	# Combined officer + Elias grab (death animation, non-looping).
+	frames.add_animation("arrest")
+	frames.set_animation_speed("arrest", ARREST_FPS)
+	frames.set_animation_loop("arrest", false)
+	for index in ARREST_FRAMES:
+		var path := ARREST_PATH % index
+		var texture := ResourceLoader.load(path) as Texture2D
+		if texture == null:
+			push_error("Missing frame: %s" % path)
+			quit(1)
+			return
+		frames.add_frame("arrest", texture)
 	frames.remove_animation("default")
 
 	var err := ResourceSaver.save(frames, TARGET)

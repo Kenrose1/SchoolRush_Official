@@ -18,6 +18,7 @@ const GROUND_TICK := Color(0.85, 0.9, 0.98, 0.35)
 
 @onready var player: Player = $Player
 @onready var pursuer: Pursuer = $Pursuer
+@onready var arrest: AnimatedSprite2D = $Arrest
 @onready var hazards: Node2D = $Hazards
 @onready var director: SpawnDirector = $SpawnDirector
 @onready var hud: HeartsHud = $Hud
@@ -46,6 +47,8 @@ func _ready() -> void:
 	_debug_label.visible = GameConfig.DEBUG_OVERLAY
 	game_over_root.visible = false
 	caught_label.visible = false
+	arrest.visible = false
+	arrest.scale = Vector2(GameConfig.ARREST_SCALE, GameConfig.ARREST_SCALE)
 
 	player.health_changed.connect(_on_health_changed)
 	player.died.connect(_on_player_died)
@@ -54,6 +57,7 @@ func _ready() -> void:
 	player.damaged.connect(_on_player_damaged)
 	pursuer.caught.connect(_on_pursuer_caught)
 	pursuer.lunge_finished.connect(_on_lunge_finished)
+	arrest.animation_finished.connect(_on_arrest_finished)
 	hud.set_hearts(player.health, GameConfig.MAX_HEARTS)
 
 	score_system.score_changed.connect(score_hud.set_score)
@@ -142,7 +146,7 @@ func _on_player_caught() -> void:
 		return
 	_caught = true
 	_freeze_world()
-	pursuer.start_lunge()
+	_play_arrest()
 
 
 func _on_pursuer_caught() -> void:
@@ -150,11 +154,27 @@ func _on_pursuer_caught() -> void:
 		return
 	_caught = true
 	_freeze_world()
-	# The tanod already entered LUNGE on catch; just wait for lunge_finished.
+	_play_arrest()
 
 
 func _on_lunge_finished() -> void:
+	# Fallback if the arrest node is missing: show overlay immediately.
+	if not arrest.visible:
+		_show_game_over(true)
+
+
+func _on_arrest_finished() -> void:
 	_show_game_over(true)
+
+
+## Play the combined grab: hide the solo sprites, run the arrest strip.
+func _play_arrest() -> void:
+	player.sprite.visible = false
+	pursuer.visible = false
+	arrest.position = Vector2(GameConfig.PLAYER_X, player.lane_y)
+	arrest.position.y -= GameConfig.ARREST_SPRITE_HEIGHT * GameConfig.ARREST_SCALE * 0.5
+	arrest.visible = true
+	arrest.play(&"arrest")
 
 
 func _on_player_died() -> void:

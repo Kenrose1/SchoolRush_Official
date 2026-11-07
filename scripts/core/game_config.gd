@@ -223,6 +223,11 @@ const PURSUER_LUNGE_TIME := 0.4
 ## Tanod sprite scale (source 104x166, Elias is 0.6).
 const PURSUER_SCALE := 0.45
 const PURSUER_SPRITE_HEIGHT := 260.0
+## Arrest (combined grab) sprite scale + source height (380 px frames).
+const ARREST_SCALE := 0.50
+const ARREST_SPRITE_HEIGHT := 380.0
+## Time spent playing the arrest before the overlay (12f would be 1.2 s @ 10fps).
+const ARREST_TIME := 0.7
 
 ## On damage, speed dips for this long (seconds).
 const MOMENTUM_DIP_TIME := 1.0

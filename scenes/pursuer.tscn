@@ -1,13 +1,15 @@
 [gd_scene format=3 uid="uid://csjs6og2e0x8a"]
 
 [ext_resource type="Script" uid="uid://csictdkmkb51w" path="res://scripts/entities/pursuer.gd" id="1_pursuer"]
-[ext_resource type="SpriteFrames" path="res://assets/characters/tanod/tanod_frames.tres" id="2_frames"]
+[ext_resource type="SpriteFrames" uid="uid://cde02m0qw1a37" path="res://assets/characters/tanod/tanod_frames.tres" id="2_frames"]
 
 [node name="Pursuer" type="Node2D" unique_id=1983416569]
 scale = Vector2(1.5, 1.5)
 script = ExtResource("1_pursuer")
 
 [node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=423137593]
-scale = Vector2(1.5, 1.5)
+scale = Vector2(1.2, 1.2)
 sprite_frames = ExtResource("2_frames")
-animation = &"idle"
+animation = &"arrest"
+frame = 6
+frame_progress = 1.0
