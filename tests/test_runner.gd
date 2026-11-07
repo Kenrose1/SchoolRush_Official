@@ -774,8 +774,8 @@ func _test_pursuer() -> void:
 	if frames != null:
 		_check(frames.resource_path.ends_with("tanod_frames.tres"), "tanod frames come from committed resource")
 		_check_eq(frames.get_animation_names().size(), 2, "two tanod animations exist")
-		_check_eq(frames.get_frame_count("run"), 9, "tanod run has 9 frames")
-		_check_eq(frames.get_frame_count("idle"), 4, "tanod idle has 4 frames")
+		_check_eq(frames.get_frame_count("run"), 10, "tanod run has 10 frames")
+		_check_eq(frames.get_frame_count("idle"), 1, "tanod idle has 1 frame")
 	_check_eq(pursuer.sprite.animation, &"idle", "tanod previews the idle animation")
 
 	# Wake.

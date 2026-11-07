@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://di82os3iuiaxq"
-path="res://.godot/imported/idle_2.png-c17a7d76a6f9bc803299b77763eaf23c.ctex"
+uid="uid://dywn24tytns6j"
+path="res://.godot/imported/officer_sheet.png-d697d991260651714a4feb017af7fdc3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/characters/tanod/idle_2.png"
-dest_files=["res://.godot/imported/idle_2.png-c17a7d76a6f9bc803299b77763eaf23c.ctex"]
+source_file="res://assets/characters/tanod/officer_sheet.png"
+dest_files=["res://.godot/imported/officer_sheet.png-d697d991260651714a4feb017af7fdc3.ctex"]
 
 [params]
 
