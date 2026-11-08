@@ -773,9 +773,11 @@ func _test_pursuer() -> void:
 	_check(frames != null, "pursuer scene provides sprite frames")
 	if frames != null:
 		_check(frames.resource_path.ends_with("tanod_frames.tres"), "tanod frames come from committed resource")
-		_check_eq(frames.get_animation_names().size(), 2, "two tanod animations exist")
+		_check_eq(frames.get_animation_names().size(), 3, "three tanod animations exist")
 		_check_eq(frames.get_frame_count("run"), 10, "tanod run has 10 frames")
 		_check_eq(frames.get_frame_count("idle"), 1, "tanod idle has 1 frame")
+		_check_eq(frames.get_frame_count("arrest"), 7, "arrest has 7 frames")
+		_check(not frames.get_animation_loop("arrest"), "arrest does not loop")
 	_check_eq(pursuer.sprite.animation, &"idle", "tanod previews the idle animation")
 
 	# Wake.
@@ -988,11 +990,13 @@ func _test_scenes() -> void:
 			world._on_item_missed()
 			_check(world.pursuer.state == Pursuer.State.CHASE, "missed item wakes the pursuer through the world")
 
-			# Chase death: hazard while active -> CAUGHT! after the lunge.
+			# Chase death: hazard while active -> CAUGHT! after the arrest.
 			world.player.pursuer_active = true
 			world._on_player_caught()
 			_check(not world.is_running, "caught stops the run")
-			world.pursuer._process(GameConfig.PURSUER_LUNGE_TIME + 0.1)
+			_check(world.arrest.visible, "caught shows the arrest grab")
+			_check(not world.player.sprite.visible, "caught hides the player sprite")
+			world._on_arrest_finished()
 			_check(world.game_over_root.visible, "caught shows the game over overlay")
 			_check(world.caught_label.visible, "caught shows CAUGHT!")
 			_check(not world.game_over_label.visible, "caught hides OUT OF HEARTS")

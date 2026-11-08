@@ -8,7 +8,6 @@ scale = Vector2(1.5, 1.5)
 script = ExtResource("1_pursuer")
 
 [node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=423137593]
-scale = Vector2(1.2, 1.2)
 sprite_frames = ExtResource("2_frames")
 animation = &"arrest"
 frame = 6

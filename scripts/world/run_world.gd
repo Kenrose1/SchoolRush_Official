@@ -1,10 +1,11 @@
 class_name RunWorld
 extends Node2D
-## The M4 gray-box course.
+## The M5 street course.
 ##
 ## Owns forward speed, distance, the hazard director, School Items, scoring,
-## and the pursuer. Draws the three lane tiers plus a placeholder skyline and
-## hosts the player and the hearts HUD. Zones arrive in M5.
+## and the pursuer. Draws sunset sky + designer houses (parallax) + road
+## (scrolls with hazards) with translucent lane paint on top, and hosts the
+## player and the hearts HUD. Zones arrive in M5.
 
 const SKY_COLOR := Color("#6fb7e8")
 const SUN_COLOR := Color("#fff3b0")
@@ -13,8 +14,19 @@ const SKYLINE_FAR := Color("#4a6d8c")
 const SKYLINE_NEAR := Color("#3a5570")
 const GROUND_BASE := Color("#232a36")
 const LANE_COLORS := [Color("#3c4757"), Color("#46536b"), Color("#4f5f7d")]
-const LANE_EDGE := Color(0.83, 0.88, 0.96, 0.55)
-const GROUND_TICK := Color(0.85, 0.9, 0.98, 0.35)
+const LANE_EDGE := Color("#fff6e0")
+const GROUND_TICK := Color(1.0, 1.0, 1.0, 0.85)
+
+const SKY_TEXTURE := "res://assets/backgrounds/sky.png"
+const STREET_TEXTURE := "res://assets/backgrounds/Designer (1).png"
+const SKY_PARALLAX := 0.09
+const HOUSES_PARALLAX := 1
+const STREET_ROAD_PARALLAX := 1.0
+## Y in Designer pixels (1024 tall) where houses end and the road begins.
+const STREET_HOUSES_END_Y := 630.0
+
+var _sky_texture: Texture2D
+var _street_texture: Texture2D
 
 @onready var player: Player = $Player
 @onready var pursuer: Pursuer = $Pursuer
@@ -223,24 +235,67 @@ func _update_debug() -> void:
 	]
 
 
-# --- Placeholder course rendering -------------------------------------------
+# --- Street + lane rendering -------------------------------------------------
 
 func _draw() -> void:
 	var view := GameConfig.DESIGN_SIZE
 	var horizon := GameConfig.lane_y(0) - GameConfig.LANE_HALF_HEIGHT
 
-	draw_rect(Rect2(Vector2.ZERO, view), SKY_COLOR)
-	_draw_sun()
-	_draw_skyline(0.10, horizon, 210.0, SKYLINE_FAR, 300.0)
-	_draw_skyline(0.22, horizon, 140.0, SKYLINE_NEAR, 190.0)
-	draw_rect(Rect2(0.0, horizon, view.x, view.y - horizon), GROUND_BASE)
+	if _sky_texture == null:
+		_sky_texture = load(SKY_TEXTURE) as Texture2D
+	if _street_texture == null:
+		_street_texture = load(STREET_TEXTURE) as Texture2D
+
+	if _sky_texture != null:
+		_draw_loops(_sky_texture, Rect2(Vector2.ZERO, view), SKY_PARALLAX)
+	else:
+		draw_rect(Rect2(Vector2.ZERO, view), SKY_COLOR)
+		_draw_sun()
+
+	if _street_texture != null:
+		var src := _street_texture.get_size()
+		var houses_src := Rect2(Vector2.ZERO, Vector2(src.x, STREET_HOUSES_END_Y))
+		var road_src := Rect2(
+			Vector2(0.0, STREET_HOUSES_END_Y),
+			Vector2(src.x, src.y - STREET_HOUSES_END_Y),
+		)
+		_draw_loops(_street_texture, Rect2(Vector2.ZERO, Vector2(view.x, horizon)), HOUSES_PARALLAX, houses_src)
+		_draw_loops(_street_texture, Rect2(Vector2(0.0, horizon), Vector2(view.x, view.y - horizon)), STREET_ROAD_PARALLAX, road_src)
+	else:
+		_draw_skyline(0.10, horizon, 210.0, SKYLINE_FAR, 300.0)
+		_draw_skyline(0.22, horizon, 140.0, SKYLINE_NEAR, 190.0)
+		draw_rect(Rect2(0.0, horizon, view.x, view.y - horizon), GROUND_BASE)
 
 	for lane in GameConfig.LANE_COUNT:
 		var y := GameConfig.lane_y(lane)
 		var top := y - GameConfig.LANE_HALF_HEIGHT
-		draw_rect(Rect2(0.0, top, view.x, GameConfig.LANE_HALF_HEIGHT * 2.0), LANE_COLORS[lane])
-		draw_line(Vector2(0.0, top), Vector2(view.x, top), LANE_EDGE, 3.0)
+		if _street_texture == null:
+			draw_rect(Rect2(0.0, top, view.x, GameConfig.LANE_HALF_HEIGHT * 2.0), LANE_COLORS[lane])
+			draw_line(Vector2(0.0, top), Vector2(view.x, top), Color(LANE_EDGE, 0.9), 3.0)
+		else:
+			var band := Color(LANE_COLORS[lane], 0.35)
+			draw_rect(Rect2(0.0, top, view.x, GameConfig.LANE_HALF_HEIGHT * 2.0), band)
+			draw_line(Vector2(0.0, top), Vector2(view.x, top), Color(LANE_EDGE, 0.5), 3.0)
 		_draw_ticks(y)
+
+
+## Tile the texture horizontally across the destination band, looped at
+## `parallax` (road runs 1.0 so it never slides against hazards).
+func _draw_loops(texture: Texture2D, destination: Rect2, parallax: float, source := Rect2()) -> void:
+	if texture == null:
+		return
+	if source.size.x < 1.0:
+		source = Rect2(Vector2.ZERO, texture.get_size())
+	var offset := fmod(distance * parallax, destination.size.x)
+	var x := -offset
+	while x < GameConfig.DESIGN_WIDTH:
+		draw_texture_rect_region(
+			texture,
+			Rect2(Vector2(x, destination.position.y), destination.size),
+			source,
+			Color(1, 1, 1),
+		)
+		x += destination.size.x
 
 
 func _draw_sun() -> void:
@@ -262,12 +317,12 @@ func _draw_skyline(parallax: float, base_y: float, max_height: float,
 		draw_rect(Rect2(x, base_y - height, spacing - 16.0, height + 2.0), color)
 
 
-## Scrolling ticks along a lane's centre, the main speed cue in the gray box.
+## Scrolling ticks along a lane's centre (road paint, thin).
 func _draw_ticks(y: float) -> void:
 	var period := GameConfig.GROUND_TICK_LENGTH + GameConfig.GROUND_TICK_GAP
 	var x := -fmod(distance, period)
 	while x < GameConfig.DESIGN_WIDTH:
-		draw_rect(Rect2(x, y - 3.0, GameConfig.GROUND_TICK_LENGTH, 6.0), GROUND_TICK)
+		draw_rect(Rect2(x, y - 2.0, GameConfig.GROUND_TICK_LENGTH, 4.0), GROUND_TICK)
 		x += period
 
 

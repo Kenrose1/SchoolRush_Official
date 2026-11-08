@@ -23,7 +23,7 @@ const LANE_MIDDLE := 1
 const LANE_BOTTOM := 2
 
 ## Baseline Y (the player's feet) for each lane tier, top to bottom.
-const LANE_Y := [680.0, 820.0, 960.0]
+const LANE_Y := [650.0, 790.0, 930.0]
 const LANE_SPACING := 140.0
 const LANE_HALF_HEIGHT := LANE_SPACING * 0.5
 
