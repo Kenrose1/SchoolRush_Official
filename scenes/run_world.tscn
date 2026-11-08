@@ -16,6 +16,7 @@ script = ExtResource("1_world")
 [node name="Player" parent="." unique_id=1576742457 instance=ExtResource("2_player")]
 
 [node name="Pursuer" parent="." unique_id=1509322962 instance=ExtResource("6_pursuer")]
+position = Vector2(-259, 594)
 
 [node name="Arrest" type="AnimatedSprite2D" parent="." unique_id=1444647474]
 visible = false

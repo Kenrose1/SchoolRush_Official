@@ -14,14 +14,14 @@ const SUN_GLOW := Color(1.0, 0.95, 0.69, 0.18)
 const SKYLINE_FAR := Color("#4a6d8c")
 const SKYLINE_NEAR := Color("#3a5570")
 const GROUND_BASE := Color("#232a36")
-const LANE_COLORS := [Color("#3c4757"), Color("#46536b"), Color("#4f5f7d")]
+const LANE_COLORS: Array[Color] = [Color("#3c4757"), Color("#46536b"), Color("#4f5f7d")]
 const LANE_EDGE := Color("#fff6e0")
 const GROUND_TICK := Color(1.0, 1.0, 1.0, 0.85)
 
 const SKY_TEXTURE := "res://assets/backgrounds/sky.png"
 const STREET_TEXTURE := "res://assets/backgrounds/Designer (1).png"
 const SKY_PARALLAX := 0.09
-const HOUSES_PARALLAX := 1
+const HOUSES_PARALLAX := 1.0
 const STREET_ROAD_PARALLAX := 1.0
 ## Y in Designer pixels (1024 tall) where houses end and the road begins.
 const STREET_HOUSES_END_Y := 630.0
