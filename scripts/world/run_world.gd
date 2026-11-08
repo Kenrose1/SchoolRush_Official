@@ -1,3 +1,4 @@
+@tool
 class_name RunWorld
 extends Node2D
 ## The M5 street course.
@@ -56,6 +57,12 @@ var _caught: bool = false
 
 
 func _ready() -> void:
+	# Editor preview: load art + draw once, skip runtime wiring.
+	if Engine.is_editor_hint():
+		_sky_texture = load(SKY_TEXTURE) as Texture2D
+		_street_texture = load(STREET_TEXTURE) as Texture2D
+		queue_redraw()
+		return
 	_debug_label.visible = GameConfig.DEBUG_OVERLAY
 	game_over_root.visible = false
 	caught_label.visible = false
@@ -85,6 +92,8 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
 	if not is_running:
 		return
 	if momentum_time_left > 0.0:
@@ -119,6 +128,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if Engine.is_editor_hint():
+		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	match (event as InputEventKey).physical_keycode:
@@ -273,7 +284,7 @@ func _draw() -> void:
 			draw_rect(Rect2(0.0, top, view.x, GameConfig.LANE_HALF_HEIGHT * 2.0), LANE_COLORS[lane])
 			draw_line(Vector2(0.0, top), Vector2(view.x, top), Color(LANE_EDGE, 0.9), 3.0)
 		else:
-			var band := Color(LANE_COLORS[lane], 0.35)
+			var band := Color(LANE_COLORS[lane], 0.15)
 			draw_rect(Rect2(0.0, top, view.x, GameConfig.LANE_HALF_HEIGHT * 2.0), band)
 			draw_line(Vector2(0.0, top), Vector2(view.x, top), Color(LANE_EDGE, 0.5), 3.0)
 		_draw_ticks(y)

@@ -5,11 +5,10 @@
 [ext_resource type="Script" uid="uid://d2cxjh4pkkec0" path="res://scripts/world/spawn_director.gd" id="3_director"]
 [ext_resource type="PackedScene" uid="uid://b7yyoa3oxewcp" path="res://scenes/hearts_hud.tscn" id="4_hearts"]
 [ext_resource type="Script" uid="uid://1f153lp72fw2" path="res://scripts/ui/score_hud.gd" id="5_score"]
-[ext_resource type="PackedScene" path="res://scenes/pursuer.tscn" id="6_pursuer"]
-[ext_resource type="SpriteFrames" path="res://assets/characters/tanod/tanod_frames.tres" id="7_frames"]
+[ext_resource type="PackedScene" uid="uid://csjs6og2e0x8a" path="res://scenes/pursuer.tscn" id="6_pursuer"]
+[ext_resource type="SpriteFrames" uid="uid://cde02m0qw1a37" path="res://assets/characters/tanod/tanod_frames.tres" id="7_frames"]
 
 [node name="RunWorld" type="Node2D" unique_id=894551756]
-position = Vector2(484, 105)
 script = ExtResource("1_world")
 
 [node name="Hazards" type="Node2D" parent="." unique_id=1347232564]
@@ -18,7 +17,7 @@ script = ExtResource("1_world")
 
 [node name="Pursuer" parent="." unique_id=1509322962 instance=ExtResource("6_pursuer")]
 
-[node name="Arrest" type="AnimatedSprite2D" parent="."]
+[node name="Arrest" type="AnimatedSprite2D" parent="." unique_id=1444647474]
 visible = false
 sprite_frames = ExtResource("7_frames")
 animation = &"arrest"
