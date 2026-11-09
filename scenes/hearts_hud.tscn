@@ -4,14 +4,17 @@
 [ext_resource type="Texture2D" uid="uid://cne1vj437o8pt" path="res://assets/heart/heart.png" id="2_heart"]
 
 [node name="HeartsHud" type="Control" unique_id=151054007]
+layout_mode = 3
+anchors_preset = 0
 mouse_filter = 2
 script = ExtResource("1_hud")
 
 [node name="Row" type="HBoxContainer" parent="." unique_id=1360099758]
-offset_left = 40.0
-offset_top = 40.0
-offset_right = 200.0
-offset_bottom = 88.0
+layout_mode = 0
+offset_left = 83.0
+offset_top = 54.0
+offset_right = 243.0
+offset_bottom = 102.0
 theme_override_constants/separation = 8
 
 [node name="Heart1" type="TextureRect" parent="Row" unique_id=51474148]
