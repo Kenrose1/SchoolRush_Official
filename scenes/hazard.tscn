@@ -1,17 +1,18 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://da6l78hk86vdl"]
 
-[ext_resource type="Script" path="res://scripts/entities/hazard.gd" id="1_hazard"]
+[ext_resource type="Script" uid="uid://dhi6mvtnffjng" path="res://scripts/entities/hazard.gd" id="1_hazard"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hazard"]
-size = Vector2(76, 42)
+size = Vector2(63, 34)
 
-[node name="Hazard" type="Area2D"]
+[node name="Hazard" type="Area2D" unique_id=304257516]
 collision_layer = 2
 collision_mask = 0
 monitoring = false
 script = ExtResource("1_hazard")
 
-[node name="Sprite" type="Sprite2D" parent="."]
+[node name="Sprite" type="Sprite2D" parent="." unique_id=1841806923]
 
-[node name="Shape" type="CollisionShape2D" parent="."]
+[node name="Shape" type="CollisionShape2D" parent="." unique_id=238026142]
+position = Vector2(0, 1)
 shape = SubResource("RectangleShape2D_hazard")

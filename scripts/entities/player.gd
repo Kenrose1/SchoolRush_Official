@@ -97,6 +97,7 @@ func move_lane(direction: int) -> bool:
 		return false
 	lane = next
 	lane_changed.emit(lane)
+	_resolve_overlaps()
 	return true
 
 
@@ -200,16 +201,43 @@ func _end_slide() -> void:
 
 func _on_hitbox_area_entered(area: Area2D) -> void:
 	if area is Hazard:
-		if pursuer_active:
-			# Instant loss while chased: no heart loss, no i-frame check.
-			caught.emit()
-			died.emit()
-			return
-		take_damage()
+		_hit_hazard(area as Hazard)
 	elif area is Collectible:
-		area.collect()
-		var collected_kind: int = area.get_kind()
-		item_collected.emit(collected_kind)
+		_collect_item(area as Collectible)
+
+
+## Hazards are lane-bound: a jump can lift the hitbox into a neighbouring
+## lane's band, but only boxes in Elias's logical lane may hurt him.
+func _hit_hazard(hazard: Hazard) -> void:
+	if hazard.lane != lane:
+		return
+	if pursuer_active:
+		# Instant loss while chased: no heart loss, no i-frame check.
+		caught.emit()
+		died.emit()
+		return
+	take_damage()
+
+
+## School Items obey the same lane rule: nothing is picked up across lanes,
+## even when a jump overlaps a neighbouring lane's item box.
+func _collect_item(item: Collectible) -> void:
+	if item.lane != lane:
+		return
+	if item.collect():
+		item_collected.emit(item.get_kind())
+
+
+## Re-check boxes already touching the hitbox after a logical lane change, so
+## switching into an overlapping hazard/item still registers immediately.
+func _resolve_overlaps() -> void:
+	if hitbox == null:
+		return
+	for area in hitbox.get_overlapping_areas():
+		if area is Hazard:
+			_hit_hazard(area as Hazard)
+		elif area is Collectible:
+			_collect_item(area as Collectible)
 
 
 ## Resize and re-anchor the box: feet stay at the origin, height follows slide.

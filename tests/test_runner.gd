@@ -571,7 +571,43 @@ func _test_hazard() -> void:
 		"a jumping player clears the manhole (live physics)",
 	)
 
+	# Lane rule: a neighbouring lane's hazard is ignored even at jump apex,
+	# where the hitbox physically reaches into that lane's band.
 	live_manhole.queue_free()
+	await _physics_frames(2)
+	var off_lane := scene.instantiate() as Hazard
+	add_child(off_lane)
+	off_lane.set_physics_process(false)
+	off_lane.setup(GameConfig.HazardKind.GANTRY, GameConfig.LANE_TOP, 0.0)
+	off_lane.position.x = GameConfig.PLAYER_X
+	player.reset_health()
+	player.air_height = GameConfig.JUMP_APEX
+	player._apply_pose()
+	await _physics_frames(3)
+	_check_eq(
+		player.health,
+		GameConfig.MAX_HEARTS,
+		"a jump cannot be hit by a neighbouring lane's hazard (live physics)",
+	)
+
+	player.invulnerable_time_left = 0.0
+	player.move_lane(-1)
+	_check_eq(
+		player.health,
+		GameConfig.MAX_HEARTS - 1,
+		"entering that hazard's lane registers the hit",
+	)
+
+	# Direct guard, independent of jump geometry.
+	player.reset_health()
+	player.lane = GameConfig.LANE_MIDDLE
+	player._on_hitbox_area_entered(off_lane)
+	_check_eq(player.health, GameConfig.MAX_HEARTS, "an off-lane hazard cannot damage the player")
+	player.lane = GameConfig.LANE_TOP
+	player._on_hitbox_area_entered(off_lane)
+	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "a same-lane hazard still damages the player")
+
+	off_lane.queue_free()
 	player.queue_free()
 
 
@@ -827,6 +863,39 @@ func _test_collectible() -> void:
 	player._apply_pose()
 	await _physics_frames(4)
 	_check(collected_events.is_empty(), "jumping player misses the floating item (live physics)")
+
+	# Lane rule: a jump in another lane must not scoop the item, but switching
+	# into its lane while overlapping does.
+	var off_high := scene.instantiate() as Collectible
+	add_child(off_high)
+	off_high.set_physics_process(false)
+	off_high.setup(GameConfig.ItemKind.BOOK, GameConfig.LANE_TOP, 0.0)
+	off_high.position.x = GameConfig.PLAYER_X
+	player.lane = GameConfig.LANE_MIDDLE
+	player.lane_y = GameConfig.lane_y(GameConfig.LANE_MIDDLE)
+	player.air_height = GameConfig.JUMP_APEX
+	player._apply_pose()
+	await _physics_frames(4)
+	_check(
+		collected_events.is_empty(),
+		"a MIDDLE-lane jump cannot collect a TOP-lane item (live physics)",
+	)
+
+	player.move_lane(-1)
+	_check_eq(collected_events.size(), 1, "switching into the item's lane collects it")
+
+	# Direct guard, independent of jump geometry.
+	var blocked := scene.instantiate() as Collectible
+	add_child(blocked)
+	blocked.set_physics_process(false)
+	blocked.setup(GameConfig.ItemKind.PENCIL, GameConfig.LANE_BOTTOM, 0.0)
+	player._on_hitbox_area_entered(blocked)
+	_check_eq(collected_events.size(), 1, "an off-lane item is not collected")
+	player.lane = GameConfig.LANE_BOTTOM
+	player._on_hitbox_area_entered(blocked)
+	_check_eq(collected_events.size(), 2, "a same-lane item is collected")
+	blocked.queue_free()
+
 	live_high.queue_free()
 	player.queue_free()
 

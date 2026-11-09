@@ -63,7 +63,7 @@ const HOUSE_FLOOR_SPLIT_RATIO := HOUSE_FLOOR_SPLIT_Y / HOUSE_SOURCE_HEIGHT
 
 const PLAYER_START_LANE := LANE_MIDDLE
 const PLAYER_X := 400.0
-const PLAYER_SCALE := 0.7
+const PLAYER_SCALE := 0.6
 
 ## Source sprite dimensions, used to keep the feet planted while squashing.
 const PLAYER_SPRITE_WIDTH := 123.0
@@ -131,12 +131,12 @@ enum HazardKind { MANHOLE, DEBRIS, SIGN, GANTRY, DOG }
 const HAZARD_DATA := {
 	HazardKind.MANHOLE: {
 		"texture": "res://assets/hazards/haz_manhole.png",
-		"scale": 1.6, "hitbox_w": 76.0, "hitbox_h": 42.0,
+		"scale": 1.6, "hitbox_w": 70.0, "hitbox_h": 40.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 	},
 	HazardKind.DEBRIS: {
 		"texture": "res://assets/hazards/haz_debris.png",
-		"scale": 1.0, "hitbox_w": 86.0, "hitbox_h": 52.0,
+		"scale": 1.0, "hitbox_w": 80.0, "hitbox_h": 52.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 	},
 	HazardKind.SIGN: {
