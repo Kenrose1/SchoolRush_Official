@@ -1,5 +1,5 @@
 class_name ScoreHud
-extends CanvasLayer
+extends Control
 ## Minimal score readout in the top-right corner.
 ##
 ## M3 placeholder: it only reflects the ScoreSystem. The styled HUD arrives in

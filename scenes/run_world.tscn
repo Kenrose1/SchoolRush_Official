@@ -3,8 +3,7 @@
 [ext_resource type="Script" uid="uid://bjqbq0fq7dbm3" path="res://scripts/world/run_world.gd" id="1_world"]
 [ext_resource type="PackedScene" uid="uid://clgiu61s7n6w7" path="res://scenes/player.tscn" id="2_player"]
 [ext_resource type="Script" uid="uid://d2cxjh4pkkec0" path="res://scripts/world/spawn_director.gd" id="3_director"]
-[ext_resource type="PackedScene" uid="uid://b7yyoa3oxewcp" path="res://scenes/hearts_hud.tscn" id="4_hearts"]
-[ext_resource type="Script" uid="uid://1f153lp72fw2" path="res://scripts/ui/score_hud.gd" id="5_score"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="4_hud"]
 [ext_resource type="PackedScene" uid="uid://csjs6og2e0x8a" path="res://scenes/pursuer.tscn" id="6_pursuer"]
 [ext_resource type="SpriteFrames" uid="uid://cde02m0qw1a37" path="res://assets/characters/tanod/tanod_frames.tres" id="7_frames"]
 
@@ -27,10 +26,7 @@ animation = &"arrest"
 [node name="SpawnDirector" type="Node" parent="." unique_id=1285426724]
 script = ExtResource("3_director")
 
-[node name="Hud" parent="." unique_id=156043162 instance=ExtResource("4_hearts")]
-
-[node name="ScoreHud" type="CanvasLayer" parent="." unique_id=78894855]
-script = ExtResource("5_score")
+[node name="Hud" parent="." unique_id=156043162 instance=ExtResource("4_hud")]
 
 [node name="GameOver" type="CanvasLayer" parent="." unique_id=1271252008]
 layer = 20
@@ -102,19 +98,3 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 color = Color(0.04, 0.05, 0.08, 0)
-
-[node name="DebugOverlay" type="CanvasLayer" parent="." unique_id=1933827120]
-process_mode = 3
-layer = 10
-
-[node name="Label" type="Label" parent="DebugOverlay" unique_id=881636510]
-offset_left = 24.0
-offset_top = 707.0
-offset_right = 756.0
-offset_bottom = 855.0
-theme_override_colors/font_color = Color(0.93, 0.97, 1, 0.92)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.65)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 20
-metadata/_edit_use_anchors_ = true

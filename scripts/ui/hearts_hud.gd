@@ -1,5 +1,5 @@
 class_name HeartsHud
-extends CanvasLayer
+extends Control
 ## Heart row. The layout is scene data (scenes/hearts_hud.tscn) so the row can
 ## be dragged around in the editor; this script only swaps full/empty art.
 ##

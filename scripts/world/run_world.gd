@@ -54,12 +54,12 @@ var _home_sky_texture: Texture2D
 @onready var arrest: AnimatedSprite2D = $Arrest
 @onready var hazards: Node2D = $Hazards
 @onready var director: SpawnDirector = $SpawnDirector
-@onready var hud: HeartsHud = $Hud
-@onready var score_hud: ScoreHud = $ScoreHud
+@onready var hud: HeartsHud = $Hud/HudRoot/Hearts
+@onready var score_hud: ScoreHud = $Hud/HudRoot/Score
 @onready var game_over_root: Control = $GameOver/Root
 @onready var game_over_label: Label = $GameOver/Root/Label
 @onready var caught_label: Label = $GameOver/Root/CaughtLabel
-@onready var _debug_label: Label = $DebugOverlay/Label
+@onready var _debug_label: Label = $Hud/HudRoot/Debug
 @onready var _zone_fade: ColorRect = $ZoneFade/Rect
 
 ## Base forward speed. The momentum dip lowers it temporarily after a hit.

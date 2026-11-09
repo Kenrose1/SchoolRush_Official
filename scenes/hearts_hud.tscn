@@ -3,7 +3,8 @@
 [ext_resource type="Script" uid="uid://ch554k806fdhs" path="res://scripts/ui/hearts_hud.gd" id="1_hud"]
 [ext_resource type="Texture2D" uid="uid://cne1vj437o8pt" path="res://assets/heart/heart.png" id="2_heart"]
 
-[node name="HeartsHud" type="CanvasLayer" unique_id=151054007]
+[node name="HeartsHud" type="Control" unique_id=151054007]
+mouse_filter = 2
 script = ExtResource("1_hud")
 
 [node name="Row" type="HBoxContainer" parent="." unique_id=1360099758]
