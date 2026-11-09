@@ -17,6 +17,9 @@ func _ready() -> void:
 	_section("GameConfig")
 	_test_config()
 
+	_section("Zones")
+	_test_zones()
+
 	_section("Input map")
 	_test_input()
 
@@ -94,6 +97,139 @@ func _test_config() -> void:
 	_check(GameConfig.SLIDE_DURATION > 0.3 and GameConfig.SLIDE_DURATION < 1.0, "slide duration is playable")
 	_check(GameConfig.RUN_SPEED > 0.0, "run speed is positive")
 	_check(GameConfig.PLAYER_START_LANE == GameConfig.LANE_MIDDLE, "player starts in the middle lane")
+
+
+func _test_zones() -> void:
+	_check_eq(GameConfig.ZONE_ORDER.size(), 2, "two zones in a run")
+	_check_eq(GameConfig.ZONE_ORDER[0], GameConfig.Zone.HOME, "home runs first")
+	_check_eq(GameConfig.ZONE_ORDER[1], GameConfig.Zone.STREET, "street runs second")
+	_check(
+		GameConfig.ZONE_HOME_DURATION_SECONDS > 0.0,
+		"home has a duration",
+	)
+	_check(
+		GameConfig.ZONE_HOME_DURATION_SECONDS >= GameConfig.ZONE_HOME_MIN_SECONDS,
+		"default home duration clears the minimum",
+	)
+	_check(GameConfig.ZONE_FADE_TIME > 0.0, "zone fade has a length")
+	_check_near(
+		GameConfig.zone_home_length(),
+		GameConfig.ZONE_HOME_DURATION_SECONDS * GameConfig.RUN_SPEED,
+		0.01,
+		"home length derives from duration and speed",
+	)
+
+	var length := GameConfig.zone_home_length()
+	_check_eq(GameConfig.zone_for_distance(0.0), GameConfig.Zone.HOME, "the run opens at home")
+	_check_eq(
+		GameConfig.zone_for_distance(length - 1.0),
+		GameConfig.Zone.HOME,
+		"home holds right up to the boundary",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance(length),
+		GameConfig.Zone.STREET,
+		"street starts exactly at the boundary",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance(length * 10.0),
+		GameConfig.Zone.STREET,
+		"street never ends",
+	)
+
+	var custom := GameConfig.zone_home_length(20.0)
+	_check_near(custom, 20.0 * GameConfig.RUN_SPEED, 0.01, "a custom duration scales the boundary")
+	_check_near(
+		GameConfig.zone_home_length(0.5),
+		GameConfig.ZONE_HOME_MIN_SECONDS * GameConfig.RUN_SPEED,
+		0.01,
+		"home duration clamps at the minimum",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance(custom, custom),
+		GameConfig.Zone.STREET,
+		"a per-run override moves the boundary",
+	)
+	_check_near(
+		GameConfig.HOUSE_FLOOR_SPLIT_RATIO,
+		GameConfig.HOUSE_FLOOR_SPLIT_Y / GameConfig.HOUSE_SOURCE_HEIGHT,
+		0.0001,
+		"the floor split ratio survives a texture downscale",
+	)
+	var split_px := GameConfig.HOUSE_FLOOR_SPLIT_RATIO * 1920.0
+	_check(
+		split_px > 0.0 and split_px < 1920.0,
+		"the floor split lands inside the downscaled texture",
+	)
+
+	var main_scene := load("res://scenes/main.tscn") as PackedScene
+	_check(main_scene != null, "main scene loads for the zone check")
+	if main_scene == null:
+		return
+	var main := main_scene.instantiate()
+	add_child(main)
+	var world := main.get_node_or_null("RunWorld") as RunWorld
+	_check(world != null, "run world exists for the zone check")
+	if world != null:
+		world.set_physics_process(false)
+		world.set_process(false)
+		_check_eq(world.current_zone, GameConfig.Zone.HOME, "the run world opens at home")
+		_check_eq(
+			world.home_zone_seconds,
+			GameConfig.ZONE_HOME_DURATION_SECONDS,
+			"the world uses the default home duration",
+		)
+		_check_near(
+			world.home_zone_length,
+			GameConfig.zone_home_length(),
+			0.01,
+			"the world derives its home boundary",
+		)
+		_check_near(world.HOME_BASE.a, 1.0, 0.001, "the home base is fully opaque (no sky leak)")
+		_check_eq(
+			world.HOME_WALL_PARALLAX,
+			world.HOME_FLOOR_PARALLAX,
+			"home wall and floor scroll in lockstep",
+		)
+
+		var fade: ColorRect = world._zone_fade
+		_check(fade != null, "the world owns a zone fade rect")
+		if fade != null:
+			_check_eq(fade.mouse_filter, Control.MOUSE_FILTER_IGNORE, "the zone fade ignores the mouse")
+			var fade_layer := fade.get_parent() as CanvasLayer
+			_check(fade_layer != null, "the zone fade lives in a CanvasLayer")
+			if fade_layer != null:
+				_check(fade_layer.layer > 0, "the fade layer draws above the world")
+			_check_near(fade.anchor_right, 1.0, 0.001, "the zone fade spans the viewport width")
+			_check_near(fade.anchor_bottom, 1.0, 0.001, "the zone fade spans the viewport height")
+			_check_near(fade.color.a, 0.0, 0.001, "the zone fade starts transparent")
+
+			# Force the boundary and hold the clock; no frames pass here.
+			var seen: Array = []
+			world.zone_changed.connect(func(zone: GameConfig.Zone) -> void: seen.append(zone))
+			world.distance = world.home_zone_length + 1.0
+			world._update_zone()
+			_check_eq(world.current_zone, GameConfig.Zone.STREET, "crossing the boundary switches to street")
+			_check_eq(seen.size(), 1, "the zone change emits exactly once")
+			if seen.size() == 1:
+				_check_eq(seen[0], GameConfig.Zone.STREET, "the signal reports the street")
+			_check_near(fade.color.a, 1.0, 0.001, "the fade covers the screen at the swap")
+			_check_near(
+				world._zone_fade_time_left,
+				GameConfig.ZONE_FADE_TIME,
+				0.001,
+				"the fade clock starts at ZONE_FADE_TIME",
+			)
+
+			world._process(GameConfig.ZONE_FADE_TIME * 0.5)
+			_check_near(fade.color.a, 0.5, 0.01, "the fade eases out over its duration")
+			world._process(GameConfig.ZONE_FADE_TIME)
+			_check_near(fade.color.a, 0.0, 0.001, "the fade clears when the clock runs out")
+			_check_near(world._zone_fade_time_left, 0.0, 0.001, "the fade clock stops at zero")
+
+			world._update_zone()
+			_check_near(fade.color.a, 0.0, 0.001, "the street is terminal (no second fade)")
+	main.queue_free()
 
 
 func _test_input() -> void:

@@ -35,6 +35,7 @@ func _ready() -> void:
 	var world := main.get_node("RunWorld") as RunWorld
 
 	await _wait(20)
+	await _shot("m5_01_home")
 	await _shot("m3_01_run")
 
 	# Freeze spawning, clear the live objects, then stage hazards + items.
@@ -64,6 +65,27 @@ func _ready() -> void:
 	world._on_player_caught()
 	await _wait(30)
 	await _shot("m4_02_caught")
+
+	# M5: hold the zone fade mid-way, then reveal the terminal street.
+	world.game_over_root.visible = false
+	world.arrest.visible = false
+	world.player.sprite.visible = true
+	world.set_process(false)
+	world.distance = world.home_zone_length + 1.0
+	world._update_zone()
+	world._zone_fade_time_left = GameConfig.ZONE_FADE_TIME * 0.5
+	world._zone_fade.color.a = 0.5
+	world._update_debug()
+	world.queue_redraw()
+	await _wait(2)
+	await _shot("m5_02_zone_fade")
+
+	world._zone_fade_time_left = 0.0
+	world._zone_fade.color.a = 0.0
+	world._update_debug()
+	world.queue_redraw()
+	await _wait(2)
+	await _shot("m5_03_street")
 
 	get_tree().quit(0)
 

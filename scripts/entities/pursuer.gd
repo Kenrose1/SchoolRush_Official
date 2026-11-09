@@ -152,4 +152,3 @@ func _play(anim: StringName) -> void:
 		return
 	_current_anim = anim
 	sprite.play(anim)
-

@@ -1,12 +1,16 @@
 @tool
 class_name RunWorld
 extends Node2D
-## The M5 street course.
+## The M5 course.
 ##
-## Owns forward speed, distance, the hazard director, School Items, scoring,
-## and the pursuer. Draws sunset sky + designer houses (parallax) + road
-## (scrolls with hazards) with translucent lane paint on top, and hosts the
-## player and the hearts HUD. Zones arrive in M5.
+## Owns forward speed, distance, the zone clock (home -> street), the hazard
+## director, School Items, scoring, and the pursuer. Each zone draws its own
+## background stack: home is a two-layer interior (wall + floor, both riding
+## the world speed), street is the sunset sky plus the designer houses and
+## road. Lanes are painted on top; the road/floor always scrolls at world speed
+## so hazards never slide.
+
+signal zone_changed(zone: GameConfig.Zone)
 
 const SKY_COLOR := Color("#6fb7e8")
 const SUN_COLOR := Color("#fff3b0")
@@ -26,8 +30,19 @@ const STREET_ROAD_PARALLAX := 1.0
 ## Y in Designer pixels (1024 tall) where houses end and the road begins.
 const STREET_HOUSES_END_Y := 630.0
 
+const HOME_TEXTURE := "res://assets/backgrounds/house.png"
+## Drawn behind the interior first. house.png has a slightly transparent alpha
+## channel (~94%), so this keeps the viewport clear colour out of the art.
+const HOME_BASE := Color("#3a2216")
+## Wall and floor both ride the world speed so the room scrolls in lockstep
+## with the lanes and the hazards. Home draws no sky layer: the interior is the
+## background, so nothing can peek through it.
+const HOME_WALL_PARALLAX := 1.0
+const HOME_FLOOR_PARALLAX := 1.0
+
 var _sky_texture: Texture2D
 var _street_texture: Texture2D
+var _home_texture: Texture2D
 
 @onready var player: Player = $Player
 @onready var pursuer: Pursuer = $Pursuer
@@ -40,6 +55,7 @@ var _street_texture: Texture2D
 @onready var game_over_label: Label = $GameOver/Root/Label
 @onready var caught_label: Label = $GameOver/Root/CaughtLabel
 @onready var _debug_label: Label = $DebugOverlay/Label
+@onready var _zone_fade: ColorRect = $ZoneFade/Rect
 
 ## Base forward speed. The momentum dip lowers it temporarily after a hit.
 var speed: float = GameConfig.RUN_SPEED
@@ -55,12 +71,27 @@ var momentum_recover_time_left: float = 0.0
 ## True once the chase-ending lunge has started (caught or hazard-hit mid-chase).
 var _caught: bool = false
 
+## Seconds the home zone lasts. Editable in the Inspector so the house run can
+## be extended without touching GameConfig; the street zone has no duration.
+@export_range(5.0, 300.0, 1.0) var home_zone_seconds: float = GameConfig.ZONE_HOME_DURATION_SECONDS
+## Distance (px) at which home ends, derived from [member home_zone_seconds].
+var home_zone_length: float = GameConfig.zone_home_length()
+## Zone currently being drawn and scored.
+var current_zone: GameConfig.Zone = GameConfig.Zone.HOME
+## Seconds of zone cross-fade remaining.
+var _zone_fade_time_left: float = 0.0
+
 
 func _ready() -> void:
+	home_zone_length = GameConfig.zone_home_length(home_zone_seconds)
+	current_zone = GameConfig.zone_for_distance(distance, home_zone_length)
+	if _zone_fade != null:
+		_zone_fade.color.a = 0.0
 	# Editor preview: load art + draw once, skip runtime wiring.
 	if Engine.is_editor_hint():
 		_sky_texture = load(SKY_TEXTURE) as Texture2D
 		_street_texture = load(STREET_TEXTURE) as Texture2D
+		_home_texture = load(HOME_TEXTURE) as Texture2D
 		queue_redraw()
 		return
 	_debug_label.visible = GameConfig.DEBUG_OVERLAY
@@ -118,6 +149,7 @@ func _physics_process(delta: float) -> void:
 		if child is Hazard or child is Collectible:
 			child.speed = speed
 	distance += speed * delta
+	_update_zone()
 	director.tick(delta, speed, distance)
 	score_system.add_distance(distance)
 	pursuer.set_world_speed(speed)
@@ -125,6 +157,27 @@ func _physics_process(delta: float) -> void:
 	player.pursuer_active = pursuer.is_active()
 	queue_redraw()
 	_update_debug()
+
+
+## Step the zone clock. Only HOME has a duration; STREET is terminal.
+func _update_zone() -> void:
+	var next := GameConfig.zone_for_distance(distance, home_zone_length)
+	if next == current_zone:
+		return
+	current_zone = next
+	_zone_fade_time_left = GameConfig.ZONE_FADE_TIME
+	_zone_fade.color.a = 1.0
+	zone_changed.emit(current_zone)
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+	if _zone_fade_time_left <= 0.0:
+		return
+	_zone_fade_time_left = maxf(_zone_fade_time_left - delta, 0.0)
+	_zone_fade.color.a = clampf(_zone_fade_time_left / GameConfig.ZONE_FADE_TIME, 0.0, 1.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -227,11 +280,12 @@ func _show_game_over(caught: bool) -> void:
 func _update_debug() -> void:
 	if not _debug_label.visible:
 		return
-	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nAIR   %.0f px   SLIDE %s\nHEARTS %d/%d   IFRAME %.2f s\nSCORE %d   x%d   ITEMS %d\nCHASE %s  GAP %.0f px\nFPS   %d\n[F3] hide" % [
+	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nZONE  %s\nAIR   %.0f px   SLIDE %s\nHEARTS %d/%d   IFRAME %.2f s\nSCORE %d   x%d   ITEMS %d\nCHASE %s  GAP %.0f px\nFPS   %d\n[F3] hide" % [
 		player.lane,
 		player.lane_y,
 		speed,
 		distance / 100.0,
+		["HOME", "STREET"][current_zone],
 		player.air_height,
 		"yes" if player.is_sliding else "no",
 		player.health,
@@ -246,10 +300,40 @@ func _update_debug() -> void:
 	]
 
 
-# --- Street + lane rendering -------------------------------------------------
+# --- Zone rendering ----------------------------------------------------------
 
 func _draw() -> void:
 	var view := GameConfig.DESIGN_SIZE
+	if current_zone == GameConfig.Zone.HOME:
+		_draw_home(view)
+	else:
+		_draw_street(view)
+	_draw_lane_paint(view)
+
+
+## Home: the interior split at the floor line. Both slices ride the world
+## speed, and an opaque base sits behind them so the texture's slightly
+## transparent alpha never lets the clear colour (or any sky layer) through.
+func _draw_home(view: Vector2) -> void:
+	var horizon := GameConfig.lane_y(0) - GameConfig.LANE_HALF_HEIGHT
+	draw_rect(Rect2(Vector2.ZERO, view), HOME_BASE)
+
+	if _home_texture == null:
+		_home_texture = load(HOME_TEXTURE) as Texture2D
+	if _home_texture == null:
+		draw_rect(Rect2(0.0, horizon, view.x, view.y - horizon), GROUND_BASE)
+		return
+
+	var src := _home_texture.get_size()
+	var split := clampf(GameConfig.HOUSE_FLOOR_SPLIT_RATIO * src.y, 0.0, src.y)
+	var wall_src := Rect2(Vector2.ZERO, Vector2(src.x, split))
+	var floor_src := Rect2(Vector2(0.0, split), Vector2(src.x, src.y - split))
+	_draw_loops(_home_texture, Rect2(Vector2.ZERO, Vector2(view.x, horizon)), HOME_WALL_PARALLAX, wall_src)
+	_draw_loops(_home_texture, Rect2(Vector2(0.0, horizon), Vector2(view.x, view.y - horizon)), HOME_FLOOR_PARALLAX, floor_src)
+
+
+## Street: sunset sky, then the designer houses and road split at the curb.
+func _draw_street(view: Vector2) -> void:
 	var horizon := GameConfig.lane_y(0) - GameConfig.LANE_HALF_HEIGHT
 
 	if _sky_texture == null:
@@ -277,16 +361,19 @@ func _draw() -> void:
 		_draw_skyline(0.22, horizon, 140.0, SKYLINE_NEAR, 190.0)
 		draw_rect(Rect2(0.0, horizon, view.x, view.y - horizon), GROUND_BASE)
 
+
+## Cream lane edges plus white ticks, shared by every zone.
+func _draw_lane_paint(view: Vector2) -> void:
+	var textured := _home_texture != null if current_zone == GameConfig.Zone.HOME else _street_texture != null
 	for lane in GameConfig.LANE_COUNT:
 		var y := GameConfig.lane_y(lane)
 		var top := y - GameConfig.LANE_HALF_HEIGHT
-		if _street_texture == null:
+		if textured:
+			draw_rect(Rect2(0.0, top, view.x, GameConfig.LANE_HALF_HEIGHT * 2.0), Color(LANE_COLORS[lane], 0.15))
+			draw_line(Vector2(0.0, top), Vector2(view.x, top), Color(LANE_EDGE, 0.5), 3.0)
+		else:
 			draw_rect(Rect2(0.0, top, view.x, GameConfig.LANE_HALF_HEIGHT * 2.0), LANE_COLORS[lane])
 			draw_line(Vector2(0.0, top), Vector2(view.x, top), Color(LANE_EDGE, 0.9), 3.0)
-		else:
-			var band := Color(LANE_COLORS[lane], 0.15)
-			draw_rect(Rect2(0.0, top, view.x, GameConfig.LANE_HALF_HEIGHT * 2.0), band)
-			draw_line(Vector2(0.0, top), Vector2(view.x, top), Color(LANE_EDGE, 0.5), 3.0)
 		_draw_ticks(y)
 
 

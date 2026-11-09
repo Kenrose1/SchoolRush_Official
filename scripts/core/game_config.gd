@@ -35,6 +35,30 @@ const LANE_SWITCH_SPEED := LANE_SPACING / LANE_SWITCH_TIME
 const LANE_LEAN_DEGREES := 6.0
 const LANE_LEAN_SMOOTHING := 16.0
 
+# --- Zones -------------------------------------------------------------------
+
+## The run starts at home and moves to the street. The street never ends.
+enum Zone { HOME, STREET }
+
+const ZONE_ORDER := [Zone.HOME, Zone.STREET]
+
+## How long the home zone lasts, in seconds. Extend this to keep Elias indoors
+## longer; only HOME has a duration, STREET runs forever.
+const ZONE_HOME_DURATION_SECONDS := 14.0
+
+## Floor for the home duration, so the boundary can never collapse.
+const ZONE_HOME_MIN_SECONDS := 5.0
+
+## Cross-fade length when the zone changes (seconds).
+const ZONE_FADE_TIME := 0.25
+
+## Y (in the original house source) where the wall ends and the floor begins.
+const HOUSE_FLOOR_SPLIT_Y := 1125.0
+## Height of the original house source. Kept so the split can be expressed as a
+## ratio and survive any import-time downscale of the texture.
+const HOUSE_SOURCE_HEIGHT := 2048.0
+const HOUSE_FLOOR_SPLIT_RATIO := HOUSE_FLOOR_SPLIT_Y / HOUSE_SOURCE_HEIGHT
+
 # --- Player ------------------------------------------------------------------
 
 const PLAYER_START_LANE := LANE_MIDDLE
@@ -60,7 +84,7 @@ const SLIDE_DURATION := 0.55
 
 # --- Run ---------------------------------------------------------------------
 
-## Base forward speed. Zone steps and Continuous Mode ramping arrive in M5.
+## Base forward speed, used by every zone.
 const RUN_SPEED := 420.0
 
 ## Scrolling ground ticks, used to make speed readable in the M1 gray box.
@@ -280,3 +304,18 @@ static func combo_multiplier(chain: int) -> int:
 	if chain >= COMBO_THRESHOLD_2:
 		return 2
 	return 1
+
+
+## Distance (px) the home zone lasts for [param seconds] at the base run speed,
+## clamped to ZONE_HOME_MIN_SECONDS.
+static func zone_home_length(seconds: float = ZONE_HOME_DURATION_SECONDS) -> float:
+	return maxf(seconds, ZONE_HOME_MIN_SECONDS) * RUN_SPEED
+
+
+## Zone that applies at [param distance]. Pass [param home_length] to use a
+## per-run override; a non-positive value falls back to the configured default.
+static func zone_for_distance(distance: float, home_length: float = -1.0) -> Zone:
+	var length := home_length
+	if length <= 0.0:
+		length = zone_home_length()
+	return Zone.HOME if distance < length else Zone.STREET
