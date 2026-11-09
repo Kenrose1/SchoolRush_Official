@@ -14,6 +14,7 @@ script = ExtResource("1_world")
 [node name="Hazards" type="Node2D" parent="." unique_id=1347232564]
 
 [node name="Player" parent="." unique_id=1576742457 instance=ExtResource("2_player")]
+position = Vector2(322, 693)
 
 [node name="Pursuer" parent="." unique_id=1509322962 instance=ExtResource("6_pursuer")]
 position = Vector2(-259, 594)

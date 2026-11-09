@@ -63,7 +63,7 @@ const HOUSE_FLOOR_SPLIT_RATIO := HOUSE_FLOOR_SPLIT_Y / HOUSE_SOURCE_HEIGHT
 
 const PLAYER_START_LANE := LANE_MIDDLE
 const PLAYER_X := 400.0
-const PLAYER_SCALE := 0.6
+const PLAYER_SCALE := 0.7
 
 ## Source sprite dimensions, used to keep the feet planted while squashing.
 const PLAYER_SPRITE_WIDTH := 123.0

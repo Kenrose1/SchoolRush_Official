@@ -5,10 +5,10 @@ extends Node2D
 ##
 ## Owns forward speed, distance, the zone clock (home -> street), the hazard
 ## director, School Items, scoring, and the pursuer. Each zone draws its own
-## background stack: home is a two-layer interior (wall + floor, both riding
-## the world speed), street is the sunset sky plus the designer houses and
-## road. Lanes are painted on top; the road/floor always scrolls at world speed
-## so hazards never slide.
+## background stack: home is a two-layer interior (wall + floor) over a slow
+## sunset neighbourhood seen through the window glass, street is the sunset
+## sky plus the designer houses and road. Lanes are painted on top; the
+## road/floor always scrolls at world speed so hazards never slide.
 
 signal zone_changed(zone: GameConfig.Zone)
 
@@ -31,18 +31,23 @@ const STREET_ROAD_PARALLAX := 1.0
 const STREET_HOUSES_END_Y := 630.0
 
 const HOME_TEXTURE := "res://assets/backgrounds/house.png"
+## Seen through the window glass and door panes of house.png. Drawn behind the
+## wall and drifts slowly, exactly like the street sky.
+const HOME_SKY_TEXTURE := "res://assets/backgrounds/house_skybabackground.jpg"
+const HOME_SKY_PARALLAX := SKY_PARALLAX
 ## Drawn behind the interior first. house.png has a slightly transparent alpha
-## channel (~94%), so this keeps the viewport clear colour out of the art.
+## channel (~94%) and see-through window glass, so the panes reveal the sky
+## while the base keeps the viewport clear colour out of the art.
 const HOME_BASE := Color("#3a2216")
 ## Wall and floor both ride the world speed so the room scrolls in lockstep
-## with the lanes and the hazards. Home draws no sky layer: the interior is the
-## background, so nothing can peek through it.
+## with the lanes and the hazards.
 const HOME_WALL_PARALLAX := 1.0
 const HOME_FLOOR_PARALLAX := 1.0
 
 var _sky_texture: Texture2D
 var _street_texture: Texture2D
 var _home_texture: Texture2D
+var _home_sky_texture: Texture2D
 
 @onready var player: Player = $Player
 @onready var pursuer: Pursuer = $Pursuer
@@ -92,6 +97,7 @@ func _ready() -> void:
 		_sky_texture = load(SKY_TEXTURE) as Texture2D
 		_street_texture = load(STREET_TEXTURE) as Texture2D
 		_home_texture = load(HOME_TEXTURE) as Texture2D
+		_home_sky_texture = load(HOME_SKY_TEXTURE) as Texture2D
 		queue_redraw()
 		return
 	_debug_label.visible = GameConfig.DEBUG_OVERLAY
@@ -312,8 +318,10 @@ func _draw() -> void:
 
 
 ## Home: the interior split at the floor line. Both slices ride the world
-## speed, and an opaque base sits behind them so the texture's slightly
-## transparent alpha never lets the clear colour (or any sky layer) through.
+## speed. A sunset neighbourhood sits behind the wall and drifts at the street
+## sky's parallax, so the window glass (the only see-through part of house.png)
+## reveals a moving street scene. The floor band stays backed by HOME_BASE, so
+## the wood and the lane paint keep their exact colours.
 func _draw_home(view: Vector2) -> void:
 	var horizon := GameConfig.lane_y(0) - GameConfig.LANE_HALF_HEIGHT
 	draw_rect(Rect2(Vector2.ZERO, view), HOME_BASE)
@@ -323,6 +331,15 @@ func _draw_home(view: Vector2) -> void:
 	if _home_texture == null:
 		draw_rect(Rect2(0.0, horizon, view.x, view.y - horizon), GROUND_BASE)
 		return
+
+	if _home_sky_texture == null:
+		_home_sky_texture = load(HOME_SKY_TEXTURE) as Texture2D
+	if _home_sky_texture != null:
+		_draw_loops(
+			_home_sky_texture,
+			Rect2(Vector2.ZERO, Vector2(view.x, horizon)),
+			HOME_SKY_PARALLAX,
+		)
 
 	var src := _home_texture.get_size()
 	var split := clampf(GameConfig.HOUSE_FLOOR_SPLIT_RATIO * src.y, 0.0, src.y)

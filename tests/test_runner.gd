@@ -186,6 +186,19 @@ func _test_zones() -> void:
 			"the world derives its home boundary",
 		)
 		_check_near(world.HOME_BASE.a, 1.0, 0.001, "the home base is fully opaque (no sky leak)")
+		_check(
+			ResourceLoader.exists(world.HOME_SKY_TEXTURE),
+			"the home window sky is on disk",
+		)
+		_check_eq(
+			world.HOME_SKY_PARALLAX,
+			world.SKY_PARALLAX,
+			"the home sky drifts like the street sky",
+		)
+		_check(
+			world.HOME_SKY_PARALLAX < world.HOME_WALL_PARALLAX,
+			"the home sky drifts slower than the room",
+		)
 		_check_eq(
 			world.HOME_WALL_PARALLAX,
 			world.HOME_FLOOR_PARALLAX,
