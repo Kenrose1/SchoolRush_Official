@@ -1250,6 +1250,49 @@ func _test_scenes() -> void:
 			)
 			world.hud.set_hearts(GameConfig.MAX_HEARTS, GameConfig.MAX_HEARTS)
 
+		if world.score_hud != null:
+			_check_eq(
+				world.score_hud.label_font("score").resource_path,
+				ScoreHud.SCORE_FONT_PATH,
+				"the score uses Inter Tight ExtraBold",
+			)
+			_check_eq(
+				world.score_hud.label_font("combo").resource_path,
+				ScoreHud.SUB_FONT_PATH,
+				"the combo readout uses Inter Tight SemiBold",
+			)
+			_check_eq(
+				world.score_hud.label_font("items").resource_path,
+				ScoreHud.SUB_FONT_PATH,
+				"the item count uses Inter Tight SemiBold",
+			)
+			world.score_hud.set_combo(2, 5)
+			_check_eq(
+				world.score_hud.label_text("combo"),
+				"x2  COMBO 5",
+				"the combo readout shows the multiplier and chain",
+			)
+			world.score_hud.set_combo(1, 0)
+			_check_eq(world.score_hud.label_text("combo"), "", "the combo readout hides with no chain")
+
+		if world.pause_menu != null:
+			_check_eq(
+				world.pause_menu.process_mode,
+				Node.PROCESS_MODE_ALWAYS,
+				"the pause menu keeps processing while paused",
+			)
+			_check(not world.pause_menu.is_paused, "the run starts unpaused")
+			_check(world.pause_menu.button.visible, "the pause button is visible while running")
+			world.pause_menu.set_paused(true)
+			_check(get_tree().paused, "pausing freezes the tree")
+			_check(world.pause_menu.overlay.visible, "pausing shows the overlay")
+			_check(not world.pause_menu.button.visible, "pausing hides the pause button")
+			world.pause_menu.set_paused(false)
+			_check(not get_tree().paused, "resuming unfreezes the tree")
+			_check(not world.pause_menu.overlay.visible, "resuming hides the overlay")
+			_check(world.pause_menu.button.visible, "resuming restores the pause button")
+			get_tree().paused = false
+
 		if world.director != null:
 			for i in 8:
 				world._physics_process(0.25)

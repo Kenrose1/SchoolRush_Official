@@ -38,6 +38,13 @@ func _ready() -> void:
 	await _shot("m5_01_home")
 	await _shot("m3_01_run")
 
+	# M5: pause button + overlay. Rendering keeps running while the tree is
+	# paused, so wait on the draw signal rather than on physics frames.
+	world.pause_menu.set_paused(true)
+	await _shot("m5_06_paused")
+	world.pause_menu.set_paused(false)
+	await _wait(2)
+
 	# Freeze spawning, clear the live objects, then stage hazards + items.
 	world.is_running = false
 	for child in world.hazards.get_children():
@@ -66,7 +73,7 @@ func _ready() -> void:
 	await _wait(30)
 	await _shot("m4_02_caught")
 
-	# M5: hold the zone fade mid-way, then reveal the terminal street.
+	# M5: hold the zone fade mid-way, then reveal the street zone.
 	world.game_over_root.visible = false
 	world.arrest.visible = false
 	world.player.sprite.visible = true

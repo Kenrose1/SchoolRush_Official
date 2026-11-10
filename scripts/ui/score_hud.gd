@@ -1,9 +1,16 @@
 class_name ScoreHud
 extends Control
-## Minimal score readout in the top-right corner.
+## Score, combo, and School Item readout in the top-right corner.
 ##
-## M3 placeholder: it only reflects the ScoreSystem. The styled HUD arrives in
-## M5 with the font/theme decision.
+## Built in code so the three labels always stay right-anchored. The block
+## stops short of the right edge to leave room for the pause button
+## (scripts/ui/pause_menu.gd) that shares the corner.
+
+const SCORE_FONT_PATH := "res://assets/fonts/static/InterTight-ExtraBold.ttf"
+const SUB_FONT_PATH := "res://assets/fonts/static/InterTight-SemiBold.ttf"
+const SCORE_FONT: Font = preload(SCORE_FONT_PATH)
+const SUB_FONT: Font = preload(SUB_FONT_PATH)
+const TEXT_COLOR := Color(1.0, 0.94, 0.86)
 
 var _score_label: Label
 var _combo_label: Label
@@ -11,9 +18,12 @@ var _items_label: Label
 
 
 func _ready() -> void:
-	_score_label = _make_label(Vector2(-360.0, 24.0), Vector2(-28.0, 80.0), HORIZONTAL_ALIGNMENT_RIGHT, 40)
-	_combo_label = _make_label(Vector2(-360.0, 76.0), Vector2(-28.0, 124.0), HORIZONTAL_ALIGNMENT_RIGHT, 32)
-	_items_label = _make_label(Vector2(-360.0, 122.0), Vector2(-28.0, 168.0), HORIZONTAL_ALIGNMENT_RIGHT, 28)
+	_score_label = _make_label(
+		Vector2(-436.0, 24.0), Vector2(-104.0, 80.0), 40, SCORE_FONT)
+	_combo_label = _make_label(
+		Vector2(-436.0, 76.0), Vector2(-104.0, 124.0), 32, SUB_FONT)
+	_items_label = _make_label(
+		Vector2(-436.0, 122.0), Vector2(-104.0, 168.0), 28, SUB_FONT)
 	set_score(0)
 	set_combo(1, 0)
 	set_items(0)
@@ -34,7 +44,31 @@ func set_items(count: int) -> void:
 	_items_label.text = "ITEMS  %d" % count
 
 
-func _make_label(left: Vector2, right: Vector2, align: HorizontalAlignment, font_size: int) -> Label:
+## Theme font used by a readout ("score", "combo", or "items"), for the suite.
+func label_font(part: String) -> Font:
+	match part:
+		"score":
+			return _score_label.get_theme_font("font")
+		"combo":
+			return _combo_label.get_theme_font("font")
+		"items":
+			return _items_label.get_theme_font("font")
+	return null
+
+
+## Text currently shown by a readout ("score", "combo", or "items").
+func label_text(part: String) -> String:
+	match part:
+		"score":
+			return _score_label.text
+		"combo":
+			return _combo_label.text
+		"items":
+			return _items_label.text
+	return ""
+
+
+func _make_label(left: Vector2, right: Vector2, font_size: int, font: Font) -> Label:
 	var label := Label.new()
 	label.anchor_left = 1.0
 	label.anchor_right = 1.0
@@ -44,11 +78,12 @@ func _make_label(left: Vector2, right: Vector2, align: HorizontalAlignment, font
 	label.offset_top = left.y
 	label.offset_right = right.x
 	label.offset_bottom = right.y
-	label.horizontal_alignment = align
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.add_theme_font_override("font", font)
 	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color(1.0, 0.94, 0.86))
+	label.add_theme_color_override("font_color", TEXT_COLOR)
 	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.65))
-	label.add_theme_constant_override("shadow_offset_x", 2)
-	label.add_theme_constant_override("shadow_offset_y", 2)
+	label.add_theme_constant_override("shadow_offset_x", 3)
+	label.add_theme_constant_override("shadow_offset_y", 3)
 	add_child(label)
 	return label

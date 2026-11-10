@@ -75,6 +75,7 @@ var _school_background_texture: Texture2D
 @onready var director: SpawnDirector = $SpawnDirector
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
+@onready var pause_menu: PauseMenu = $Hud/HudRoot/Pause
 @onready var game_over_root: Control = $GameOver/Root
 @onready var game_over_label: Label = $GameOver/Root/Label
 @onready var caught_label: Label = $GameOver/Root/CaughtLabel
@@ -142,6 +143,7 @@ func _ready() -> void:
 	pursuer.lunge_finished.connect(_on_lunge_finished)
 	arrest.animation_finished.connect(_on_arrest_finished)
 	hud.set_hearts(player.health, GameConfig.MAX_HEARTS)
+	pause_menu.setup(self)
 
 	score_system.score_changed.connect(score_hud.set_score)
 	score_system.combo_changed.connect(score_hud.set_combo)

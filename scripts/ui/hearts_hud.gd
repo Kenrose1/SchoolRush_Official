@@ -3,8 +3,7 @@ extends Control
 ## Heart row. The layout is scene data (scenes/hearts_hud.tscn) so the row can
 ## be dragged around in the editor; this script only swaps full/empty art.
 ##
-## M3 placeholder: it only reflects health. Score, combo, and the styled HUD
-## arrive in M5. Uses the project's 16x16 heart art, nearest-filtered.
+## Uses the project's 16x16 heart art, nearest-filtered.
 
 const FULL_TEXTURE := preload("res://assets/heart/heart.png")
 const EMPTY_TEXTURE := preload("res://assets/heart/heart_empty.png")
