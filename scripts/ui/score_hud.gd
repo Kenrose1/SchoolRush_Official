@@ -19,11 +19,11 @@ var _items_label: Label
 
 func _ready() -> void:
 	_score_label = _make_label(
-		Vector2(-436.0, 24.0), Vector2(-104.0, 80.0), 40, SCORE_FONT)
+		Vector2(-448.0, 24.0), Vector2(-116.0, 80.0), 40, SCORE_FONT)
 	_combo_label = _make_label(
-		Vector2(-436.0, 76.0), Vector2(-104.0, 124.0), 32, SUB_FONT)
+		Vector2(-448.0, 76.0), Vector2(-116.0, 124.0), 32, SUB_FONT)
 	_items_label = _make_label(
-		Vector2(-436.0, 122.0), Vector2(-104.0, 168.0), 28, SUB_FONT)
+		Vector2(-448.0, 122.0), Vector2(-116.0, 168.0), 28, SUB_FONT)
 	set_score(0)
 	set_combo(1, 0)
 	set_items(0)

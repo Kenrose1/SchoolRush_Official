@@ -29,8 +29,8 @@ const AMBER_PRESSED := Color("#e09a4a")
 const GLYPH_SHEET_PATH := "res://assets/icon/button UI.png"
 ## Cell 6 of row 7 in the 16x16 icon sheet: the orange "pause" tile.
 const GLYPH_REGION := Rect2(80.0, 96.0, 16.0, 16.0)
-## 16 -> 48 is an exact 3x scale, so the pixel art stays crisp.
-const GLYPH_PIXEL_SIZE := 48
+## 16 -> 64 is an exact 4x scale, so the pixel art stays crisp.
+const GLYPH_PIXEL_SIZE := 64
 
 ## True while the tree is frozen by this menu.
 var is_paused: bool = false
