@@ -3,12 +3,13 @@ class_name RunWorld
 extends Node2D
 ## The M5 course.
 ##
-## Owns forward speed, distance, the zone clock (home -> street), the hazard
-## director, School Items, scoring, and the pursuer. Each zone draws its own
-## background stack: home is a two-layer interior (wall + floor) over a slow
-## sunset neighbourhood seen through the window glass, street is the sunset
-## sky plus the designer houses and road. Lanes are painted on top; the
-## road/floor always scrolls at world speed so hazards never slide.
+## Owns forward speed, distance, the zone clock (home -> street -> school), the
+## hazard director, School Items, scoring, and the pursuer. Each zone draws its
+## own background stack: home is a two-layer interior (wall + floor) over a slow
+## sunset neighbourhood seen through the window glass, street is the sunset sky
+## plus the designer houses and road, school is the hallway (wall + wood floor)
+## over the campus exterior seen through the hallway windows. Lanes are painted
+## on top; the road/floor always scrolls at world speed so hazards never slide.
 
 signal zone_changed(zone: GameConfig.Zone)
 
@@ -44,10 +45,28 @@ const HOME_BASE := Color("#3a2216")
 const HOME_WALL_PARALLAX := 1.0
 const HOME_FLOOR_PARALLAX := 1.0
 
+## The hallway interior. Its window band is the only see-through part, so the
+## campus exterior shows through the glass exactly like the home window sky.
+const SCHOOL_TEXTURE := "res://assets/backgrounds/Schoolhallway.png"
+const SCHOOL_BACKGROUND_TEXTURE := "res://assets/backgrounds/SchoolBackground.png"
+const SCHOOL_BACKGROUND_PARALLAX := SKY_PARALLAX
+## Drawn behind the hall first. The hallway art is opaque below the windows, so
+## this only backs the viewport clear colour out of the glass.
+const SCHOOL_BASE := Color("#251a29")
+## Wall and floor both ride the world speed so the hall scrolls in lockstep
+## with the lanes and the hazards.
+const SCHOOL_WALL_PARALLAX := 1.0
+const SCHOOL_FLOOR_PARALLAX := 1.0
+## Y in Schoolhallway pixels (1024 tall) where the wall ends and the wood floor
+## begins. Sits just under the horizon, so the wall band maps almost 1:1.
+const SCHOOL_FLOOR_SPLIT_Y := 576.0
+
 var _sky_texture: Texture2D
 var _street_texture: Texture2D
 var _home_texture: Texture2D
 var _home_sky_texture: Texture2D
+var _school_texture: Texture2D
+var _school_background_texture: Texture2D
 
 @onready var player: Player = $Player
 @onready var pursuer: Pursuer = $Pursuer
@@ -77,10 +96,15 @@ var momentum_recover_time_left: float = 0.0
 var _caught: bool = false
 
 ## Seconds the home zone lasts. Editable in the Inspector so the house run can
-## be extended without touching GameConfig; the street zone has no duration.
+## be extended without touching GameConfig; HOME and STREET are timed, SCHOOL
+## has no duration.
 @export_range(5.0, 300.0, 1.0) var home_zone_seconds: float = GameConfig.ZONE_HOME_DURATION_SECONDS
 ## Distance (px) at which home ends, derived from [member home_zone_seconds].
 var home_zone_length: float = GameConfig.zone_home_length()
+## Seconds the street zone lasts, editable in the Inspector the same way.
+@export_range(5.0, 300.0, 1.0) var street_zone_seconds: float = GameConfig.ZONE_STREET_DURATION_SECONDS
+## Distance (px) the street zone lasts, derived from [member street_zone_seconds].
+var street_zone_length: float = GameConfig.zone_street_length()
 ## Zone currently being drawn and scored.
 var current_zone: GameConfig.Zone = GameConfig.Zone.HOME
 ## Seconds of zone cross-fade remaining.
@@ -89,7 +113,8 @@ var _zone_fade_time_left: float = 0.0
 
 func _ready() -> void:
 	home_zone_length = GameConfig.zone_home_length(home_zone_seconds)
-	current_zone = GameConfig.zone_for_distance(distance, home_zone_length)
+	street_zone_length = GameConfig.zone_street_length(street_zone_seconds)
+	current_zone = GameConfig.zone_for_distance(distance, home_zone_length, street_zone_length)
 	if _zone_fade != null:
 		_zone_fade.color.a = 0.0
 	# Editor preview: load art + draw once, skip runtime wiring.
@@ -98,6 +123,8 @@ func _ready() -> void:
 		_street_texture = load(STREET_TEXTURE) as Texture2D
 		_home_texture = load(HOME_TEXTURE) as Texture2D
 		_home_sky_texture = load(HOME_SKY_TEXTURE) as Texture2D
+		_school_texture = load(SCHOOL_TEXTURE) as Texture2D
+		_school_background_texture = load(SCHOOL_BACKGROUND_TEXTURE) as Texture2D
 		queue_redraw()
 		return
 	_debug_label.visible = GameConfig.DEBUG_OVERLAY
@@ -165,9 +192,9 @@ func _physics_process(delta: float) -> void:
 	_update_debug()
 
 
-## Step the zone clock. Only HOME has a duration; STREET is terminal.
+## Step the zone clock. HOME and STREET are timed; SCHOOL is terminal.
 func _update_zone() -> void:
-	var next := GameConfig.zone_for_distance(distance, home_zone_length)
+	var next := GameConfig.zone_for_distance(distance, home_zone_length, street_zone_length)
 	if next == current_zone:
 		return
 	current_zone = next
@@ -291,7 +318,7 @@ func _update_debug() -> void:
 		player.lane_y,
 		speed,
 		distance / 100.0,
-		["HOME", "STREET"][current_zone],
+		["HOME", "STREET", "SCHOOL"][current_zone],
 		player.air_height,
 		"yes" if player.is_sliding else "no",
 		player.health,
@@ -312,8 +339,10 @@ func _draw() -> void:
 	var view := GameConfig.DESIGN_SIZE
 	if current_zone == GameConfig.Zone.HOME:
 		_draw_home(view)
-	else:
+	elif current_zone == GameConfig.Zone.STREET:
 		_draw_street(view)
+	else:
+		_draw_school(view)
 	_draw_lane_paint(view)
 
 
@@ -379,9 +408,48 @@ func _draw_street(view: Vector2) -> void:
 		draw_rect(Rect2(0.0, horizon, view.x, view.y - horizon), GROUND_BASE)
 
 
+## School: the hallway split at the wood-floor line. The wall band maps almost
+## 1:1, so the window glass lands on the upper wall. The campus exterior sits
+## behind it and drifts at the street sky's parallax, so the panes reveal a
+## moving yard. The floor band rides world speed with the lanes.
+func _draw_school(view: Vector2) -> void:
+	var horizon := GameConfig.lane_y(0) - GameConfig.LANE_HALF_HEIGHT
+	draw_rect(Rect2(Vector2.ZERO, view), SCHOOL_BASE)
+
+	if _school_background_texture == null:
+		_school_background_texture = load(SCHOOL_BACKGROUND_TEXTURE) as Texture2D
+	if _school_background_texture != null:
+		_draw_loops(
+			_school_background_texture,
+			Rect2(Vector2.ZERO, Vector2(view.x, horizon)),
+			SCHOOL_BACKGROUND_PARALLAX,
+		)
+	else:
+		draw_rect(Rect2(Vector2.ZERO, Vector2(view.x, horizon)), SKY_COLOR)
+
+	if _school_texture == null:
+		_school_texture = load(SCHOOL_TEXTURE) as Texture2D
+	if _school_texture == null:
+		draw_rect(Rect2(0.0, horizon, view.x, view.y - horizon), GROUND_BASE)
+		return
+
+	var src := _school_texture.get_size()
+	var split := clampf(SCHOOL_FLOOR_SPLIT_Y, 0.0, src.y)
+	var wall_src := Rect2(Vector2.ZERO, Vector2(src.x, split))
+	var floor_src := Rect2(Vector2(0.0, split), Vector2(src.x, src.y - split))
+	_draw_loops(_school_texture, Rect2(Vector2.ZERO, Vector2(view.x, horizon)), SCHOOL_WALL_PARALLAX, wall_src)
+	_draw_loops(_school_texture, Rect2(Vector2(0.0, horizon), Vector2(view.x, view.y - horizon)), SCHOOL_FLOOR_PARALLAX, floor_src)
+
+
 ## Cream lane edges plus white ticks, shared by every zone.
 func _draw_lane_paint(view: Vector2) -> void:
-	var textured := _home_texture != null if current_zone == GameConfig.Zone.HOME else _street_texture != null
+	var textured := false
+	if current_zone == GameConfig.Zone.HOME:
+		textured = _home_texture != null
+	elif current_zone == GameConfig.Zone.STREET:
+		textured = _street_texture != null
+	else:
+		textured = _school_texture != null
 	for lane in GameConfig.LANE_COUNT:
 		var y := GameConfig.lane_y(lane)
 		var top := y - GameConfig.LANE_HALF_HEIGHT

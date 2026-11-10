@@ -87,6 +87,43 @@ func _ready() -> void:
 	await _wait(2)
 	await _shot("m5_03_street")
 
+	# The arrest animation from the M4 capture can finish late and re-show the
+	# overlay; drop its one-shot callbacks so the remaining zone shots stay clean.
+	var arrest_finished := Callable(world, "_on_arrest_finished")
+	if world.arrest.animation_finished.is_connected(arrest_finished):
+		world.arrest.animation_finished.disconnect(arrest_finished)
+	var lunge_finished := Callable(world, "_on_lunge_finished")
+	if world.pursuer.lunge_finished.is_connected(lunge_finished):
+		world.pursuer.lunge_finished.disconnect(lunge_finished)
+	world.game_over_root.visible = false
+	world.arrest.visible = false
+	world.player.sprite.visible = true
+
+	# Street -> School: hold the second fade mid-way, then stage a hazard run
+	# in the hallway and reveal the terminal school zone.
+	world.distance = world.home_zone_length + world.street_zone_length + 1.0
+	world._update_zone()
+	world._zone_fade_time_left = GameConfig.ZONE_FADE_TIME * 0.5
+	world._zone_fade.color.a = 0.5
+	world._update_debug()
+	world.queue_redraw()
+	await _wait(2)
+	await _shot("m5_04_school_fade")
+
+	world._zone_fade_time_left = 0.0
+	world._zone_fade.color.a = 0.0
+	for child in world.hazards.get_children():
+		child.queue_free()
+	await _wait(2)
+	for entry: Array in SHOWCASE:
+		_spawn(world, entry[0], entry[1], entry[2])
+	for entry: Array in ITEM_SHOWCASE:
+		_spawn_item(world, entry[0], entry[1], entry[2])
+	world._update_debug()
+	world.queue_redraw()
+	await _wait(2)
+	await _shot("m5_05_school")
+
 	get_tree().quit(0)
 
 

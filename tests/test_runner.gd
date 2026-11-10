@@ -100,9 +100,10 @@ func _test_config() -> void:
 
 
 func _test_zones() -> void:
-	_check_eq(GameConfig.ZONE_ORDER.size(), 2, "two zones in a run")
+	_check_eq(GameConfig.ZONE_ORDER.size(), 3, "three zones in a run")
 	_check_eq(GameConfig.ZONE_ORDER[0], GameConfig.Zone.HOME, "home runs first")
 	_check_eq(GameConfig.ZONE_ORDER[1], GameConfig.Zone.STREET, "street runs second")
+	_check_eq(GameConfig.ZONE_ORDER[2], GameConfig.Zone.SCHOOL, "school runs last")
 	_check(
 		GameConfig.ZONE_HOME_DURATION_SECONDS > 0.0,
 		"home has a duration",
@@ -111,6 +112,14 @@ func _test_zones() -> void:
 		GameConfig.ZONE_HOME_DURATION_SECONDS >= GameConfig.ZONE_HOME_MIN_SECONDS,
 		"default home duration clears the minimum",
 	)
+	_check(
+		GameConfig.ZONE_STREET_DURATION_SECONDS > 0.0,
+		"street has a duration",
+	)
+	_check(
+		GameConfig.ZONE_STREET_DURATION_SECONDS >= GameConfig.ZONE_STREET_MIN_SECONDS,
+		"default street duration clears the minimum",
+	)
 	_check(GameConfig.ZONE_FADE_TIME > 0.0, "zone fade has a length")
 	_check_near(
 		GameConfig.zone_home_length(),
@@ -118,8 +127,15 @@ func _test_zones() -> void:
 		0.01,
 		"home length derives from duration and speed",
 	)
+	_check_near(
+		GameConfig.zone_street_length(),
+		GameConfig.ZONE_STREET_DURATION_SECONDS * GameConfig.RUN_SPEED,
+		0.01,
+		"street length derives from duration and speed",
+	)
 
 	var length := GameConfig.zone_home_length()
+	var street_len := GameConfig.zone_street_length()
 	_check_eq(GameConfig.zone_for_distance(0.0), GameConfig.Zone.HOME, "the run opens at home")
 	_check_eq(
 		GameConfig.zone_for_distance(length - 1.0),
@@ -129,12 +145,22 @@ func _test_zones() -> void:
 	_check_eq(
 		GameConfig.zone_for_distance(length),
 		GameConfig.Zone.STREET,
-		"street starts exactly at the boundary",
+		"street starts exactly at the home boundary",
 	)
 	_check_eq(
-		GameConfig.zone_for_distance(length * 10.0),
+		GameConfig.zone_for_distance(length + street_len - 1.0),
 		GameConfig.Zone.STREET,
-		"street never ends",
+		"street holds right up to the school boundary",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance(length + street_len),
+		GameConfig.Zone.SCHOOL,
+		"school starts exactly at the street boundary",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance((length + street_len) * 10.0),
+		GameConfig.Zone.SCHOOL,
+		"school never ends",
 	)
 
 	var custom := GameConfig.zone_home_length(20.0)
@@ -149,6 +175,17 @@ func _test_zones() -> void:
 		GameConfig.zone_for_distance(custom, custom),
 		GameConfig.Zone.STREET,
 		"a per-run override moves the boundary",
+	)
+	_check_near(
+		GameConfig.zone_street_length(0.5),
+		GameConfig.ZONE_STREET_MIN_SECONDS * GameConfig.RUN_SPEED,
+		0.01,
+		"street duration clamps at the minimum",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance(custom + street_len, custom, street_len),
+		GameConfig.Zone.SCHOOL,
+		"a per-run street override moves the school boundary",
 	)
 	_check_near(
 		GameConfig.HOUSE_FLOOR_SPLIT_RATIO,
@@ -184,6 +221,44 @@ func _test_zones() -> void:
 			GameConfig.zone_home_length(),
 			0.01,
 			"the world derives its home boundary",
+		)
+		_check_eq(
+			world.street_zone_seconds,
+			GameConfig.ZONE_STREET_DURATION_SECONDS,
+			"the world uses the default street duration",
+		)
+		_check_near(
+			world.street_zone_length,
+			GameConfig.zone_street_length(),
+			0.01,
+			"the world derives its street boundary",
+		)
+		_check_near(world.SCHOOL_BASE.a, 1.0, 0.001, "the school base is fully opaque (no clear-colour bleed)")
+		_check(
+			ResourceLoader.exists(world.SCHOOL_TEXTURE),
+			"the school hallway is on disk",
+		)
+		_check(
+			ResourceLoader.exists(world.SCHOOL_BACKGROUND_TEXTURE),
+			"the school background is on disk",
+		)
+		_check_eq(
+			world.SCHOOL_BACKGROUND_PARALLAX,
+			world.SKY_PARALLAX,
+			"the school exterior drifts like the street sky",
+		)
+		_check(
+			world.SCHOOL_BACKGROUND_PARALLAX < world.SCHOOL_WALL_PARALLAX,
+			"the school exterior drifts slower than the hall",
+		)
+		_check_eq(
+			world.SCHOOL_WALL_PARALLAX,
+			world.SCHOOL_FLOOR_PARALLAX,
+			"school wall and floor scroll in lockstep",
+		)
+		_check(
+			world.SCHOOL_FLOOR_SPLIT_Y > 0.0 and world.SCHOOL_FLOOR_SPLIT_Y < 1024.0,
+			"the school floor split lands inside the hallway art",
 		)
 		_check_near(world.HOME_BASE.a, 1.0, 0.001, "the home base is fully opaque (no sky leak)")
 		_check(
@@ -240,8 +315,24 @@ func _test_zones() -> void:
 			_check_near(fade.color.a, 0.0, 0.001, "the fade clears when the clock runs out")
 			_check_near(world._zone_fade_time_left, 0.0, 0.001, "the fade clock stops at zero")
 
+			# Second boundary: street hands over to school with its own fade.
 			world._update_zone()
-			_check_near(fade.color.a, 0.0, 0.001, "the street is terminal (no second fade)")
+			_check_near(fade.color.a, 0.0, 0.001, "no fade fires inside a zone")
+			world.distance = world.home_zone_length + world.street_zone_length + 1.0
+			world._update_zone()
+			_check_eq(world.current_zone, GameConfig.Zone.SCHOOL, "crossing the street boundary switches to school")
+			_check_eq(seen.size(), 2, "the second zone change emits exactly once more")
+			if seen.size() == 2:
+				_check_eq(seen[1], GameConfig.Zone.SCHOOL, "the signal reports the school")
+			_check_near(fade.color.a, 1.0, 0.001, "the fade covers the screen at the school swap")
+
+			world._process(GameConfig.ZONE_FADE_TIME)
+			_check_near(fade.color.a, 0.0, 0.001, "the school fade clears when the clock runs out")
+
+			world.distance += 100000.0
+			world._update_zone()
+			_check_near(fade.color.a, 0.0, 0.001, "the school is terminal (no further fade)")
+			_check_eq(seen.size(), 2, "no signal fires after the terminal zone")
 	main.queue_free()
 
 

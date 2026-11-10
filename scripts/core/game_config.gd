@@ -37,17 +37,24 @@ const LANE_LEAN_SMOOTHING := 16.0
 
 # --- Zones -------------------------------------------------------------------
 
-## The run starts at home and moves to the street. The street never ends.
-enum Zone { HOME, STREET }
+## The run starts at home, moves to the street, and finishes at school. The
+## school never ends.
+enum Zone { HOME, STREET, SCHOOL }
 
-const ZONE_ORDER := [Zone.HOME, Zone.STREET]
+const ZONE_ORDER := [Zone.HOME, Zone.STREET, Zone.SCHOOL]
 
 ## How long the home zone lasts, in seconds. Extend this to keep Elias indoors
-## longer; only HOME has a duration, STREET runs forever.
+## longer; HOME and STREET are timed, SCHOOL runs forever.
 const ZONE_HOME_DURATION_SECONDS := 14.0
 
 ## Floor for the home duration, so the boundary can never collapse.
 const ZONE_HOME_MIN_SECONDS := 5.0
+
+## How long the street zone lasts, in seconds. SCHOOL takes over when it ends.
+const ZONE_STREET_DURATION_SECONDS := 20.0
+
+## Floor for the street duration, so the boundary can never collapse.
+const ZONE_STREET_MIN_SECONDS := 5.0
 
 ## Cross-fade length when the zone changes (seconds).
 const ZONE_FADE_TIME := 0.25
@@ -312,10 +319,24 @@ static func zone_home_length(seconds: float = ZONE_HOME_DURATION_SECONDS) -> flo
 	return maxf(seconds, ZONE_HOME_MIN_SECONDS) * RUN_SPEED
 
 
-## Zone that applies at [param distance]. Pass [param home_length] to use a
-## per-run override; a non-positive value falls back to the configured default.
-static func zone_for_distance(distance: float, home_length: float = -1.0) -> Zone:
-	var length := home_length
-	if length <= 0.0:
-		length = zone_home_length()
-	return Zone.HOME if distance < length else Zone.STREET
+## Distance (px) the street zone lasts for [param seconds] at the base run speed,
+## clamped to ZONE_STREET_MIN_SECONDS.
+static func zone_street_length(seconds: float = ZONE_STREET_DURATION_SECONDS) -> float:
+	return maxf(seconds, ZONE_STREET_MIN_SECONDS) * RUN_SPEED
+
+
+## Zone that applies at [param distance]. Pass [param home_length] and
+## [param street_length] to use per-run overrides; a non-positive value falls
+## back to the configured default. SCHOOL is terminal.
+static func zone_for_distance(distance: float, home_length: float = -1.0, street_length: float = -1.0) -> Zone:
+	var home_end := home_length
+	if home_end <= 0.0:
+		home_end = zone_home_length()
+	var street_len := street_length
+	if street_len <= 0.0:
+		street_len = zone_street_length()
+	if distance < home_end:
+		return Zone.HOME
+	if distance < home_end + street_len:
+		return Zone.STREET
+	return Zone.SCHOOL
