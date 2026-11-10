@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dvppdygurk25o"
-path="res://.godot/imported/Schoolhallway.png-861c7b72204142315a41442b7b3b7e51.ctex"
+uid="uid://0yf81o7a544u"
+path="res://.godot/imported/SchoolHallway.png-adf736c06d50d639693c1a2d486da05b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/backgrounds/Schoolhallway.png"
-dest_files=["res://.godot/imported/Schoolhallway.png-861c7b72204142315a41442b7b3b7e51.ctex"]
+source_file="res://assets/backgrounds/SchoolHallway.png"
+dest_files=["res://.godot/imported/SchoolHallway.png-adf736c06d50d639693c1a2d486da05b.ctex"]
 
 [params]
 

@@ -38,13 +38,6 @@ func _ready() -> void:
 	await _shot("m5_01_home")
 	await _shot("m3_01_run")
 
-	# M5: pause button + overlay. Rendering keeps running while the tree is
-	# paused, so wait on the draw signal rather than on physics frames.
-	world.pause_menu.set_paused(true)
-	await _shot("m5_06_paused")
-	world.pause_menu.set_paused(false)
-	await _wait(2)
-
 	# Freeze spawning, clear the live objects, then stage hazards + items.
 	world.is_running = false
 	for child in world.hazards.get_children():
@@ -73,13 +66,14 @@ func _ready() -> void:
 	await _wait(30)
 	await _shot("m4_02_caught")
 
-	# M5: hold the zone fade mid-way, then reveal the street zone.
+	# M5: hold the zone fade mid-way, then reveal the terminal street.
 	world.game_over_root.visible = false
 	world.arrest.visible = false
 	world.player.sprite.visible = true
 	world.set_process(false)
 	world.distance = world.home_zone_length + 1.0
 	world._update_zone()
+	_sync_hud(world)
 	world._zone_fade_time_left = GameConfig.ZONE_FADE_TIME * 0.5
 	world._zone_fade.color.a = 0.5
 	world._update_debug()
@@ -94,44 +88,87 @@ func _ready() -> void:
 	await _wait(2)
 	await _shot("m5_03_street")
 
-	# The arrest animation from the M4 capture can finish late and re-show the
-	# overlay; drop its one-shot callbacks so the remaining zone shots stay clean.
-	var arrest_finished := Callable(world, "_on_arrest_finished")
-	if world.arrest.animation_finished.is_connected(arrest_finished):
-		world.arrest.animation_finished.disconnect(arrest_finished)
-	var lunge_finished := Callable(world, "_on_lunge_finished")
-	if world.pursuer.lunge_finished.is_connected(lunge_finished):
-		world.pursuer.lunge_finished.disconnect(lunge_finished)
-	world.game_over_root.visible = false
+	# Stop the arrest strip and clear the overlay so it cannot cover the frames.
+	world.arrest.stop()
 	world.arrest.visible = false
-	world.player.sprite.visible = true
+	world.game_over_root.visible = false
 
-	# Street -> School: hold the second fade mid-way, then stage a hazard run
-	# in the hallway and reveal the terminal school zone.
+	# M6: cross the street boundary and capture the school corridor, where the
+	# campus panorama shows through the hallway glass.
 	world.distance = world.home_zone_length + world.street_zone_length + 1.0
 	world._update_zone()
-	world._zone_fade_time_left = GameConfig.ZONE_FADE_TIME * 0.5
-	world._zone_fade.color.a = 0.5
-	world._update_debug()
-	world.queue_redraw()
-	await _wait(2)
-	await _shot("m5_04_school_fade")
-
+	_sync_hud(world)
 	world._zone_fade_time_left = 0.0
 	world._zone_fade.color.a = 0.0
-	for child in world.hazards.get_children():
-		child.queue_free()
-	await _wait(2)
-	for entry: Array in SHOWCASE:
-		_spawn(world, entry[0], entry[1], entry[2])
-	for entry: Array in ITEM_SHOWCASE:
-		_spawn_item(world, entry[0], entry[1], entry[2])
 	world._update_debug()
 	world.queue_redraw()
 	await _wait(2)
-	await _shot("m5_05_school")
+	await _shot("m6_01_school")
+
+	# Shift by half a tile so a loop junction sits mid-screen: with the mirrored
+	# loop this frame must show no seam.
+	world.distance += GameConfig.DESIGN_WIDTH * 0.5
+	_sync_hud(world)
+	world.queue_redraw()
+	await _wait(2)
+	await _shot("m6_02_school_seam")
+
+	# Game over overlay, so the retry button art is captured too.
+	world._show_game_over(true)
+	await _wait(2)
+	await _shot("m6_03_game_over")
+
+	# Endgame: the artist's hallway slides in over the last screen of corridor,
+	# then the scroll stops on it and Elias covers the rest to the exit door.
+	world.game_over_root.visible = false
+	world.player.sprite.visible = true
+	world.player.sprite.play(&"run")
+	world.distance = world._finale_distance() - GameConfig.DESIGN_WIDTH * 0.45
+	world.queue_redraw()
+	await _wait(2)
+	await _shot("m7_00_approach")
+
+	world.distance = world._finale_distance()
+	world._start_finale()
+	world.hud.set_speed(GameConfig.FINALE_RUN_SPEED)
+	world.hud.set_speed_ratio(1.0)
+	world.player._apply_pose()
+	world.queue_redraw()
+	await _wait(2)
+	await _shot("m7_01_doors_ahead")
+
+	world.player.forward_offset = world._door_offset() * 0.6
+	world.player.forward_offset_y = (
+		world._door_threshold_y() - world.player.lane_y) * 0.6
+	world.player.depth_scale = lerpf(1.0, GameConfig.FINALE_DEPTH_SCALE, 0.6)
+	world.player._apply_pose()
+	await _wait(2)
+	await _shot("m7_02_dash")
+
+	world._finish_run()
+	await _wait(2)
+	await _shot("m7_03_escaped")
+
+	# Settings card, opened the way the rail's gear button opens it.
+	var controls := main.get_node_or_null("RunWorld/Controls")
+	if controls != null:
+		controls.call("_open_settings")
+		await _wait(2)
+		await _shot("m8_00_settings")
+		controls.call("_close_settings")
 
 	get_tree().quit(0)
+
+
+## The captures jump zones while the run is paused, so push the same HUD values
+## a physics frame would, or the meters show the last live frame instead.
+func _sync_hud(world: RunWorld) -> void:
+	world.base_speed = GameConfig.zone_run_speed(world.current_zone)
+	world.speed = world.base_speed
+	world.score_hud.set_distance(world.distance, world._zone_goal_distance())
+	world.score_hud.set_distance_progress(world._zone_progress())
+	world.hud.set_speed(world.speed)
+	world.hud.set_speed_ratio(world.speed / GameConfig.max_run_speed())
 
 
 func _spawn(world: RunWorld, kind: GameConfig.HazardKind, lane: int, x: float) -> void:

@@ -97,6 +97,36 @@ func _test_config() -> void:
 	_check(GameConfig.SLIDE_DURATION > 0.3 and GameConfig.SLIDE_DURATION < 1.0, "slide duration is playable")
 	_check(GameConfig.RUN_SPEED > 0.0, "run speed is positive")
 	_check(GameConfig.PLAYER_START_LANE == GameConfig.LANE_MIDDLE, "player starts in the middle lane")
+	_check_eq(GameConfig.format_speed(315.0), "315 px/s", "speed reads in px/s")
+	_check_eq(GameConfig.format_distance(1638.0), "16.4 m", "distance reads in metres")
+	_check_eq(GameConfig.format_distance(0.0), "0.0 m", "distance starts at zero")
+	_check_eq(
+		GameConfig.ZONE_SPEED_FACTOR.size(),
+		GameConfig.ZONE_ORDER.size(),
+		"every zone has a pace",
+	)
+	_check_near(
+		GameConfig.zone_run_speed(GameConfig.Zone.HOME),
+		GameConfig.RUN_SPEED,
+		0.01,
+		"home runs at the base speed",
+	)
+	_check(
+		GameConfig.zone_run_speed(GameConfig.Zone.STREET) > GameConfig.zone_run_speed(GameConfig.Zone.HOME)
+		and GameConfig.zone_run_speed(GameConfig.Zone.SCHOOL) > GameConfig.zone_run_speed(GameConfig.Zone.STREET),
+		"each zone change steps the pace up",
+	)
+	_check_near(
+		GameConfig.max_run_speed(),
+		GameConfig.zone_run_speed(GameConfig.Zone.SCHOOL),
+		0.01,
+		"the fastest pace drives the speed meter",
+	)
+	_check(GameConfig.UI_BUTTON_TILE > 0, "the UI atlas tile size is positive")
+	_check(
+		ResourceLoader.exists(GameConfig.UI_BUTTON_TEXTURE),
+		"the UI button atlas is on disk",
+	)
 
 
 func _test_zones() -> void:
@@ -127,15 +157,8 @@ func _test_zones() -> void:
 		0.01,
 		"home length derives from duration and speed",
 	)
-	_check_near(
-		GameConfig.zone_street_length(),
-		GameConfig.ZONE_STREET_DURATION_SECONDS * GameConfig.RUN_SPEED,
-		0.01,
-		"street length derives from duration and speed",
-	)
 
 	var length := GameConfig.zone_home_length()
-	var street_len := GameConfig.zone_street_length()
 	_check_eq(GameConfig.zone_for_distance(0.0), GameConfig.Zone.HOME, "the run opens at home")
 	_check_eq(
 		GameConfig.zone_for_distance(length - 1.0),
@@ -145,22 +168,29 @@ func _test_zones() -> void:
 	_check_eq(
 		GameConfig.zone_for_distance(length),
 		GameConfig.Zone.STREET,
-		"street starts exactly at the home boundary",
+		"street starts exactly at the boundary",
+	)
+	var street := GameConfig.zone_street_length()
+	_check_near(
+		street,
+		GameConfig.ZONE_STREET_DURATION_SECONDS * GameConfig.RUN_SPEED,
+		0.01,
+		"street length derives from duration and speed",
 	)
 	_check_eq(
-		GameConfig.zone_for_distance(length + street_len - 1.0),
+		GameConfig.zone_for_distance(length + street - 1.0),
 		GameConfig.Zone.STREET,
-		"street holds right up to the school boundary",
+		"street holds right up to the boundary",
 	)
 	_check_eq(
-		GameConfig.zone_for_distance(length + street_len),
+		GameConfig.zone_for_distance(length + street),
 		GameConfig.Zone.SCHOOL,
 		"school starts exactly at the street boundary",
 	)
 	_check_eq(
-		GameConfig.zone_for_distance((length + street_len) * 10.0),
+		GameConfig.zone_for_distance((length + street) * 10.0),
 		GameConfig.Zone.SCHOOL,
-		"school never ends",
+		"school is terminal",
 	)
 
 	var custom := GameConfig.zone_home_length(20.0)
@@ -171,11 +201,6 @@ func _test_zones() -> void:
 		0.01,
 		"home duration clamps at the minimum",
 	)
-	_check_eq(
-		GameConfig.zone_for_distance(custom, custom),
-		GameConfig.Zone.STREET,
-		"a per-run override moves the boundary",
-	)
 	_check_near(
 		GameConfig.zone_street_length(0.5),
 		GameConfig.ZONE_STREET_MIN_SECONDS * GameConfig.RUN_SPEED,
@@ -183,9 +208,9 @@ func _test_zones() -> void:
 		"street duration clamps at the minimum",
 	)
 	_check_eq(
-		GameConfig.zone_for_distance(custom + street_len, custom, street_len),
-		GameConfig.Zone.SCHOOL,
-		"a per-run street override moves the school boundary",
+		GameConfig.zone_for_distance(custom, custom),
+		GameConfig.Zone.STREET,
+		"a per-run override moves the boundary",
 	)
 	_check_near(
 		GameConfig.HOUSE_FLOOR_SPLIT_RATIO,
@@ -197,6 +222,37 @@ func _test_zones() -> void:
 	_check(
 		split_px > 0.0 and split_px < 1920.0,
 		"the floor split lands inside the downscaled texture",
+	)
+	_check_near(
+		GameConfig.SCHOOL_FLOOR_SPLIT_RATIO,
+		GameConfig.SCHOOL_FLOOR_SPLIT_Y / GameConfig.SCHOOL_SOURCE_HEIGHT,
+		0.0001,
+		"the school floor split ratio survives a texture downscale",
+	)
+	var school_split_px := GameConfig.SCHOOL_FLOOR_SPLIT_RATIO * GameConfig.SCHOOL_SOURCE_HEIGHT
+	_check(
+		school_split_px > 0.0 and school_split_px < GameConfig.SCHOOL_SOURCE_HEIGHT,
+		"the school floor split lands inside the hallway texture",
+	)
+	_check(
+		GameConfig.SCHOOL_WALL_START_Y >= 0.0
+			and GameConfig.SCHOOL_WALL_START_RATIO < GameConfig.SCHOOL_FLOOR_SPLIT_RATIO,
+		"the corridor wall slice starts above the floor line",
+	)
+	_check(
+		GameConfig.SCHOOL_END_FLOOR_SPLIT_RATIO > 0.0
+			and GameConfig.SCHOOL_END_FLOOR_SPLIT_RATIO < 1.0,
+		"the endgame floor split lands inside its art",
+	)
+	_check(
+		GameConfig.SCHOOL_EXIT_X_FRACTION > 0.0 and GameConfig.SCHOOL_EXIT_X_FRACTION < 1.0,
+		"the exit door fraction lands inside the endgame art",
+	)
+	_check(
+		GameConfig.FINALE_RUN_SPEED > 0.0
+			and GameConfig.zone_school_length()
+				>= GameConfig.ZONE_SCHOOL_MIN_SECONDS * GameConfig.RUN_SPEED,
+		"the corridor lasts at least the minimum before the finale",
 	)
 
 	var main_scene := load("res://scenes/main.tscn") as PackedScene
@@ -233,32 +289,55 @@ func _test_zones() -> void:
 			0.01,
 			"the world derives its street boundary",
 		)
-		_check_near(world.SCHOOL_BASE.a, 1.0, 0.001, "the school base is fully opaque (no clear-colour bleed)")
 		_check(
-			ResourceLoader.exists(world.SCHOOL_TEXTURE),
-			"the school hallway is on disk",
+			ResourceLoader.exists(world.SCHOOL_TEXTURE)
+				and world.SCHOOL_TEXTURE.ends_with("newschoolhallway_glass.png"),
+			"the corridor uses the cut-out new school hallway art",
+		)
+		var corridor_art := load(world.SCHOOL_TEXTURE) as Texture2D
+		if corridor_art != null:
+			var art_image := corridor_art.get_image()
+			var clear_pixels := 0
+			for y in range(120, 220, 4):
+				for x in range(0, art_image.get_width(), 20):
+					if art_image.get_pixel(x, y).a < 0.5:
+						clear_pixels += 1
+			_check(
+				clear_pixels > 20,
+				"the corridor windows are cut out for the campus parallax",
+			)
+		_check(
+			ResourceLoader.exists(world.SCHOOL_CAMPUS_TEXTURE),
+			"the school campus panorama is on disk",
 		)
 		_check(
-			ResourceLoader.exists(world.SCHOOL_BACKGROUND_TEXTURE),
-			"the school background is on disk",
+			ResourceLoader.exists(GameConfig.SCHOOL_END_TEXTURE),
+			"the endgame hallway art is on disk",
 		)
-		_check_eq(
-			world.SCHOOL_BACKGROUND_PARALLAX,
-			world.SKY_PARALLAX,
-			"the school exterior drifts like the street sky",
+		_check_near(
+			world.school_zone_length,
+			GameConfig.zone_school_length(),
+			0.01,
+			"the world derives its school boundary",
 		)
 		_check(
-			world.SCHOOL_BACKGROUND_PARALLAX < world.SCHOOL_WALL_PARALLAX,
-			"the school exterior drifts slower than the hall",
+			world._finale_distance()
+				> world.home_zone_length + world.street_zone_length,
+			"the endgame hallway comes after the school corridor",
+		)
+		_check(
+			GameConfig.school_exit_x() > GameConfig.PLAYER_X
+				and GameConfig.school_exit_x() < GameConfig.DESIGN_WIDTH,
+			"the exit door stands on the final screen, ahead of the player",
+		)
+		_check(
+			world.SCHOOL_CAMPUS_PARALLAX < world.SCHOOL_WALL_PARALLAX,
+			"the campus drifts slower than the corridor (mirror parallax)",
 		)
 		_check_eq(
 			world.SCHOOL_WALL_PARALLAX,
 			world.SCHOOL_FLOOR_PARALLAX,
 			"school wall and floor scroll in lockstep",
-		)
-		_check(
-			world.SCHOOL_FLOOR_SPLIT_Y > 0.0 and world.SCHOOL_FLOOR_SPLIT_Y < 1024.0,
-			"the school floor split lands inside the hallway art",
 		)
 		_check_near(world.HOME_BASE.a, 1.0, 0.001, "the home base is fully opaque (no sky leak)")
 		_check(
@@ -315,24 +394,89 @@ func _test_zones() -> void:
 			_check_near(fade.color.a, 0.0, 0.001, "the fade clears when the clock runs out")
 			_check_near(world._zone_fade_time_left, 0.0, 0.001, "the fade clock stops at zero")
 
-			# Second boundary: street hands over to school with its own fade.
 			world._update_zone()
-			_check_near(fade.color.a, 0.0, 0.001, "no fade fires inside a zone")
+			_check_near(fade.color.a, 0.0, 0.001, "the street is stable (no repeat fade)")
+
 			world.distance = world.home_zone_length + world.street_zone_length + 1.0
 			world._update_zone()
-			_check_eq(world.current_zone, GameConfig.Zone.SCHOOL, "crossing the street boundary switches to school")
-			_check_eq(seen.size(), 2, "the second zone change emits exactly once more")
+			_check_eq(
+				world.current_zone,
+				GameConfig.Zone.SCHOOL,
+				"crossing the street boundary switches to school",
+			)
+			_check_eq(seen.size(), 2, "the school change emits exactly once")
 			if seen.size() == 2:
 				_check_eq(seen[1], GameConfig.Zone.SCHOOL, "the signal reports the school")
 			_check_near(fade.color.a, 1.0, 0.001, "the fade covers the screen at the school swap")
-
 			world._process(GameConfig.ZONE_FADE_TIME)
-			_check_near(fade.color.a, 0.0, 0.001, "the school fade clears when the clock runs out")
-
-			world.distance += 100000.0
+			_check_near(fade.color.a, 0.0, 0.001, "the school fade clears")
 			world._update_zone()
-			_check_near(fade.color.a, 0.0, 0.001, "the school is terminal (no further fade)")
-			_check_eq(seen.size(), 2, "no signal fires after the terminal zone")
+			_check_near(fade.color.a, 0.0, 0.001, "the school is terminal (no third fade)")
+
+			# The run ends on the endgame hallway: the scroll stops there and
+			# Elias covers the last stretch to the exit door himself.
+			world.is_running = true
+			world.distance = world._finale_distance() - 10.0
+			world._physics_process(0.5)
+			_check(world.finale_started, "running out of corridor starts the finale")
+			_check_near(
+				world.distance,
+				world._finale_distance(),
+				0.001,
+				"the scroll stops exactly on the endgame hallway",
+			)
+			var door_offset := world._door_offset()
+			_check(door_offset > 0.0, "the exit door stands ahead of the player")
+			world._physics_process(0.5)
+			_check(
+				world.player.forward_offset > 0.0
+					and world.player.forward_offset < door_offset,
+				"Elias covers the last stretch himself",
+			)
+			_check(
+				world.player.depth_scale < 1.0
+					and world.player.depth_scale > GameConfig.FINALE_DEPTH_SCALE,
+				"the doorway shrink follows the dash",
+			)
+			world._physics_process(3.0)
+			_check_near(
+				world.player.forward_offset,
+				door_offset,
+				0.001,
+				"Elias covers the full stretch to the door",
+			)
+			_check_near(
+				world.player.position.x,
+				GameConfig.school_exit_x(),
+				0.5,
+				"Elias stops in the doorway",
+			)
+			_check_near(
+				world.player.position.y,
+				world._door_threshold_y(),
+				0.5,
+				"Elias stands on the door threshold, not on his lane",
+			)
+			_check(
+				world._door_threshold_y() < GameConfig.lane_y(GameConfig.LANE_MIDDLE),
+				"the doorway sits above the lane Elias was running in",
+			)
+			_check_near(
+				world.player.depth_scale,
+				GameConfig.FINALE_DEPTH_SCALE,
+				0.001,
+				"Elias is fully receded by the time he reaches the door",
+			)
+			_check_near(
+				world.player.sprite.scale.x,
+				GameConfig.PLAYER_SCALE * GameConfig.FINALE_DEPTH_SCALE,
+				0.001,
+				"the recede shows on the sprite",
+			)
+			_check(not world.is_running, "reaching the door ends the run")
+			_check(world.escape_label.visible, "the finished run shows the escape overlay")
+			_check(not world.caught_label.visible, "the finish is not a catch")
+			_check(not world.game_over_label.visible, "the finish is not a loss")
 	main.queue_free()
 
 
@@ -428,13 +572,17 @@ func _test_player() -> void:
 			"sprite frames come from the committed resource (%s)" % frames.resource_path,
 		)
 		_check_eq(frames.get_animation_names().size(), 5, "five Elias animations exist")
-		_check_eq(frames.get_frame_count("run"), 7, "run animation has 7 frames")
+		_check_eq(frames.get_frame_count("run"), 12, "run animation has 12 frames")
 		_check_eq(frames.get_frame_count("jump"), 3, "jump animation has 3 frames")
 		_check_eq(frames.get_frame_count("slide"), 4, "slide animation has 4 frames")
 		var first_run := frames.get_frame_texture("run", 0)
 		_check(first_run != null, "run frame 0 has a texture")
 		if first_run != null:
-			_check(first_run.resource_path.ends_with("run_0.png"), "run frame 0 is run_0.png")
+			_check(first_run.resource_path.ends_with("run_new_01.png"), "run frame 0 is run_new_01.png")
+		var last_run := frames.get_frame_texture("run", 11)
+		_check(last_run != null, "run frame 11 has a texture")
+		if last_run != null:
+			_check(last_run.resource_path.ends_with("run_new_12.png"), "run frame 11 is run_new_12.png")
 		_check(frames.get_animation_loop("run"), "run animation loops")
 		_check(not frames.get_animation_loop("jump"), "jump animation does not loop")
 	player._physics_process(1.0 / 60.0)
@@ -1220,8 +1368,50 @@ func _test_scenes() -> void:
 		_check(world.score_hud != null, "run world contains the score HUD")
 		_check(world.score_system != null, "run world owns a score system")
 		_check(world.pursuer != null, "run world contains the pursuer")
+		_check(world.retry_button != null, "the game over screen owns a retry button")
+		if world.retry_button != null:
+			_check(
+				not world.retry_button.is_visible_in_tree(),
+				"the retry button starts hidden with the overlay",
+			)
+			var normal := world.retry_button.texture_normal
+			_check(normal is AtlasTexture, "the retry button draws the green atlas face")
+			if normal is AtlasTexture:
+				var face_tile := GameConfig.UI_BUTTON_TILE
+				_check_eq(
+					(normal as AtlasTexture).region,
+					Rect2(
+						float(GameConfig.UI_BUTTON_FACE_TILE.x * face_tile),
+						float(GameConfig.UI_BUTTON_FACE_TILE.y * face_tile),
+						float(face_tile),
+						float(face_tile),
+					),
+					"the retry button picks the plain green tile",
+				)
+			_check(world.retry_icon != null, "the retry button carries an icon")
+			if world.retry_icon != null:
+				var atlas := world.retry_icon.texture as AtlasTexture
+				_check(atlas != null, "the retry icon draws an atlas tile")
+				if atlas != null:
+					var tile := GameConfig.UI_BUTTON_TILE
+					_check_eq(
+						atlas.region,
+						Rect2(
+							float(GameConfig.UI_RETRY_TILE.x * tile),
+							float(GameConfig.UI_RETRY_TILE.y * tile),
+							float(tile),
+							float(tile),
+						),
+						"the retry icon picks the circular arrow tile",
+					)
 		_check(world.pursuer.state == Pursuer.State.DORMANT, "pursuer starts dormant")
 		_check_near(world.speed, GameConfig.RUN_SPEED, 0.01, "run world starts at RUN_SPEED")
+		_check_near(
+			world.base_speed,
+			GameConfig.zone_run_speed(world.current_zone),
+			0.01,
+			"the world runs at its zone pace",
+		)
 		_check(not world.caught_label.visible, "caught label starts hidden")
 		_check(world.game_over_label.visible, "out-of-hearts label is the default")
 		_check_eq(world.score_system.score, 0, "score starts at 0")
@@ -1233,6 +1423,145 @@ func _test_scenes() -> void:
 				world.player.sprite.animation,
 				&"run",
 				"player scene previews the run animation (visible in the editor)",
+			)
+
+		if world.score_hud != null:
+			_check(
+				world.score_hud.get_node_or_null("ProgressPanel") != null,
+				"the score HUD builds its progress panel",
+			)
+			_check(
+				world.score_hud.get_node_or_null("ScorePanel") != null,
+				"the score HUD builds its score panel",
+			)
+			var score_panel := world.score_hud.get_node_or_null("ScorePanel") as Control
+			var progress_panel := world.score_hud.get_node_or_null("ProgressPanel") as Control
+			if score_panel != null and progress_panel != null:
+				_check_near(
+					progress_panel.size.y,
+					score_panel.size.y,
+					0.01,
+					"the top panels share one height",
+				)
+
+			# The control rail holds the green button strip under the left panel.
+			var controls := world.get_node_or_null("Controls")
+			_check(controls != null, "the HUD builds the control rail")
+			if controls != null:
+				var rail := controls.get_node_or_null("Rail") as Control
+				_check(rail != null, "the rail groups the green buttons")
+				if rail != null:
+					var buttons := rail.find_children("*", "TextureButton", true, false)
+					_check_eq(buttons.size(), 5, "the rail holds every green control")
+					for button in buttons:
+						var icon := (button as TextureButton).get_node_or_null("Icon") as TextureRect
+						_check(
+							icon != null and icon.texture != null,
+							"every rail button shows a glyph",
+						)
+						_check(
+							(button as TextureButton).pressed.get_connections().size() > 0,
+							"every rail button is wired to an action",
+						)
+					var left_panel := world.hud.get_node_or_null("LeftPanel") as Control
+					if left_panel != null:
+						_check(
+							not left_panel.get_global_rect().intersects(rail.get_global_rect()),
+							"the control rail sits outside the hearts panel",
+						)
+					if score_panel != null:
+						_check_near(
+							rail.get_global_rect().position.y,
+							score_panel.get_global_rect().position.y,
+							0.01,
+							"the control rail shares the top bar line",
+						)
+						_check(
+							rail.get_global_rect().position.x
+								>= score_panel.get_global_rect().end.x,
+							"the control rail sits right of the score panel",
+						)
+				var settings := controls.find_child("Settings", true, false) as Control
+				_check(
+					settings != null and not settings.visible,
+					"the settings card waits closed on the rail layer",
+				)
+			if score_panel != null and progress_panel != null:
+				_check(
+					progress_panel.get_global_rect().end.x
+						<= score_panel.get_global_rect().position.x,
+					"the top panels do not overlap",
+				)
+
+			# Sound: one autoload owns every clip, and the end screens can quit.
+			var audio := main.get_tree().root.get_node_or_null("GameAudio")
+			_check(audio != null, "the audio autoload is registered")
+			for clip in ["pickup", "jump", "hit", "ui_click", "finish"]:
+				_check(
+					ResourceLoader.exists("res://assets/audio/%s.wav" % clip),
+					"the %s sound is on disk" % clip,
+				)
+			if audio != null:
+				audio.set("volume", 1.5)
+				_check_near(audio.get("volume"), 1.0, 0.0001, "the master volume clamps to 0..1")
+				audio.set("volume", GameAudio.DEFAULT_VOLUME)
+				_check(audio.call("toggle_muted"), "mute flips on")
+				_check(not audio.call("toggle_muted"), "mute flips back off")
+				# The rail's mute button must follow that state, glyph and all.
+				var mute_button := controls.get_node_or_null(
+					"Rail/MuteButton") as TextureButton
+				if mute_button != null:
+					var mute_icon := mute_button.get_node_or_null("Icon") as TextureRect
+					var sound_on := (mute_icon.texture as AtlasTexture).region.position
+					audio.set("muted", true)
+					controls.call("_apply_state")
+					var sound_off := (mute_icon.texture as AtlasTexture).region.position
+					audio.set("muted", false)
+					controls.call("_apply_state")
+					_check(
+						sound_on != sound_off
+							and (mute_icon.texture as AtlasTexture).region.position == sound_on,
+						"the mute glyph follows the sound state",
+					)
+			var quit_button := world.get_node_or_null(
+				"GameOver/Root/QuitButton") as TextureButton
+			_check(quit_button != null, "the end screens offer a quit button")
+			if quit_button != null:
+				_check(
+					quit_button.texture_normal != null,
+					"the quit button uses the green face",
+				)
+			var distance_bars := world.score_hud.find_children(
+				"ProgressBar", "TextureProgressBar", true, false)
+			_check_eq(distance_bars.size(), 1, "the score HUD owns the distance meter")
+			if distance_bars.size() == 1:
+				_check_eq(
+					distance_bars[0].texture_progress.resource_path,
+					GameConfig.UI_LOADING_FILL,
+					"the distance meter fills with the loading art",
+				)
+			_check(
+				ResourceLoader.exists(GameConfig.UI_LOADING_TRACK),
+				"the distance meter loading art is on disk",
+			)
+
+		if world.hud != null:
+			_check(
+				world.hud.get_node_or_null("LeftPanel") != null,
+				"the hearts HUD builds its left panel",
+			)
+			var speed_bars := world.hud.find_children(
+				"SpeedBar", "TextureProgressBar", true, false)
+			_check_eq(speed_bars.size(), 1, "the hearts HUD owns the speed meter")
+			if speed_bars.size() == 1:
+				_check_eq(
+					speed_bars[0].texture_progress.resource_path,
+					GameConfig.UI_SPEED_BAR_FILL,
+					"the speed meter fills with the bar art",
+				)
+			_check(
+				ResourceLoader.exists(GameConfig.UI_SPEED_BAR_FILL),
+				"the speed meter bar art is on disk",
 			)
 
 		if world.hud != null:
@@ -1249,49 +1578,6 @@ func _test_scenes() -> void:
 				"lost hearts use the empty heart art",
 			)
 			world.hud.set_hearts(GameConfig.MAX_HEARTS, GameConfig.MAX_HEARTS)
-
-		if world.score_hud != null:
-			_check_eq(
-				world.score_hud.label_font("score").resource_path,
-				ScoreHud.SCORE_FONT_PATH,
-				"the score uses Inter Tight ExtraBold",
-			)
-			_check_eq(
-				world.score_hud.label_font("combo").resource_path,
-				ScoreHud.SUB_FONT_PATH,
-				"the combo readout uses Inter Tight SemiBold",
-			)
-			_check_eq(
-				world.score_hud.label_font("items").resource_path,
-				ScoreHud.SUB_FONT_PATH,
-				"the item count uses Inter Tight SemiBold",
-			)
-			world.score_hud.set_combo(2, 5)
-			_check_eq(
-				world.score_hud.label_text("combo"),
-				"x2  COMBO 5",
-				"the combo readout shows the multiplier and chain",
-			)
-			world.score_hud.set_combo(1, 0)
-			_check_eq(world.score_hud.label_text("combo"), "", "the combo readout hides with no chain")
-
-		if world.pause_menu != null:
-			_check_eq(
-				world.pause_menu.process_mode,
-				Node.PROCESS_MODE_ALWAYS,
-				"the pause menu keeps processing while paused",
-			)
-			_check(not world.pause_menu.is_paused, "the run starts unpaused")
-			_check(world.pause_menu.button.visible, "the pause button is visible while running")
-			world.pause_menu.set_paused(true)
-			_check(get_tree().paused, "pausing freezes the tree")
-			_check(world.pause_menu.overlay.visible, "pausing shows the overlay")
-			_check(not world.pause_menu.button.visible, "pausing hides the pause button")
-			world.pause_menu.set_paused(false)
-			_check(not get_tree().paused, "resuming unfreezes the tree")
-			_check(not world.pause_menu.overlay.visible, "resuming hides the overlay")
-			_check(world.pause_menu.button.visible, "resuming restores the pause button")
-			get_tree().paused = false
 
 		if world.director != null:
 			for i in 8:

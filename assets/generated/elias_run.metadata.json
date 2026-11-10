@@ -1,0 +1,70 @@
+{
+	"animation_name": "smooth_natural_running_cycle_to_the_right_legs_and_arms_swinging_in_a_full_stride",
+	"animation_style": "",
+	"animation_type": "smooth natural running cycle to the right, legs and arms swinging in a full stride",
+	"columns": 8,
+	"directions": [],
+	"frame_count": 8,
+	"frame_height": 189,
+	"frame_paths": [],
+	"frame_regions": [
+		{
+			"h": 189,
+			"w": 123,
+			"x": 0,
+			"y": 0
+		},
+		{
+			"h": 189,
+			"w": 123,
+			"x": 123,
+			"y": 0
+		},
+		{
+			"h": 189,
+			"w": 123,
+			"x": 246,
+			"y": 0
+		},
+		{
+			"h": 189,
+			"w": 123,
+			"x": 369,
+			"y": 0
+		},
+		{
+			"h": 189,
+			"w": 123,
+			"x": 492,
+			"y": 0
+		},
+		{
+			"h": 189,
+			"w": 123,
+			"x": 615,
+			"y": 0
+		},
+		{
+			"h": 189,
+			"w": 123,
+			"x": 738,
+			"y": 0
+		},
+		{
+			"h": 189,
+			"w": 123,
+			"x": 861,
+			"y": 0
+		}
+	],
+	"frame_width": 123,
+	"name": "elias_run",
+	"prompt": "smooth natural running cycle to the right, legs and arms swinging in a full stride",
+	"rows": 1,
+	"source_image": "res://assets/characters/elias/run_new_01.png",
+	"source_tool": "animate_sprite",
+	"spritesheet_height": 189,
+	"spritesheet_path": "res://assets/generated/elias_run.png",
+	"spritesheet_width": 984,
+	"type": "animation"
+}

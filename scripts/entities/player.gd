@@ -23,6 +23,17 @@ var lane: int = GameConfig.PLAYER_START_LANE
 var lane_y: float = 0.0
 ## Height above the lane baseline while airborne, in pixels.
 var air_height: float = 0.0
+## Extra screen-space travel. The run's closing dash uses it once the world
+## scroll stops: [member forward_offset] carries Elias to the exit door's column
+## and [member forward_offset_y] lifts him to its threshold (negative is up).
+var forward_offset: float = 0.0
+var forward_offset_y: float = 0.0
+## Presentation-only size multiplier. The closing dash shrinks it as Elias runs
+## into the distance toward the exit door; 1.0 is the normal running size.
+var depth_scale: float = 1.0:
+	set(value):
+		depth_scale = value
+		queue_redraw()
 ## Vertical speed while airborne (positive = rising).
 var vertical_speed: float = 0.0
 var in_air: bool = false
@@ -254,11 +265,15 @@ func _update_hitbox() -> void:
 # --- Presentation ------------------------------------------------------------
 
 func _apply_pose() -> void:
-	position = Vector2(GameConfig.PLAYER_X, lane_y - air_height)
+	position = Vector2(
+		GameConfig.PLAYER_X + forward_offset,
+		lane_y - air_height + forward_offset_y,
+	)
 
 	# The slide frames are already drawn crouched, so the sprite is only scaled
 	# uniformly; the feet stay planted by offsetting half the scaled height.
-	var sprite_scale := Vector2(GameConfig.PLAYER_SCALE, GameConfig.PLAYER_SCALE)
+	var shown_scale := GameConfig.PLAYER_SCALE * depth_scale
+	var sprite_scale := Vector2(shown_scale, shown_scale)
 	sprite.scale = sprite_scale
 	sprite.position = Vector2(0.0, -GameConfig.PLAYER_SPRITE_HEIGHT * sprite_scale.y * 0.5)
 	sprite.rotation = deg_to_rad(_lean)
@@ -302,7 +317,7 @@ func _play(anim: StringName) -> void:
 ## Ground shadow that shrinks and fades as Elias rises.
 func _draw() -> void:
 	var rise := clampf(air_height / GameConfig.JUMP_APEX, 0.0, 1.0)
-	var radius := 34.0 * (1.0 - 0.35 * rise)
+	var radius := 34.0 * depth_scale * (1.0 - 0.35 * rise)
 	var alpha := 0.25 * (1.0 - 0.6 * rise)
 	draw_set_transform(Vector2(0.0, 4.0), 0.0, Vector2(1.0, 0.32))
 	draw_circle(Vector2.ZERO, radius, Color(0.0, 0.0, 0.0, alpha))

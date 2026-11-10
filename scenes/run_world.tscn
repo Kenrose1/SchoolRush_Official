@@ -3,9 +3,11 @@
 [ext_resource type="Script" uid="uid://bjqbq0fq7dbm3" path="res://scripts/world/run_world.gd" id="1_world"]
 [ext_resource type="PackedScene" uid="uid://clgiu61s7n6w7" path="res://scenes/player.tscn" id="2_player"]
 [ext_resource type="Script" uid="uid://d2cxjh4pkkec0" path="res://scripts/world/spawn_director.gd" id="3_director"]
-[ext_resource type="PackedScene" uid="uid://ncmb7o4kcxhc" path="res://scenes/hud.tscn" id="4_hud"]
+[ext_resource type="PackedScene" uid="uid://b7yyoa3oxewcp" path="res://scenes/hearts_hud.tscn" id="4_hearts"]
+[ext_resource type="Script" uid="uid://1f153lp72fw2" path="res://scripts/ui/score_hud.gd" id="5_score"]
 [ext_resource type="PackedScene" uid="uid://csjs6og2e0x8a" path="res://scenes/pursuer.tscn" id="6_pursuer"]
 [ext_resource type="SpriteFrames" uid="uid://cde02m0qw1a37" path="res://assets/characters/tanod/tanod_frames.tres" id="7_frames"]
+[ext_resource type="Script" path="res://scripts/ui/hud_controls.gd" id="8_pause"]
 
 [node name="RunWorld" type="Node2D" unique_id=894551756]
 script = ExtResource("1_world")
@@ -26,7 +28,10 @@ animation = &"arrest"
 [node name="SpawnDirector" type="Node" parent="." unique_id=1285426724]
 script = ExtResource("3_director")
 
-[node name="Hud" parent="." unique_id=156043162 instance=ExtResource("4_hud")]
+[node name="Hud" parent="." unique_id=156043162 instance=ExtResource("4_hearts")]
+
+[node name="ScoreHud" type="CanvasLayer" parent="." unique_id=78894855]
+script = ExtResource("5_score")
 
 [node name="GameOver" type="CanvasLayer" parent="." unique_id=1271252008]
 layer = 20
@@ -62,9 +67,8 @@ theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
 theme_override_constants/shadow_offset_x = 4
 theme_override_constants/shadow_offset_y = 4
 theme_override_font_sizes/font_size = 72
-text = "OUT OF HEARTS
-
-[R] retry"
+mouse_filter = 2
+text = "OUT OF HEARTS"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -81,11 +85,144 @@ theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
 theme_override_constants/shadow_offset_x = 4
 theme_override_constants/shadow_offset_y = 4
 theme_override_font_sizes/font_size = 72
-text = "CAUGHT!
-
-[R] retry"
+mouse_filter = 2
+text = "CAUGHT!"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="EscapeLabel" type="Label" parent="GameOver/Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.62, 1, 0.72, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_font_sizes/font_size = 72
+mouse_filter = 2
+text = "YOU ESCAPED!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RetryButton" type="TextureButton" parent="GameOver/Root"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -140.0
+offset_top = 116.0
+offset_right = -20.0
+offset_bottom = 236.0
+grow_horizontal = 2
+grow_vertical = 2
+texture_filter = 2
+ignore_texture_size = true
+stretch_mode = 5
+mouse_default_cursor_shape = 2
+
+[node name="RetryIcon" type="TextureRect" parent="GameOver/Root/RetryButton"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture_filter = 1
+expand_mode = 1
+stretch_mode = 5
+
+[node name="RetryHint" type="Label" parent="GameOver/Root"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -190.0
+offset_top = 246.0
+offset_right = 30.0
+offset_bottom = 292.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 26
+text = "RETRY [R]"
+horizontal_alignment = 1
+
+[node name="QuitButton" type="TextureButton" parent="GameOver/Root"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 20.0
+offset_top = 116.0
+offset_right = 140.0
+offset_bottom = 236.0
+grow_horizontal = 2
+grow_vertical = 2
+texture_filter = 2
+ignore_texture_size = true
+stretch_mode = 5
+mouse_default_cursor_shape = 2
+
+[node name="QuitIcon" type="TextureRect" parent="GameOver/Root/QuitButton"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture_filter = 1
+expand_mode = 1
+stretch_mode = 5
+
+[node name="QuitHint" type="Label" parent="GameOver/Root"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -30.0
+offset_top = 246.0
+offset_right = 190.0
+offset_bottom = 292.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 26
+text = "QUIT"
+horizontal_alignment = 1
 
 [node name="ZoneFade" type="CanvasLayer" parent="." unique_id=478392615]
 layer = 5
@@ -98,3 +235,24 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 color = Color(0.04, 0.05, 0.08, 0)
+
+[node name="DebugOverlay" type="CanvasLayer" parent="." unique_id=1933827120]
+process_mode = 3
+layer = 10
+
+[node name="Label" type="Label" parent="DebugOverlay" unique_id=881636510]
+offset_left = 24.0
+offset_top = 707.0
+offset_right = 756.0
+offset_bottom = 855.0
+theme_override_colors/font_color = Color(0.93, 0.97, 1, 0.92)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.65)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 20
+metadata/_edit_use_anchors_ = true
+
+[node name="Controls" type="CanvasLayer" parent="."]
+layer = 15
+process_mode = 3
+script = ExtResource("8_pause")

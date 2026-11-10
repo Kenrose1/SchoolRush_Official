@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://clgiu61s7n6w7"]
 
 [ext_resource type="Script" uid="uid://d045t21ykph3x" path="res://scripts/entities/player.gd" id="1_player"]
-[ext_resource type="SpriteFrames" path="res://assets/characters/elias/elias_frames.tres" id="2_frames"]
+[ext_resource type="SpriteFrames" uid="uid://csle4lr2bwwpw" path="res://assets/characters/elias/elias_frames.tres" id="2_frames"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hitbox"]
 size = Vector2(52.95359, 78.363335)

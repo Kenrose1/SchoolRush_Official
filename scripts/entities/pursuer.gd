@@ -94,7 +94,7 @@ func _physics_process(delta: float) -> void:
 			1.0,
 			clampf(chase_time / GameConfig.PURSUER_CHASE_RAMP_TIME, 0.0, 1.0),
 		)
-		var pursuer_speed := GameConfig.RUN_SPEED * factor
+		var pursuer_speed := _base_speed * factor
 		# World speed comes from the caller via _world_speed (set each frame).
 		gap += (_world_speed - pursuer_speed) * delta
 		if gap <= GameConfig.PURSUER_CATCH_DISTANCE:
@@ -125,11 +125,18 @@ func _physics_process(delta: float) -> void:
 
 
 var _world_speed: float = GameConfig.RUN_SPEED
+## Current zone pace, so the tanod keeps up as the run speeds up.
+var _base_speed: float = GameConfig.RUN_SPEED
 
 
 ## Set by RunWorld each physics frame before Pursuer updates.
 func set_world_speed(world_speed: float) -> void:
 	_world_speed = world_speed
+
+
+## Zone base speed the chase is measured against.
+func set_base_speed(base_speed: float) -> void:
+	_base_speed = base_speed
 
 
 func _apply_pose(delta: float) -> void:

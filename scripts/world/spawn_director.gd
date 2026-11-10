@@ -59,7 +59,7 @@ func spawn_row(distance: float, speed: float = GameConfig.RUN_SPEED) -> Array[in
 
 ## Spawn one School Item on a lane clear of nearby hazards.
 ## Returns the lane used, or -1 when the pickup was skipped.
-func spawn_pickup(distance: float, speed: float = GameConfig.RUN_SPEED) -> int:
+func spawn_pickup(_distance: float, speed: float = GameConfig.RUN_SPEED) -> int:
 	var occupied: Array[int] = []
 	for child in hazards.get_children():
 		if child is Hazard:
@@ -142,7 +142,7 @@ static func pick_kind(distance: float, rng: RandomNumberGenerator) -> GameConfig
 			continue
 		roll -= float(GameConfig.HAZARD_WEIGHT[kind])
 		if roll <= 0.0:
-			return kind
+			return kind as GameConfig.HazardKind
 	return GameConfig.HazardKind.MANHOLE
 
 

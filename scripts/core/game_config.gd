@@ -37,24 +37,31 @@ const LANE_LEAN_SMOOTHING := 16.0
 
 # --- Zones -------------------------------------------------------------------
 
-## The run starts at home, moves to the street, and finishes at school. The
-## school never ends.
+## The run starts at home, reaches the street, then finishes at school.
+## SCHOOL is terminal, so only HOME and STREET have durations.
 enum Zone { HOME, STREET, SCHOOL }
 
 const ZONE_ORDER := [Zone.HOME, Zone.STREET, Zone.SCHOOL]
 
 ## How long the home zone lasts, in seconds. Extend this to keep Elias indoors
-## longer; HOME and STREET are timed, SCHOOL runs forever.
+## longer.
 const ZONE_HOME_DURATION_SECONDS := 14.0
 
 ## Floor for the home duration, so the boundary can never collapse.
 const ZONE_HOME_MIN_SECONDS := 5.0
 
-## How long the street zone lasts, in seconds. SCHOOL takes over when it ends.
-const ZONE_STREET_DURATION_SECONDS := 20.0
+## How long the street zone lasts before Elias reaches the school corridor.
+const ZONE_STREET_DURATION_SECONDS := 25.0
 
-## Floor for the street duration, so the boundary can never collapse.
+## Floor for the street duration, so the school boundary can never collapse.
 const ZONE_STREET_MIN_SECONDS := 5.0
+
+## How long the school corridor lasts before the endgame hallway and the dash
+## to the exit door.
+const ZONE_SCHOOL_DURATION_SECONDS := 18.0
+
+## Floor for the school duration, so the endgame can never arrive instantly.
+const ZONE_SCHOOL_MIN_SECONDS := 5.0
 
 ## Cross-fade length when the zone changes (seconds).
 const ZONE_FADE_TIME := 0.25
@@ -65,6 +72,34 @@ const HOUSE_FLOOR_SPLIT_Y := 1125.0
 ## ratio and survive any import-time downscale of the texture.
 const HOUSE_SOURCE_HEIGHT := 2048.0
 const HOUSE_FLOOR_SPLIT_RATIO := HOUSE_FLOOR_SPLIT_Y / HOUSE_SOURCE_HEIGHT
+
+## Y (in the original school hallway source) where the corridor wall ends and
+## the reflective floor begins.
+const SCHOOL_FLOOR_SPLIT_Y := 378.0
+## Y where the drawn wall starts. The new hallway art is fully opaque and
+## carries its own ceiling, so the slice starts at the very top of the source
+## instead of cropping a transparent band.
+const SCHOOL_WALL_START_Y := 0.0
+## Height of the original hallway source, kept so the split survives any
+## import-time downscale of the texture.
+const SCHOOL_SOURCE_HEIGHT := 724.0
+const SCHOOL_FLOOR_SPLIT_RATIO := SCHOOL_FLOOR_SPLIT_Y / SCHOOL_SOURCE_HEIGHT
+const SCHOOL_WALL_START_RATIO := SCHOOL_WALL_START_Y / SCHOOL_SOURCE_HEIGHT
+
+## The endgame hallway is the last screen of the run: it slides in as the
+## corridor ends, the scroll stops on it, and Elias dashes to its exit door.
+const SCHOOL_END_TEXTURE := "res://assets/backgrounds/Pixel-Art School Hallway ENDGAME.png"
+## Y (in the endgame source) where its wall ends and the glossy floor begins.
+const SCHOOL_END_FLOOR_SPLIT_Y := 366.0
+const SCHOOL_END_FLOOR_SPLIT_RATIO := SCHOOL_END_FLOOR_SPLIT_Y / SCHOOL_SOURCE_HEIGHT
+## Where the exit door stands across the endgame art (0..1), so the closing dash
+## can aim at it instead of at a magic pixel.
+const SCHOOL_EXIT_X_FRACTION := 0.945
+## Elias' own speed during the closing dash, in px/s.
+const FINALE_RUN_SPEED := 520.0
+## How small Elias gets by the time he stands in the exit door. The door sits on
+## the far wall, so the dash into it has to recede to read as depth.
+const FINALE_DEPTH_SCALE := 0.72
 
 # --- Player ------------------------------------------------------------------
 
@@ -93,6 +128,10 @@ const SLIDE_DURATION := 0.55
 
 ## Base forward speed, used by every zone.
 const RUN_SPEED := 420.0
+
+## Pace multiplier per zone, in ZONE_ORDER order. Every zone change steps the
+## run up, so the street and the school corridor are faster than home.
+const ZONE_SPEED_FACTOR := [1.0, 1.15, 1.3]
 
 ## Scrolling ground ticks, used to make speed readable in the M1 gray box.
 const GROUND_TICK_LENGTH := 64.0
@@ -273,16 +312,84 @@ const HEART_SIZE := 48.0
 const HEART_GAP := 8.0
 const HUD_MARGIN := Vector2(28.0, 24.0)
 
+# --- UI atlas ----------------------------------------------------------------
+
+## Rounded-button icon atlas: a 12x12 grid of 16x16 tiles. Each row is one
+## colour family and each column is one glyph, so a tile is picked by
+## (column, row). Used by the game-over retry button.
+const UI_BUTTON_TEXTURE := "res://assets/ui/button UI.png"
+const UI_BUTTON_TILE := 16
+## Tile (column, row) holding the plain green button face.
+const UI_BUTTON_FACE_TILE := Vector2i(0, 0)
+## Tile (column, row) holding the circular "retry" arrow.
+const UI_RETRY_TILE := Vector2i(3, 0)
+## Tile (column, row) holding the pause glyph (two vertical bars), used by the
+## in-game pause button.
+const UI_PAUSE_TILE := Vector2i(5, 0)
+## Tile (column, row) holding the cross glyph, used by the quit button of the
+## in-game control rail.
+const UI_QUIT_TILE := Vector2i(4, 1)
+
+## Tile (column, row) holding the play glyph, shown by the pause button while
+## the run is frozen.
+const UI_PLAY_TILE := Vector2i(1, 0)
+## Tile (column, row) holding the speaker glyph, shown by the mute button while
+## sound is on.
+const UI_SOUND_ON_TILE := Vector2i(0, 1)
+## Tile (column, row) holding the crossed-out speaker glyph, shown while muted.
+const UI_SOUND_OFF_TILE := Vector2i(1, 1)
+## Tile (column, row) holding the gear glyph, used by the settings button.
+const UI_SETTINGS_TILE := Vector2i(2, 0)
+## Tile (column, row) holding the check glyph, used by the fullscreen toggle.
+const UI_CHECK_TILE := Vector2i(5, 1)
+
+## Loading-bar art, reused as the distance meter (track, fill, frame, glow).
+const UI_LOADING_TRACK := "res://assets/ui/loading_track.png"
+const UI_LOADING_FILL := "res://assets/ui/loading_fill.png"
+const UI_LOADING_OVERLAY := "res://assets/ui/loading_overlay.png"
+const UI_LOADING_GLOW := "res://assets/ui/loading_glow.png"
+
+## Bar art (648x121), one file per fill level: UI-111..UI-115 is the blue set
+## and UI-88..UI-92 the orange set, from empty to full. The speed meter stretches
+## the empty frame as its track and clips the full frame as its fill.
+const UI_SPEED_BAR_BACK := "res://assets/ui/Bar/UI-111.png"
+const UI_SPEED_BAR_FILL := "res://assets/ui/Bar/UI-115.png"
+
+
+## Slice one glyph/face tile out of the button atlas, for buttons built in code.
+static func ui_tile(tile: Vector2i) -> AtlasTexture:
+	var atlas := AtlasTexture.new()
+	atlas.atlas = load(UI_BUTTON_TEXTURE) as Texture2D
+	atlas.region = Rect2(
+		float(tile.x * UI_BUTTON_TILE), float(tile.y * UI_BUTTON_TILE),
+		float(UI_BUTTON_TILE), float(UI_BUTTON_TILE),
+	)
+	return atlas
+
+
 # --- Debug -------------------------------------------------------------------
 
 ## F3 toggles a read-only tuning overlay. Keep off for release builds.
 const DEBUG_OVERLAY := true
+
+## Item icon for HUD display.
+const UI_ITEM_ICON := "res://assets/props/item_pencil.png"
 
 # --- Pure helpers ------------------------------------------------------------
 
 ## Clamp a lane index into the valid range.
 static func clamp_lane(lane: int) -> int:
 	return clampi(lane, LANE_TOP, LANE_BOTTOM)
+
+
+## HUD text for travelled [param distance] in pixels, shown in metres.
+static func format_distance(distance: float) -> String:
+	return "%.1f m" % (distance / 100.0)
+
+
+## HUD text for the current world [param speed] in pixels per second.
+static func format_speed(speed: float) -> String:
+	return "%.0f px/s" % speed
 
 
 ## Lane index after one step in [param direction] (-1 = up, +1 = down).
@@ -319,24 +426,50 @@ static func zone_home_length(seconds: float = ZONE_HOME_DURATION_SECONDS) -> flo
 	return maxf(seconds, ZONE_HOME_MIN_SECONDS) * RUN_SPEED
 
 
-## Distance (px) the street zone lasts for [param seconds] at the base run speed,
-## clamped to ZONE_STREET_MIN_SECONDS.
+## Distance (px) the street zone lasts for [param seconds] at the base run
+## speed, clamped to ZONE_STREET_MIN_SECONDS.
 static func zone_street_length(seconds: float = ZONE_STREET_DURATION_SECONDS) -> float:
 	return maxf(seconds, ZONE_STREET_MIN_SECONDS) * RUN_SPEED
 
 
+## Distance (px) the school corridor lasts for [param seconds] at the base run
+## speed, clamped to ZONE_SCHOOL_MIN_SECONDS. The endgame hallway begins where
+## this ends.
+static func zone_school_length(seconds: float = ZONE_SCHOOL_DURATION_SECONDS) -> float:
+	return maxf(seconds, ZONE_SCHOOL_MIN_SECONDS) * RUN_SPEED
+
+
+## Screen x of the endgame exit door for a [param width] px wide viewport.
+static func school_exit_x(width: float = DESIGN_WIDTH) -> float:
+	return width * SCHOOL_EXIT_X_FRACTION
+
+
+## Pace multiplier for [param zone].
+static func zone_speed_factor(zone: Zone) -> float:
+	return float(ZONE_SPEED_FACTOR[clampi(zone, 0, ZONE_SPEED_FACTOR.size() - 1)])
+
+
+## Base run speed (px/s) for [param zone], before any momentum dip.
+static func zone_run_speed(zone: Zone) -> float:
+	return RUN_SPEED * zone_speed_factor(zone)
+
+
+## Fastest base speed in a run. The speed meter fills against this.
+static func max_run_speed() -> float:
+	return RUN_SPEED * float(ZONE_SPEED_FACTOR.max())
+
+
 ## Zone that applies at [param distance]. Pass [param home_length] and
-## [param street_length] to use per-run overrides; a non-positive value falls
-## back to the configured default. SCHOOL is terminal.
-static func zone_for_distance(distance: float, home_length: float = -1.0, street_length: float = -1.0) -> Zone:
-	var home_end := home_length
-	if home_end <= 0.0:
-		home_end = zone_home_length()
-	var street_len := street_length
-	if street_len <= 0.0:
-		street_len = zone_street_length()
-	if distance < home_end:
+## [param street_length] to use per-run overrides; non-positive values fall back
+## to the configured defaults. SCHOOL is terminal.
+static func zone_for_distance(distance: float, home_length: float = -1.0,
+		street_length: float = -1.0) -> Zone:
+	var home := home_length
+	if home <= 0.0:
+		home = zone_home_length()
+	var street := street_length
+	if street <= 0.0:
+		street = zone_street_length()
+	if distance < home:
 		return Zone.HOME
-	if distance < home_end + street_len:
-		return Zone.STREET
-	return Zone.SCHOOL
+	return Zone.STREET if distance < home + street else Zone.SCHOOL
