@@ -1222,11 +1222,12 @@ func _test_scenes() -> void:
 		_check(world.pursuer != null, "run world contains the pursuer")
 		_check(world.pursuer.state == Pursuer.State.DORMANT, "pursuer starts dormant")
 		_check_near(world.speed, GameConfig.RUN_SPEED, 0.01, "run world starts at RUN_SPEED")
-		_check(not world.caught_label.visible, "caught label starts hidden")
-		_check(world.game_over_label.visible, "out-of-hearts label is the default")
+		_check(not world.results.visible, "the results screen starts hidden")
+		_check_eq(world.results.title_label.text, "OUT OF HEARTS",
+			"the default title is OUT OF HEARTS")
 		_check_eq(world.score_system.score, 0, "score starts at 0")
 		_check(world.is_running, "the run starts running")
-		_check(not world.game_over_root.visible, "the game over overlay starts hidden")
+		_check(not world.results.visible, "the game over overlay starts hidden")
 		_check_near(world.speed, GameConfig.RUN_SPEED, 0.01, "run world starts at RUN_SPEED")
 		if world.player != null:
 			_check_eq(
@@ -1349,9 +1350,12 @@ func _test_scenes() -> void:
 			_check(world.arrest.visible, "caught shows the arrest grab")
 			_check(not world.player.sprite.visible, "caught hides the player sprite")
 			world._on_arrest_finished()
-			_check(world.game_over_root.visible, "caught shows the game over overlay")
-			_check(world.caught_label.visible, "caught shows CAUGHT!")
-			_check(not world.game_over_label.visible, "caught hides OUT OF HEARTS")
+			_check(world.results.visible, "caught shows the game over overlay")
+			_check(world.results.title_label.text == "CAUGHT!", "caught shows CAUGHT!")
+			_check(
+				world.results.stat_text("score") == "%06d" % world.score_system.score,
+				"caught fills the final score readout",
+			)
 
 		if world.player != null:
 			# Item pickup + damage resets the combo through the world wiring.
@@ -1369,7 +1373,7 @@ func _test_scenes() -> void:
 				world.player.take_damage()
 			_check_eq(world.player.health, 0, "three hits empty the hearts")
 			_check(not world.is_running, "the run stops when the last heart is lost")
-			_check(world.game_over_root.visible, "the game over overlay appears on death")
+			_check(world.results.visible, "the game over overlay appears on death")
 			_check_eq(
 				world.hud.get_heart_texture(0).resource_path,
 				"res://assets/heart/heart_empty.png",

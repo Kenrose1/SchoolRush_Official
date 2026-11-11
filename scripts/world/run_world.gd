@@ -76,9 +76,7 @@ var _school_background_texture: Texture2D
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
 @onready var pause_menu: PauseMenu = $Hud/HudRoot/Pause
-@onready var game_over_root: Control = $GameOver/Root
-@onready var game_over_label: Label = $GameOver/Root/Label
-@onready var caught_label: Label = $GameOver/Root/CaughtLabel
+@onready var results: ResultsScreen = $GameOver/Results
 @onready var _debug_label: Label = $Hud/HudRoot/Debug
 @onready var _zone_fade: ColorRect = $ZoneFade/Rect
 
@@ -129,8 +127,7 @@ func _ready() -> void:
 		queue_redraw()
 		return
 	_debug_label.visible = GameConfig.DEBUG_OVERLAY
-	game_over_root.visible = false
-	caught_label.visible = false
+	results.visible = false
 	arrest.visible = false
 	arrest.scale = Vector2(GameConfig.ARREST_SCALE, GameConfig.ARREST_SCALE)
 
@@ -306,9 +303,13 @@ func _freeze_world() -> void:
 
 
 func _show_game_over(caught: bool) -> void:
-	game_over_root.visible = true
-	game_over_label.visible = not caught
-	caught_label.visible = caught
+	results.show_results(
+		caught,
+		score_system.score,
+		int(distance / 100.0),
+		["HOME", "STREET", "SCHOOL"][current_zone],
+		score_system.item_count,
+	)
 	_update_debug()
 
 

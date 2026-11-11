@@ -99,7 +99,7 @@ func set_paused(value: bool) -> void:
 
 ## The run is pausable while it is live and the game-over overlay is hidden.
 func _can_pause() -> bool:
-	return _world == null or (_world.is_running and not _world.game_over_root.visible)
+	return _world == null or (_world.is_running and not _world.results.visible)
 
 
 func _on_resume_pressed() -> void:

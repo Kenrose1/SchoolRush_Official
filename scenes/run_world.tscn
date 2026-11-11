@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://ncmb7o4kcxhc" path="res://scenes/hud.tscn" id="4_hud"]
 [ext_resource type="PackedScene" uid="uid://csjs6og2e0x8a" path="res://scenes/pursuer.tscn" id="6_pursuer"]
 [ext_resource type="SpriteFrames" uid="uid://cde02m0qw1a37" path="res://assets/characters/tanod/tanod_frames.tres" id="7_frames"]
+[ext_resource type="PackedScene" path="res://scenes/results_screen.tscn" id="8_results"]
 
 [node name="RunWorld" type="Node2D" unique_id=894551756]
 script = ExtResource("1_world")
@@ -31,61 +32,7 @@ script = ExtResource("3_director")
 [node name="GameOver" type="CanvasLayer" parent="." unique_id=1271252008]
 layer = 20
 
-[node name="Root" type="Control" parent="GameOver" unique_id=2124762756]
-visible = false
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="Dim" type="ColorRect" parent="GameOver/Root" unique_id=461408495]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.04, 0.05, 0.08, 0.66)
-
-[node name="Label" type="Label" parent="GameOver/Root" unique_id=1819648649]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
-theme_override_constants/shadow_offset_x = 4
-theme_override_constants/shadow_offset_y = 4
-theme_override_font_sizes/font_size = 72
-text = "OUT OF HEARTS
-
-[R] retry"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="CaughtLabel" type="Label" parent="GameOver/Root" unique_id=1095298068]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_colors/font_color = Color(1, 0.62, 0.52, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
-theme_override_constants/shadow_offset_x = 4
-theme_override_constants/shadow_offset_y = 4
-theme_override_font_sizes/font_size = 72
-text = "CAUGHT!
-
-[R] retry"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="Results" parent="GameOver" unique_id=2124762756 instance=ExtResource("8_results")]
 
 [node name="ZoneFade" type="CanvasLayer" parent="." unique_id=478392615]
 layer = 5

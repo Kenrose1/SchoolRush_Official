@@ -70,11 +70,15 @@ func _ready() -> void:
 	await _shot("m4_01_chase")
 
 	world._on_player_caught()
-	await _wait(30)
+	await _wait(10)
+	# Show the results deterministically and let the staggered reveal finish
+	# (~1 s) so the capture shows populated, fully visible readouts.
+	world._show_game_over(true)
+	await _wait(90)
 	await _shot("m4_02_caught")
 
 	# M5: hold the zone fade mid-way, then reveal the street zone.
-	world.game_over_root.visible = false
+	world.results.visible = false
 	world.arrest.visible = false
 	world.player.sprite.visible = true
 	world.set_process(false)
@@ -102,7 +106,7 @@ func _ready() -> void:
 	var lunge_finished := Callable(world, "_on_lunge_finished")
 	if world.pursuer.lunge_finished.is_connected(lunge_finished):
 		world.pursuer.lunge_finished.disconnect(lunge_finished)
-	world.game_over_root.visible = false
+	world.results.visible = false
 	world.arrest.visible = false
 	world.player.sprite.visible = true
 
