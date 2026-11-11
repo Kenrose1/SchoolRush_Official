@@ -38,8 +38,12 @@ const LANE_LEAN_SMOOTHING := 16.0
 # --- Zones -------------------------------------------------------------------
 
 ## The run starts at home, moves to the street, and finishes at school. The
-## school never ends.
+## school never ends in endless play; campaign runs bound it with a timer.
 enum Zone { HOME, STREET, SCHOOL }
+
+## How a run is bounded. CAMPAIGN ends in a victory at the finish line;
+## ENDLESS keeps the school hallway scrolling until Elias falls.
+enum RunMode { CAMPAIGN, ENDLESS }
 
 const ZONE_ORDER := [Zone.HOME, Zone.STREET, Zone.SCHOOL]
 
@@ -51,10 +55,18 @@ const ZONE_HOME_DURATION_SECONDS := 14.0
 const ZONE_HOME_MIN_SECONDS := 5.0
 
 ## How long the street zone lasts, in seconds. SCHOOL takes over when it ends.
-const ZONE_STREET_DURATION_SECONDS := 20.0
+const ZONE_STREET_DURATION_SECONDS := 25.0
 
 ## Floor for the street duration, so the boundary can never collapse.
 const ZONE_STREET_MIN_SECONDS := 5.0
+
+## Campaign only: how long the school hallway runs before the finish line.
+## Endless play ignores this - its school zone is terminal.
+const CAMPAIGN_SCHOOL_SECONDS := 6.0
+
+## Campaign only: stop spawning this many pixels before the finish line so the
+## last stretch is a clean sprint instead of a hazard wall.
+const CAMPAIGN_SPAWN_CUTOFF_PX := 400.0
 
 ## Cross-fade length when the zone changes (seconds).
 const ZONE_FADE_TIME := 0.25
@@ -219,16 +231,15 @@ const COMBO_THRESHOLD_3 := 6
 const COMBO_THRESHOLD_5 := 10
 
 ## --- Result medals -----------------------------------------------------------
-## Endless runs medal by distance reached; campaign runs medal by score
-## against the session best. Both rules live here so thresholds stay tunable.
+## Endless runs medal by distance reached; campaign runs medal by finishing and
+## then by score against the session best. Both rules live here so thresholds
+## stay tunable.
 
 enum Medal { BLACK, SILVER, GOLD }
 
 ## Distance (m) needed for the endless-run silver and gold medals.
 const MEDAL_DISTANCE_SILVER := 500.0
 const MEDAL_DISTANCE_GOLD := 1000.0
-## Campaign: a silver medal needs this fraction of the session best.
-const MEDAL_BEST_SILVER_RATIO := 0.6
 
 ## Endless rule: how far Elias got before the run ended.
 static func medal_for_distance(distance_m: float) -> int:
@@ -239,14 +250,15 @@ static func medal_for_distance(distance_m: float) -> int:
 	return Medal.BLACK
 
 
-## Campaign rule: score against the session best (pass the best recorded
-## BEFORE this run so a first run can still medal).
-static func medal_for_score(score: int, best: int) -> int:
-	if score >= best and score > 0:
+## Campaign rule (finish-gated score): reaching the school is the floor for any
+## medal, and the score against the best recorded BEFORE this run decides gold.
+## A first clear is silver - gold has to be earned against a real record.
+static func campaign_medal(finished: bool, score: int, previous_best: int) -> int:
+	if not finished:
+		return Medal.BLACK
+	if previous_best > 0 and score > previous_best:
 		return Medal.GOLD
-	if best > 0 and score >= int(best * MEDAL_BEST_SILVER_RATIO):
-		return Medal.SILVER
-	return Medal.BLACK
+	return Medal.SILVER
 
 # --- Spawning ----------------------------------------------------------------
 
@@ -355,10 +367,25 @@ static func zone_street_length(seconds: float = ZONE_STREET_DURATION_SECONDS) ->
 	return maxf(seconds, ZONE_STREET_MIN_SECONDS) * RUN_SPEED
 
 
-## Zone that applies at [param distance]. Pass [param home_length] and
-## [param street_length] to use per-run overrides; a non-positive value falls
-## back to the configured default. SCHOOL is terminal.
-static func zone_for_distance(distance: float, home_length: float = -1.0, street_length: float = -1.0) -> Zone:
+## Distance (px) the school zone lasts for [param seconds] at the base run
+## speed. Only the campaign bounds the school; endless play passes no cap.
+static func zone_school_length(seconds: float = CAMPAIGN_SCHOOL_SECONDS) -> float:
+	return maxf(seconds, 0.0) * RUN_SPEED
+
+
+## Zone that applies at [param distance] for [param mode]. Pass
+## [param home_length] and [param street_length] to use per-run overrides; a
+## non-positive value falls back to the configured default.
+##
+## CAMPAIGN maps HOME -> STREET -> SCHOOL; ENDLESS maps HOME -> STREET and stays
+## in the street forever - the school zone is never reached, so its art is
+## never drawn and its hallway never scrolls.
+static func zone_for_distance(
+	distance: float,
+	home_length: float = -1.0,
+	street_length: float = -1.0,
+	mode: int = RunMode.CAMPAIGN,
+) -> Zone:
 	var home_end := home_length
 	if home_end <= 0.0:
 		home_end = zone_home_length()
@@ -367,6 +394,23 @@ static func zone_for_distance(distance: float, home_length: float = -1.0, street
 		street_len = zone_street_length()
 	if distance < home_end:
 		return Zone.HOME
+	if mode == RunMode.ENDLESS:
+		return Zone.STREET
 	if distance < home_end + street_len:
 		return Zone.STREET
 	return Zone.SCHOOL
+
+
+## Distance (px) at which a campaign run reaches the finish line: one timed
+## pass of every zone. Endless runs have no finish.
+static func campaign_finish_distance(
+	home_length: float = -1.0,
+	street_length: float = -1.0,
+	school_length: float = -1.0,
+) -> float:
+	var school_len := school_length
+	if school_len <= 0.0:
+		school_len = zone_school_length()
+	return zone_home_length(home_length) \
+		+ zone_street_length(street_length) \
+		+ school_len

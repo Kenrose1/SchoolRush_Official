@@ -81,10 +81,11 @@ func _ready() -> void:
 
 	world._on_player_caught()
 	await _wait(10)
-	# Show the results deterministically. Stage a 1000 m run so the capture
-	# shows the top-tier gold medal, then let the reveal finish (~1 s).
+	# Show the results deterministically. Endless mode so the staged 1000 m run
+	# shows the top-tier gold distance medal, then let the reveal finish (~1 s).
+	world.set_run_mode(GameConfig.RunMode.ENDLESS)
 	world.distance = 100000.0
-	world._show_game_over(true)
+	world._show_game_over(ResultsScreen.Outcome.CAUGHT)
 	await _wait(90)
 	await _shot("m4_02_caught")
 
@@ -145,6 +146,16 @@ func _ready() -> void:
 	world.queue_redraw()
 	await _wait(2)
 	await _shot("m5_05_school")
+
+	# Campaign: cross the finish line for the MADE IT! victory. Stage a best
+	# below the run's score so the capture shows the gold badge.
+	world.set_run_mode(GameConfig.RunMode.CAMPAIGN)
+	GameState.best_campaign = 500
+	world._finished = false
+	world.distance = world.campaign_finish_distance
+	world._finish_campaign()
+	await _wait(90)
+	await _shot("m5_08_campaign_finish")
 
 	get_tree().quit(0)
 

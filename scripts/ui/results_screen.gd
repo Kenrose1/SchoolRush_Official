@@ -1,25 +1,31 @@
 class_name ResultsScreen
 extends Control
-## Run results: title, final score, session best, distance, zone, items, retry.
+## Run results: medal, outcome title, final score, session best, distance,
+## zone, items, retry, menu.
 ##
 ## The layout and styling live entirely in scenes/results_screen.tscn so the
 ## screen can be inspected and tweaked in the editor; this script only fills
-## the values, colors the title, and plays the staggered reveal. The best
-## score is session-only: a static that survives scene reloads (so [R] retries
-## keep the record) but resets when the app closes.
+## the values, colors the title, and plays the staggered reveal. Bests are
+## per run mode and live in the GameState autoload, so a campaign record never
+## mixes with an endless one.
 
 signal retry_pressed
 
-static var session_best := 0
+enum Outcome { OUT_OF_HEARTS, CAUGHT, VICTORY }
+
 ## Runs finished since launch; the NEW BEST! badge only shows from the second
 ## run onward, so the first run never claims to have beaten anything.
 static var session_runs := 0
 
 const CREAM := Color(1.0, 0.94, 0.86)
 const CAUGHT_COLOR := Color(1.0, 0.62, 0.52)
+const VICTORY_COLOR := Color("#ffb45e")
 
 const TITLE_TEXT := "OUT OF HEARTS"
 const CAUGHT_TITLE_TEXT := "CAUGHT!"
+const VICTORY_TITLE_TEXT := "MADE IT!"
+
+const MENU_SCENE := "res://scenes/main_menu.tscn"
 
 ## Result medal art, one texture per GameConfig.Medal tier. The gold outline
 ## medal reads best on the dark panel, so it carries the top tier.
@@ -32,11 +38,13 @@ const MEDAL_TEXTURES := {
 var _medal: int = GameConfig.Medal.BLACK
 
 @onready var title_label: Label = $Center/Panel/VBox/Title
-@onready var medal_icon: TextureRect = $Center/Panel/VBox/Medal
+@onready var medal_plate: PanelContainer = $Center/Panel/VBox/MedalPlate
+@onready var medal_icon: TextureRect = $Center/Panel/VBox/MedalPlate/Medal
 @onready var stats_grid: GridContainer = $Center/Panel/VBox/Stats
 @onready var best_value: Label = $Center/Panel/VBox/Stats/BestValue
 @onready var new_best_label: Label = $Center/Panel/VBox/NewBest
-@onready var retry_button: Button = $Center/Panel/VBox/Retry
+@onready var retry_button: Button = $Center/Panel/VBox/Buttons/Retry
+@onready var menu_button: Button = $Center/Panel/VBox/Buttons/Menu
 
 
 func _ready() -> void:
@@ -44,23 +52,33 @@ func _ready() -> void:
 	# hides it here and only reveals it when a run ends.
 	visible = false
 	retry_button.pressed.connect(_on_retry_pressed)
+	menu_button.pressed.connect(_on_menu_pressed)
 
 
-## Fill the readouts, award the medal, update the session best, and reveal.
+## Fill the readouts, award the medal, record the score with GameState, and
+## reveal. The best shown is the current mode's record AFTER this run lands.
 func show_results(
-	caught: bool, score: int, distance_m: int, zone_name: String, items: int,
+	outcome: int, score: int, distance_m: int, zone_name: String, items: int,
 	medal: int,
 ) -> void:
-	var is_new_best := session_runs > 0 and score > session_best
-	session_best = maxi(session_best, score)
+	var previous_best := GameState.best_for_mode()
+	var is_new_best := session_runs > 0 and score > previous_best
+	GameState.report_score(score)
 	session_runs += 1
 
-	title_label.text = CAUGHT_TITLE_TEXT if caught else TITLE_TEXT
-	title_label.add_theme_color_override(
-		"font_color", CAUGHT_COLOR if caught else CREAM)
+	match outcome:
+		Outcome.CAUGHT:
+			title_label.text = CAUGHT_TITLE_TEXT
+			title_label.add_theme_color_override("font_color", CAUGHT_COLOR)
+		Outcome.VICTORY:
+			title_label.text = VICTORY_TITLE_TEXT
+			title_label.add_theme_color_override("font_color", VICTORY_COLOR)
+		_:
+			title_label.text = TITLE_TEXT
+			title_label.add_theme_color_override("font_color", CREAM)
 	_set_stat("score", "%06d" % score)
-	_set_stat("best", "%06d" % session_best)
-	_set_stat("distance", "%d m" % distance_m)
+	_set_stat("best", "%06d" % GameState.best_for_mode())
+	_set_stat("distance", "FINISH" if outcome == Outcome.VICTORY else "%d m" % distance_m)
 	_set_stat("zone", zone_name)
 	_set_stat("items", "%d" % items)
 	new_best_label.visible = is_new_best
@@ -71,9 +89,9 @@ func show_results(
 	_play_reveal()
 
 
-## Current session record, readable by the suite.
+## Current session record for the active mode, readable by the suite.
 func reported_best() -> int:
-	return session_best
+	return GameState.best_for_mode()
 
 
 ## Text of one stat readout ("score", "best", "distance", "zone", "items").
@@ -107,6 +125,10 @@ func _on_retry_pressed() -> void:
 	get_tree().reload_current_scene()
 
 
+func _on_menu_pressed() -> void:
+	get_tree().change_scene_to_file(MENU_SCENE)
+
+
 ## Staggered fade-in so the results feel earned instead of dumped. The medal
 ## lands last with a scale pop, and a gold run gets a shine sweep after it.
 func _play_reveal() -> void:
@@ -116,7 +138,8 @@ func _play_reveal() -> void:
 	if new_best_label.visible:
 		steps.append(new_best_label)
 	steps.append(retry_button)
-	steps.append(medal_icon)
+	steps.append(menu_button)
+	steps.append(medal_plate)
 	for i in steps.size():
 		var node := steps[i]
 		node.modulate.a = 0.0

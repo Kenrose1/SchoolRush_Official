@@ -41,6 +41,12 @@ func _ready() -> void:
 	_section("Medals")
 	_test_medals()
 
+	_section("Modes")
+	_test_modes()
+
+	_section("Game state")
+	_test_game_state()
+
 	_section("School Items")
 	await _test_collectible()
 
@@ -815,30 +821,27 @@ func _test_medals() -> void:
 		"a first-step death medals black",
 	)
 
-	# Campaign rule: score against the previous session best.
+	# Campaign rule: finishing gates the badge, score against the previous
+	# best decides gold vs silver. A first clear is silver.
 	_check_eq(
-		GameConfig.medal_for_score(500, 400), GameConfig.Medal.GOLD,
-		"beating the best medals gold",
+		GameConfig.campaign_medal(false, 5000, 0), GameConfig.Medal.BLACK,
+		"dying before the line medals black no matter the score",
 	)
 	_check_eq(
-		GameConfig.medal_for_score(400, 400), GameConfig.Medal.GOLD,
-		"matching the best medals gold",
+		GameConfig.campaign_medal(true, 4600, 0), GameConfig.Medal.SILVER,
+		"a first clear medals silver",
 	)
 	_check_eq(
-		GameConfig.medal_for_score(300, 400), GameConfig.Medal.SILVER,
-		"three quarters of the best medals silver",
+		GameConfig.campaign_medal(true, 5300, 5000), GameConfig.Medal.GOLD,
+		"finishing past the best medals gold",
 	)
 	_check_eq(
-		GameConfig.medal_for_score(200, 400), GameConfig.Medal.BLACK,
-		"half the best (under the silver ratio) medals black",
+		GameConfig.campaign_medal(true, 5000, 5000), GameConfig.Medal.SILVER,
+		"matching the best is not a new best",
 	)
 	_check_eq(
-		GameConfig.medal_for_score(1, 400), GameConfig.Medal.BLACK,
-		"a sliver of the best medals black",
-	)
-	_check_eq(
-		GameConfig.medal_for_score(0, 0), GameConfig.Medal.BLACK,
-		"a zero first run medals black",
+		GameConfig.campaign_medal(true, 4600, 5000), GameConfig.Medal.SILVER,
+		"a clear under the best still medals silver",
 	)
 
 	# The tier clamp keeps the results screen safe against out-of-range calls.
@@ -854,6 +857,88 @@ func _test_medals() -> void:
 		"the medal icon carries a texture",
 	)
 	screen.queue_free()
+
+
+func _test_modes() -> void:
+	var home := GameConfig.zone_home_length()
+	var street := GameConfig.zone_street_length()
+	var school := GameConfig.zone_school_length()
+
+	_check_near(
+		GameConfig.campaign_finish_distance(), home + street + school, 0.01,
+		"the campaign finish sits one pass past every zone",
+	)
+	_check_near(
+		GameConfig.campaign_finish_distance() / GameConfig.RUN_SPEED, 54.0, 0.01,
+		"the campaign is 54 seconds of running (14 + 25 + 15)",
+	)
+	_check_near(
+		school, GameConfig.CAMPAIGN_SCHOOL_SECONDS * GameConfig.RUN_SPEED, 0.01,
+		"the school leg is CAMPAIGN_SCHOOL_SECONDS long",
+	)
+
+	_check_eq(
+		GameConfig.zone_for_distance(0.0, home, street, GameConfig.RunMode.ENDLESS),
+		GameConfig.Zone.HOME,
+		"endless starts at home",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance(home + 1.0, home, street, GameConfig.RunMode.ENDLESS),
+		GameConfig.Zone.STREET,
+		"endless moves to the street like campaign",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance(home + street + 1.0, home, street, GameConfig.RunMode.ENDLESS),
+		GameConfig.Zone.STREET,
+		"endless stays in the street where campaign enters school",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance(
+			home + street + school * 10.0, home, street, GameConfig.RunMode.ENDLESS),
+		GameConfig.Zone.STREET,
+		"endless never reaches the school zone",
+	)
+	_check_eq(
+		GameConfig.zone_for_distance(home + street + 1.0, home, street, GameConfig.RunMode.CAMPAIGN),
+		GameConfig.Zone.SCHOOL,
+		"campaign enters the school past the street",
+	)
+
+
+func _test_game_state() -> void:
+	var state := get_node_or_null("/root/GameState")
+	_check(state != null, "the GameState autoload is registered")
+	if state == null:
+		return
+
+	# Isolate from anything the suite did earlier, then restore.
+	var keep_mode: int = state.mode
+	var keep_campaign: int = state.best_campaign
+	var keep_endless: int = state.best_endless
+	state.best_campaign = 0
+	state.best_endless = 0
+
+	state.mode = GameConfig.RunMode.CAMPAIGN
+	_check_eq(state.best_for_mode(), 0, "a fresh session has no campaign best")
+	_check(state.report_score(1200), "a first campaign score reports as a new best")
+	_check_eq(state.best_campaign, 1200, "the campaign best records the score")
+	_check_eq(state.best_endless, 0, "the endless best is untouched by campaign runs")
+
+	state.mode = GameConfig.RunMode.ENDLESS
+	_check_eq(state.best_for_mode(), 0, "the endless best starts empty")
+	_check(state.report_score(900), "a first endless score reports as a new best")
+	_check_eq(state.best_endless, 900, "the endless best records its own score")
+	_check_eq(state.best_campaign, 1200, "the campaign best survives endless runs")
+	_check(not state.report_score(800), "an endless score under the best is not a new best")
+	_check_eq(state.best_endless, 900, "the endless best only ratchets upward")
+	_check_eq(
+		state.best_for_mode(GameConfig.RunMode.CAMPAIGN), 1200,
+		"best_for_mode can read any mode explicitly",
+	)
+
+	state.best_campaign = keep_campaign
+	state.best_endless = keep_endless
+	state.mode = keep_mode
 
 
 func _test_score_system() -> void:
@@ -1307,8 +1392,8 @@ func _test_menu() -> void:
 	)
 	_check_eq(
 		menu.best_label.text,
-		"BEST  %06d" % ResultsScreen.session_best,
-		"the best readout mirrors the session record",
+		"BEST  %06d" % GameState.best_campaign,
+		"the best readout mirrors the campaign record",
 	)
 
 	_check(menu.endless_button.disabled, "endless is parked behind the campaign pass")
@@ -1510,6 +1595,51 @@ func _test_scenes() -> void:
 				world.results.stat_text("score") == "%06d" % world.score_system.score,
 				"caught fills the final score readout",
 			)
+
+			# Endless: the street is terminal, the school zone never draws.
+			world.set_run_mode(GameConfig.RunMode.ENDLESS)
+			world.distance = world.home_zone_length + world.street_zone_length + 5000.0
+			world._update_zone()
+			_check_eq(world.current_zone, GameConfig.Zone.STREET,
+				"endless stays in the street forever")
+			world.set_run_mode(GameConfig.RunMode.CAMPAIGN)
+			world._update_zone()
+			_check_eq(world.current_zone, GameConfig.Zone.SCHOOL,
+				"campaign enters the school at the same distance")
+			GameState.best_campaign = 0
+			world._finished = false
+			world.distance = world.campaign_finish_distance
+			world._finish_campaign()
+			_check(not world.is_running, "crossing the finish stops the run")
+			_check(world.results.visible, "the finish shows the results overlay")
+			_check_eq(world.results.title_label.text, "MADE IT!",
+				"a finished campaign reads MADE IT!")
+			_check_eq(world.results.stat_text("distance"), "FINISH",
+				"a finished run reports the line, not a distance")
+			_check_eq(world.results.awarded_medal(), GameConfig.Medal.SILVER,
+				"a first clear medals silver")
+			world._finish_campaign()
+			_check_eq(world.results.title_label.text, "MADE IT!",
+				"the finish reports exactly once")
+
+			# Campaign spawn cutoff: the last stretch before the line is clear.
+			var campaign_world := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+			add_child(campaign_world)
+			var far := campaign_world.get_node("RunWorld") as RunWorld
+			far.set_run_mode(GameConfig.RunMode.CAMPAIGN)
+			far.distance = far.campaign_finish_distance \
+				- GameConfig.CAMPAIGN_SPAWN_CUTOFF_PX + 50.0
+			for i in 3:
+				far._physics_process(0.25)
+			_check(far.is_running, "the run is still live inside the spawn cutoff")
+			_check_eq(far.hazards.get_child_count(), 0,
+				"the spawn cutoff band spawns nothing")
+			far.distance = 0.0
+			for i in 8:
+				far._physics_process(0.25)
+			_check(far.hazards.get_child_count() > 0,
+				"the course keeps spawning before the cutoff")
+			campaign_world.queue_free()
 
 		if world.player != null:
 			# Item pickup + damage resets the combo through the world wiring.

@@ -22,7 +22,7 @@ const BEST_FORMAT := "BEST  %06d"
 
 func _ready() -> void:
 	how_to_panel.visible = false
-	best_label.text = BEST_FORMAT % ResultsScreen.session_best
+	best_label.text = BEST_FORMAT % GameState.best_campaign
 	campaign_button.pressed.connect(_on_campaign_pressed)
 	how_to_button.pressed.connect(_on_how_to_pressed)
 	back_button.pressed.connect(_on_how_to_pressed)
@@ -39,8 +39,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_campaign_pressed() -> void:
-	# TODO(mode): hand the run a RunMode here (campaign first, endless later);
-	# both buttons share the three-zone course until that system exists.
+	# Hand the run its rules; Endless gets wired here when its button goes
+	# live (GameState.mode = GameConfig.RunMode.ENDLESS).
+	GameState.mode = GameConfig.RunMode.CAMPAIGN
 	get_tree().change_scene_to_file(WORLD_SCENE)
 
 

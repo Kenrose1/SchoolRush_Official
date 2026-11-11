@@ -72,7 +72,6 @@ tooltip_text = "Pause (Esc)"
 focus_mode = 0
 
 [node name="Overlay" type="Control" parent="HudRoot/Pause" unique_id=441229806]
-visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -126,9 +125,17 @@ size_flags_horizontal = 4
 focus_mode = 0
 text = "RESTART"
 
+[node name="Settings" type="Button" parent="HudRoot/Pause/Overlay/VBox" unique_id=1007332909]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 0
+text = "Settings
+"
+
 [node name="Quit" type="Button" parent="HudRoot/Pause/Overlay/VBox" unique_id=479108723]
 custom_minimum_size = Vector2(320, 64)
 layout_mode = 2
 size_flags_horizontal = 4
 focus_mode = 0
-text = "QUIT"
+text = "MENU"

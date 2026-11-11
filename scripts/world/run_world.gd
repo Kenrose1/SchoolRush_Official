@@ -108,6 +108,12 @@ var street_zone_length: float = GameConfig.zone_street_length()
 var current_zone: GameConfig.Zone = GameConfig.Zone.HOME
 ## Seconds of zone cross-fade remaining.
 var _zone_fade_time_left: float = 0.0
+## Which rules this run plays by (GameConfig.RunMode), read from GameState.
+var mode: int = GameConfig.RunMode.CAMPAIGN
+## Distance (px) at which a campaign run finishes. 0 means endless.
+var campaign_finish_distance: float = GameConfig.campaign_finish_distance()
+## True once the campaign finish line has been crossed (victory shown once).
+var _finished: bool = false
 
 
 func _ready() -> void:
@@ -126,6 +132,7 @@ func _ready() -> void:
 		_school_background_texture = load(SCHOOL_BACKGROUND_TEXTURE) as Texture2D
 		queue_redraw()
 		return
+	set_run_mode(GameState.mode)
 	_debug_label.visible = GameConfig.DEBUG_OVERLAY
 	results.visible = false
 	arrest.visible = false
@@ -152,6 +159,18 @@ func _ready() -> void:
 	director.hazard_passed.connect(score_system.add_hazard_passed)
 	director.item_missed.connect(_on_item_missed)
 	director.setup(hazards, randi())
+
+
+## Hand the run its rules. Called by _ready with GameState.mode and by the
+## suite to exercise both modes in one world. Recomputes the campaign finish
+## so a mode swap never leaves a stale line behind.
+func set_run_mode(new_mode: int) -> void:
+	mode = new_mode
+	campaign_finish_distance = (
+		GameConfig.campaign_finish_distance(home_zone_length, street_zone_length)
+		if mode == GameConfig.RunMode.CAMPAIGN
+		else 0.0
+	)
 
 
 func _physics_process(delta: float) -> void:
@@ -182,7 +201,16 @@ func _physics_process(delta: float) -> void:
 			child.speed = speed
 	distance += speed * delta
 	_update_zone()
-	director.tick(delta, speed, distance)
+	# Campaign: stop spawning before the line so the last stretch is a clean
+	# sprint, then end the run in a victory the moment Elias reaches it.
+	if mode == GameConfig.RunMode.CAMPAIGN:
+		if distance >= campaign_finish_distance:
+			_finish_campaign()
+			return
+		if distance < campaign_finish_distance - GameConfig.CAMPAIGN_SPAWN_CUTOFF_PX:
+			director.tick(delta, speed, distance)
+	else:
+		director.tick(delta, speed, distance)
 	score_system.add_distance(distance)
 	pursuer.set_world_speed(speed)
 	pursuer.track(player.lane_y)
@@ -268,11 +296,11 @@ func _on_pursuer_caught() -> void:
 func _on_lunge_finished() -> void:
 	# Fallback if the arrest node is missing: show overlay immediately.
 	if not arrest.visible:
-		_show_game_over(true)
+		_show_game_over(ResultsScreen.Outcome.CAUGHT)
 
 
 func _on_arrest_finished() -> void:
-	_show_game_over(true)
+	_show_game_over(ResultsScreen.Outcome.CAUGHT)
 
 
 ## Play the combined grab: hide the solo sprites, run the arrest strip.
@@ -289,7 +317,7 @@ func _on_player_died() -> void:
 	if _caught:
 		return  # The lunge flow shows the CAUGHT! overlay.
 	_freeze_world()
-	_show_game_over(false)
+	_show_game_over(ResultsScreen.Outcome.OUT_OF_HEARTS)
 
 
 func _freeze_world() -> void:
@@ -302,12 +330,30 @@ func _freeze_world() -> void:
 	_update_debug()
 
 
-func _show_game_over(caught: bool) -> void:
-	# Endless rule for now: medal by distance reached. When a bounded campaign
-	# mode exists, switch to GameConfig.medal_for_score(score, previous_best).
+## Cross the campaign finish line: freeze the world and show the victory.
+## Guarded so a single crossing can never double-report the score.
+func _finish_campaign() -> void:
+	if _finished:
+		return
+	_finished = true
+	_freeze_world()
+	_show_game_over(ResultsScreen.Outcome.VICTORY)
+
+
+func _show_game_over(outcome: int) -> void:
+	# Campaign: finish-gated score rule (gold needs a new best). Endless:
+	# medal by distance reached. The best is read BEFORE show_results records
+	# this run's score with GameState.
+	var previous_best := GameState.best_for_mode()
 	var medal := GameConfig.medal_for_distance(int(distance / 100.0))
+	if mode == GameConfig.RunMode.CAMPAIGN:
+		medal = GameConfig.campaign_medal(
+			outcome == ResultsScreen.Outcome.VICTORY,
+			score_system.score,
+			previous_best,
+		)
 	results.show_results(
-		caught,
+		outcome,
 		score_system.score,
 		int(distance / 100.0),
 		["HOME", "STREET", "SCHOOL"][current_zone],

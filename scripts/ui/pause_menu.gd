@@ -32,6 +32,8 @@ const GLYPH_REGION := Rect2(80.0, 96.0, 16.0, 16.0)
 ## 16 -> 64 is an exact 4x scale, so the pixel art stays crisp.
 const GLYPH_PIXEL_SIZE := 64
 
+const MENU_SCENE := "res://scenes/main_menu.tscn"
+
 ## True while the tree is frozen by this menu.
 var is_paused: bool = false
 
@@ -112,8 +114,9 @@ func _on_restart_pressed() -> void:
 
 
 func _on_quit_pressed() -> void:
+	# MENU: leave the run for the main menu instead of killing the app.
 	get_tree().paused = false
-	get_tree().quit()
+	get_tree().change_scene_to_file(MENU_SCENE)
 
 
 # --- Presentation ------------------------------------------------------------

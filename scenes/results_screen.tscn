@@ -52,6 +52,22 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
+[sub_resource type="StyleBoxFlat" id="sb_medal_plate"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(1, 0.94, 0.86, 0.1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.94, 0.86, 0.3)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
 [node name="ResultsScreen" type="Control" unique_id=1147035074]
 layout_mode = 3
 anchors_preset = 15
@@ -89,10 +105,17 @@ theme_override_styles/panel = SubResource("sb_panel")
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Medal" type="TextureRect" parent="Center/Panel/VBox" unique_id=510923457]
+[node name="MedalPlate" type="PanelContainer" parent="Center/Panel/VBox" unique_id=510923457]
+custom_minimum_size = Vector2(112, 112)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/panel = SubResource("sb_medal_plate")
+
+[node name="Medal" type="TextureRect" parent="Center/Panel/VBox/MedalPlate"]
 custom_minimum_size = Vector2(96, 96)
 layout_mode = 2
 size_flags_horizontal = 4
+size_flags_vertical = 4
 texture = ExtResource("4_medal")
 expand_mode = 1
 stretch_mode = 5
@@ -211,8 +234,13 @@ theme_override_font_sizes/font_size = 30
 text = "NEW BEST!"
 horizontal_alignment = 1
 
-[node name="Retry" type="Button" parent="Center/Panel/VBox" unique_id=1663159332]
-custom_minimum_size = Vector2(320, 64)
+[node name="Buttons" type="HBoxContainer" parent="Center/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Retry" type="Button" parent="Center/Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(160, 64)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
 theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
@@ -225,3 +253,18 @@ theme_override_styles/pressed = SubResource("sb_btn_pressed")
 theme_override_styles/hover = SubResource("sb_btn_hover")
 theme_override_styles/focus = SubResource("sb_btn_hover")
 text = "RETRY"
+
+[node name="Menu" type="Button" parent="Center/Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(160, 64)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "MENU"
