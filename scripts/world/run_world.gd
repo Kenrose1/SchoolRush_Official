@@ -119,7 +119,8 @@ var _finished: bool = false
 func _ready() -> void:
 	home_zone_length = GameConfig.zone_home_length(home_zone_seconds)
 	street_zone_length = GameConfig.zone_street_length(street_zone_seconds)
-	current_zone = GameConfig.zone_for_distance(distance, home_zone_length, street_zone_length)
+	current_zone = GameConfig.zone_for_distance(
+		distance, home_zone_length, street_zone_length, GameConfig.RunMode.CAMPAIGN)
 	if _zone_fade != null:
 		_zone_fade.color.a = 0.0
 	# Editor preview: load art + draw once, skip runtime wiring.
@@ -219,9 +220,11 @@ func _physics_process(delta: float) -> void:
 	_update_debug()
 
 
-## Step the zone clock. HOME and STREET are timed; SCHOOL is terminal.
+## Step the zone clock. HOME and STREET are timed; the mode decides what comes
+## after the street - SCHOOL for campaign, street forever for endless.
 func _update_zone() -> void:
-	var next := GameConfig.zone_for_distance(distance, home_zone_length, street_zone_length)
+	var next := GameConfig.zone_for_distance(
+		distance, home_zone_length, street_zone_length, mode)
 	if next == current_zone:
 		return
 	current_zone = next
@@ -366,12 +369,13 @@ func _show_game_over(outcome: int) -> void:
 func _update_debug() -> void:
 	if not _debug_label.visible:
 		return
-	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nZONE  %s\nAIR   %.0f px   SLIDE %s\nHEARTS %d/%d   IFRAME %.2f s\nSCORE %d   x%d   ITEMS %d\nCHASE %s  GAP %.0f px\nFPS   %d\n[F3] hide" % [
+	_debug_label.text = "LANE  %d   (%.1f px)\nSPEED %.0f px/s\nDIST  %.1f m\nZONE  %s\nFINISH %s\nAIR   %.0f px   SLIDE %s\nHEARTS %d/%d   IFRAME %.2f s\nSCORE %d   x%d   ITEMS %d\nCHASE %s  GAP %.0f px\nFPS   %d\n[F3] hide" % [
 		player.lane,
 		player.lane_y,
 		speed,
 		distance / 100.0,
 		["HOME", "STREET", "SCHOOL"][current_zone],
+		_finish_debug_text(),
 		player.air_height,
 		"yes" if player.is_sliding else "no",
 		player.health,
@@ -384,6 +388,14 @@ func _update_debug() -> void:
 		pursuer.gap,
 		Engine.get_frames_per_second(),
 	]
+
+
+## The finish readout for the debug overlay: metres still to run in campaign,
+## a dash in endless (no line exists).
+func _finish_debug_text() -> String:
+	if mode != GameConfig.RunMode.CAMPAIGN:
+		return "--"
+	return "IN %.1f m" % maxf((campaign_finish_distance - distance) / 100.0, 0.0)
 
 
 # --- Zone rendering ----------------------------------------------------------

@@ -86,6 +86,9 @@ func _ready() -> void:
 	world.set_run_mode(GameConfig.RunMode.ENDLESS)
 	world.distance = 100000.0
 	world._show_game_over(ResultsScreen.Outcome.CAUGHT)
+	# Restore campaign so later course captures show the FINISH readout.
+	world.set_run_mode(GameConfig.RunMode.CAMPAIGN)
+	world.distance = 5880.0
 	await _wait(90)
 	await _shot("m4_02_caught")
 

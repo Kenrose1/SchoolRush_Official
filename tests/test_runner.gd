@@ -869,8 +869,12 @@ func _test_modes() -> void:
 		"the campaign finish sits one pass past every zone",
 	)
 	_check_near(
-		GameConfig.campaign_finish_distance() / GameConfig.RUN_SPEED, 54.0, 0.01,
-		"the campaign is 54 seconds of running (14 + 25 + 15)",
+		GameConfig.campaign_finish_distance() / GameConfig.RUN_SPEED,
+		GameConfig.ZONE_HOME_DURATION_SECONDS
+			+ GameConfig.ZONE_STREET_DURATION_SECONDS
+			+ GameConfig.CAMPAIGN_SCHOOL_SECONDS,
+		0.01,
+		"the campaign finish is one timed pass of home + street + school",
 	)
 	_check_near(
 		school, GameConfig.CAMPAIGN_SCHOOL_SECONDS * GameConfig.RUN_SPEED, 0.01,
@@ -1639,6 +1643,37 @@ func _test_scenes() -> void:
 				far._physics_process(0.25)
 			_check(far.hazards.get_child_count() > 0,
 				"the course keeps spawning before the cutoff")
+
+			# Drive-to-finish: cross the line through real physics ticks, not a
+			# direct _finish_campaign call, so the threshold itself is proven.
+			# Start two seconds out; the player is made untouchable and the
+			# pursuer parked so nothing can end the run early.
+			GameState.best_campaign = 0
+			far.set_run_mode(GameConfig.RunMode.CAMPAIGN)
+			far.pursuer.state = Pursuer.State.DORMANT
+			far.pursuer.gap = GameConfig.PURSUER_DORMANT_GAP
+			far.player.invulnerable_time_left = 9999.0
+			far.distance = far.campaign_finish_distance - GameConfig.RUN_SPEED * 2.0
+			for i in 45:
+				far.player.invulnerable_time_left = 9999.0
+				far._physics_process(1.0 / 60.0)
+			_check(far.is_running, "the run is still live two seconds before the line")
+			_check(not far.results.visible,
+				"no results two seconds before the line")
+			_check(far._finish_debug_text().length() > 0,
+				"the finish readout is available")
+			for i in 120:
+				far._physics_process(1.0 / 60.0)
+			_check(not far.is_running, "physics crossing the line stops the run")
+			_check(far.results.visible, "physics crossing the line shows the results")
+			_check_eq(far.results.title_label.text, "MADE IT!",
+				"a physics-driven finish reads MADE IT!")
+			_check(far.distance < far.campaign_finish_distance + GameConfig.RUN_SPEED,
+				"the world froze within a second of the line")
+			_check_eq(far.results.awarded_medal(), GameConfig.Medal.SILVER,
+				"a physics-driven first clear medals silver")
+			_check(far.results.stat_text("score").length() > 0,
+				"the finish reports a score")
 			campaign_world.queue_free()
 
 		if world.player != null:

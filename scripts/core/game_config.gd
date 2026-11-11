@@ -408,9 +408,7 @@ static func campaign_finish_distance(
 	street_length: float = -1.0,
 	school_length: float = -1.0,
 ) -> float:
-	var school_len := school_length
-	if school_len <= 0.0:
-		school_len = zone_school_length()
-	return zone_home_length(home_length) \
-		+ zone_street_length(street_length) \
-		+ school_len
+	var home_len := home_length if home_length > 0.0 else zone_home_length()
+	var street_len := street_length if street_length > 0.0 else zone_street_length()
+	var school_len := school_length if school_length > 0.0 else zone_school_length()
+	return home_len + street_len + school_len
