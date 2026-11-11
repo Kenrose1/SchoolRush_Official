@@ -50,6 +50,9 @@ func _ready() -> void:
 	_section("Pursuer")
 	await _test_pursuer()
 
+	_section("Main menu")
+	_test_menu()
+
 	_section("Scenes")
 	_test_scenes()
 
@@ -1268,6 +1271,88 @@ func _test_pursuer() -> void:
 	live2.queue_free()
 	player.queue_free()
 	pursuer.queue_free()
+
+
+func _test_menu() -> void:
+	var menu_scene := load("res://scenes/main_menu.tscn") as PackedScene
+	_check(menu_scene != null, "main menu scene loads")
+	if menu_scene == null:
+		return
+	_check_eq(
+		ProjectSettings.get_setting("application/run/main_scene"),
+		"res://scenes/main_menu.tscn",
+		"the app boots into the main menu",
+	)
+
+	var menu := menu_scene.instantiate() as MainMenu
+	add_child(menu)
+	if menu == null:
+		return
+
+	_check_eq(menu.campaign_button.text, "CAMPAIGN", "the campaign button reads CAMPAIGN")
+	_check_eq(menu.endless_button.text, "ENDLESS", "the endless button reads ENDLESS")
+	_check_eq(menu.how_to_button.text, "HOW TO PLAY", "the how-to button reads HOW TO PLAY")
+	_check_eq(menu.quit_button.text, "QUIT", "the quit button reads QUIT")
+
+	_check(not menu.campaign_button.disabled, "campaign is playable today")
+	_check_eq(
+		menu.campaign_button.get_theme_font("font").resource_path,
+		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
+		"menu buttons use Inter Tight ExtraBold",
+	)
+	_check_eq(
+		menu.best_label.get_theme_font("font").resource_path,
+		"res://assets/fonts/static/InterTight-SemiBold.ttf",
+		"the best readout uses Inter Tight SemiBold",
+	)
+	_check_eq(
+		menu.best_label.text,
+		"BEST  %06d" % ResultsScreen.session_best,
+		"the best readout mirrors the session record",
+	)
+
+	_check(menu.endless_button.disabled, "endless is parked behind the campaign pass")
+	_check_eq(
+		menu.endless_button.focus_mode,
+		Control.FOCUS_NONE,
+		"endless cannot steal keyboard focus",
+	)
+	var soon := menu.endless_button.get_node_or_null("Soon") as Label
+	_check(soon != null, "the endless button carries a SOON pill")
+	if soon != null:
+		_check_eq(soon.text, "SOON", "the pill reads SOON")
+		_check_eq(soon.mouse_filter, Control.MOUSE_FILTER_IGNORE,
+			"the pill never eats clicks meant for the button")
+
+	_check(not menu.how_to_panel.visible, "the how-to overlay starts hidden")
+	_check_eq(
+		(menu.get_node("HowToCenter") as Control).mouse_filter,
+		Control.MOUSE_FILTER_IGNORE,
+		"the hidden how-to container never blocks menu clicks",
+	)
+	_check_eq(
+		menu.how_to_panel.mouse_filter,
+		Control.MOUSE_FILTER_STOP,
+		"the open how-to panel keeps its modal click block",
+	)
+	menu._on_how_to_pressed()
+	_check(menu.how_to_panel.visible, "HOW TO PLAY opens the overlay")
+	_check_eq(
+		menu.back_button.get_theme_font("font").resource_path,
+		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
+		"the overlay shares the menu button skin",
+	)
+	menu._on_how_to_pressed()
+	_check(not menu.how_to_panel.visible, "BACK closes the overlay")
+	_check(
+		menu.campaign_button.pressed.is_connected(menu._on_campaign_pressed),
+		"campaign is wired to launch the run",
+	)
+	_check(
+		menu.quit_button.pressed.is_connected(menu._on_quit_pressed),
+		"quit is wired to close the app",
+	)
+	menu.queue_free()
 
 
 func _test_scenes() -> void:

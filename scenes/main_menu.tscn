@@ -1,0 +1,404 @@
+[gd_scene format=3 uid="uid://dq8m2v7k4p1rs"]
+
+[ext_resource type="Script" uid="uid://caui7wxtjhklq" path="res://scripts/ui/main_menu.gd" id="1_menu"]
+[ext_resource type="FontFile" uid="uid://cll8r0y660eqw" path="res://assets/fonts/static/InterTight-ExtraBold.ttf" id="2_xbold"]
+[ext_resource type="FontFile" uid="uid://dw4y3ym6vohju" path="res://assets/fonts/static/InterTight-SemiBold.ttf" id="3_semi"]
+[ext_resource type="Texture2D" uid="uid://ckhckcfyk2onp" path="res://assets/backgrounds/SchoolBackground.png" id="4_bg"]
+
+[sub_resource type="StyleBoxFlat" id="sb_panel"]
+content_margin_left = 48.0
+content_margin_top = 36.0
+content_margin_right = 48.0
+content_margin_bottom = 40.0
+bg_color = Color(0.08, 0.07, 0.1, 0.86)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 0.4)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_normal"]
+bg_color = Color(0.08, 0.07, 0.1, 0.72)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.94, 0.86, 0.16)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_pressed"]
+bg_color = Color(0.05, 0.04, 0.07, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.878431, 0.603922, 0.290196, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_hover"]
+bg_color = Color(0.13, 0.11, 0.16, 0.86)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_disabled"]
+bg_color = Color(0.08, 0.07, 0.1, 0.6)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.94, 0.86, 0.1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="sb_pill"]
+content_margin_left = 8.0
+content_margin_top = 2.0
+content_margin_right = 8.0
+content_margin_bottom = 3.0
+bg_color = Color(0.05, 0.04, 0.07, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.705882, 0.368627, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="MainMenu" type="Control" unique_id=1353083004]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Backdrop" type="TextureRect" parent="." unique_id=754654928]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("4_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Dim" type="ColorRect" parent="." unique_id=755803070]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.145098, 0.101961, 0.160784, 0.55)
+
+[node name="Center" type="CenterContainer" parent="." unique_id=1652991421]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center" unique_id=1715224693]
+layout_mode = 2
+theme_override_styles/panel = SubResource("sb_panel")
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel" unique_id=1430255126]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Center/Panel/VBox" unique_id=326476097]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 5
+theme_override_constants/shadow_offset_y = 5
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 96
+text = "SCHOOL RUSH"
+horizontal_alignment = 1
+
+[node name="Tagline" type="Label" parent="Center/Panel/VBox" unique_id=319070951]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.7)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 30
+text = "Elias woke up late."
+horizontal_alignment = 1
+
+[node name="Campaign" type="Button" parent="Center/Panel/VBox" unique_id=1653424256]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "CAMPAIGN"
+
+[node name="Endless" type="Button" parent="Center/Panel/VBox" unique_id=151554803]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+tooltip_text = "Endless mode arrives after the campaign pass"
+focus_mode = 0
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_disabled_color = Color(1, 0.94, 0.86, 0.3)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/disabled = SubResource("sb_btn_disabled")
+disabled = true
+text = "ENDLESS"
+
+[node name="Soon" type="Label" parent="Center/Panel/VBox/Endless" unique_id=1946480063]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -80.0
+offset_top = 18.0
+offset_right = -10.0
+offset_bottom = 46.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("sb_pill")
+text = "SOON"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HowTo" type="Button" parent="Center/Panel/VBox" unique_id=1741009217]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "HOW TO PLAY"
+
+[node name="Settings" type="Button" parent="Center/Panel/VBox" unique_id=27794933]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "SETTINGS
+"
+
+[node name="Quit" type="Button" parent="Center/Panel/VBox" unique_id=1429533898]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "QUIT"
+
+[node name="Best" type="Label" parent="Center/Panel/VBox" unique_id=1178130135]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.72)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "BEST  000000"
+horizontal_alignment = 1
+
+[node name="HowToCenter" type="CenterContainer" parent="." unique_id=28754687]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HowToDim" type="ColorRect" parent="HowToCenter" unique_id=192469183]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+color = Color(0.04, 0.05, 0.08, 0.6)
+
+[node name="HowToPanel" type="PanelContainer" parent="HowToCenter" unique_id=403023032]
+visible = false
+layout_mode = 2
+theme_override_styles/panel = SubResource("sb_panel")
+
+[node name="VBox" type="VBoxContainer" parent="HowToCenter/HowToPanel" unique_id=1110734469]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="HowToCenter/HowToPanel/VBox" unique_id=509450127]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 44
+text = "HOW TO PLAY"
+horizontal_alignment = 1
+
+[node name="Rows" type="GridContainer" parent="HowToCenter/HowToPanel/VBox" unique_id=399898479]
+layout_mode = 2
+theme_override_constants/h_separation = 32
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="Key1" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1832468361]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 26
+text = "W / ↑"
+
+[node name="Action1" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1307867962]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.72)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "MOVE UP A LANE"
+
+[node name="Key2" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1480703411]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 26
+text = "S / ↓"
+
+[node name="Action2" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1938170656]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.72)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "MOVE DOWN A LANE"
+
+[node name="Key3" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=686324295]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 26
+text = "SPACE"
+
+[node name="Action3" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1509527890]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.72)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "JUMP OVER LOW HAZARDS"
+
+[node name="Key4" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=2010617293]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 26
+text = "CTRL"
+
+[node name="Action4" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1993608053]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.72)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "SLIDE UNDER HIGH HAZARDS"
+
+[node name="Key5" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=432634831]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 26
+text = "ESC"
+
+[node name="Action5" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1911794984]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.72)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "PAUSE"
+
+[node name="Back" type="Button" parent="HowToCenter/HowToPanel/VBox" unique_id=1136440161]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "BACK"
+
+[node name="Footer" type="Label" parent="." unique_id=1161013088]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -46.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.5)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 18
+text = "ARE STUDIO • v0.6"
+horizontal_alignment = 2

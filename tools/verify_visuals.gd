@@ -30,6 +30,16 @@ const ITEM_SHOWCASE := [
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
+
+	# The menu boots first in the real app; capture it, then drop it so the
+	# run scene below is unaffected.
+	var menu := (load("res://scenes/main_menu.tscn") as PackedScene).instantiate()
+	add_child(menu)
+	await _wait(2)
+	await _shot("m5_00_menu")
+	menu.queue_free()
+	await _wait(2)
+
 	var main := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	var world := main.get_node("RunWorld") as RunWorld
