@@ -71,8 +71,9 @@ func _ready() -> void:
 
 	world._on_player_caught()
 	await _wait(10)
-	# Show the results deterministically and let the staggered reveal finish
-	# (~1 s) so the capture shows populated, fully visible readouts.
+	# Show the results deterministically. Stage a 1000 m run so the capture
+	# shows the top-tier gold medal, then let the reveal finish (~1 s).
+	world.distance = 100000.0
 	world._show_game_over(true)
 	await _wait(90)
 	await _shot("m4_02_caught")

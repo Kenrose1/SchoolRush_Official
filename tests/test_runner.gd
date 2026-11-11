@@ -38,6 +38,9 @@ func _ready() -> void:
 	_section("Score system")
 	_test_score_system()
 
+	_section("Medals")
+	_test_medals()
+
 	_section("School Items")
 	await _test_collectible()
 
@@ -782,6 +785,72 @@ func _test_spawn_director() -> void:
 		late_kinds[SpawnDirector.pick_kind(60000.0, rng_late)] = true
 	# Dog is parked for M4 (weight 0), so 4 kinds spawn.
 	_check_eq(late_kinds.size(), GameConfig.HAZARD_DATA.size() - 1, "four kinds spawn once unlocked")
+
+
+func _test_medals() -> void:
+	# Endless rule: distance reached, thresholds from GameConfig.
+	var gold_m := GameConfig.MEDAL_DISTANCE_GOLD
+	var silver_m := GameConfig.MEDAL_DISTANCE_SILVER
+	_check_eq(
+		GameConfig.medal_for_distance(gold_m), GameConfig.Medal.GOLD,
+		"the gold distance medals gold",
+	)
+	_check_eq(
+		GameConfig.medal_for_distance(gold_m - 1.0), GameConfig.Medal.SILVER,
+		"just under the gold distance medals silver",
+	)
+	_check_eq(
+		GameConfig.medal_for_distance(silver_m), GameConfig.Medal.SILVER,
+		"the silver distance medals silver",
+	)
+	_check_eq(
+		GameConfig.medal_for_distance(silver_m - 1.0), GameConfig.Medal.BLACK,
+		"just under the silver distance medals black",
+	)
+	_check_eq(
+		GameConfig.medal_for_distance(0.0), GameConfig.Medal.BLACK,
+		"a first-step death medals black",
+	)
+
+	# Campaign rule: score against the previous session best.
+	_check_eq(
+		GameConfig.medal_for_score(500, 400), GameConfig.Medal.GOLD,
+		"beating the best medals gold",
+	)
+	_check_eq(
+		GameConfig.medal_for_score(400, 400), GameConfig.Medal.GOLD,
+		"matching the best medals gold",
+	)
+	_check_eq(
+		GameConfig.medal_for_score(300, 400), GameConfig.Medal.SILVER,
+		"three quarters of the best medals silver",
+	)
+	_check_eq(
+		GameConfig.medal_for_score(200, 400), GameConfig.Medal.BLACK,
+		"half the best (under the silver ratio) medals black",
+	)
+	_check_eq(
+		GameConfig.medal_for_score(1, 400), GameConfig.Medal.BLACK,
+		"a sliver of the best medals black",
+	)
+	_check_eq(
+		GameConfig.medal_for_score(0, 0), GameConfig.Medal.BLACK,
+		"a zero first run medals black",
+	)
+
+	# The tier clamp keeps the results screen safe against out-of-range calls.
+	var screen := (load("res://scenes/results_screen.tscn") as PackedScene).instantiate()
+	add_child(screen)
+	(screen as ResultsScreen).set_medal(GameConfig.Medal.GOLD)
+	_check_eq(
+		(screen as ResultsScreen).awarded_medal(), GameConfig.Medal.GOLD,
+		"the results screen awards gold on demand",
+	)
+	_check(
+		(screen as ResultsScreen).medal_icon.texture != null,
+		"the medal icon carries a texture",
+	)
+	screen.queue_free()
 
 
 func _test_score_system() -> void:

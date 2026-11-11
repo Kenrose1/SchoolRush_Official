@@ -303,12 +303,16 @@ func _freeze_world() -> void:
 
 
 func _show_game_over(caught: bool) -> void:
+	# Endless rule for now: medal by distance reached. When a bounded campaign
+	# mode exists, switch to GameConfig.medal_for_score(score, previous_best).
+	var medal := GameConfig.medal_for_distance(int(distance / 100.0))
 	results.show_results(
 		caught,
 		score_system.score,
 		int(distance / 100.0),
 		["HOME", "STREET", "SCHOOL"][current_zone],
 		score_system.item_count,
+		medal,
 	)
 	_update_debug()
 

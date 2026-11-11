@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://c3j5e458sfoye" path="res://scripts/ui/results_screen.gd" id="1_res"]
 [ext_resource type="FontFile" uid="uid://cll8r0y660eqw" path="res://assets/fonts/static/InterTight-ExtraBold.ttf" id="2_xbold"]
 [ext_resource type="FontFile" uid="uid://dw4y3ym6vohju" path="res://assets/fonts/static/InterTight-SemiBold.ttf" id="3_semi"]
+[ext_resource type="Texture2D" uid="uid://bac0h861x4l7r" path="res://assets/icon/medal/Golden Medal 1st Outline 64px.png" id="4_medal"]
 
 [sub_resource type="StyleBoxFlat" id="sb_panel"]
 content_margin_left = 48.0
@@ -52,7 +53,6 @@ corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
 [node name="ResultsScreen" type="Control" unique_id=1147035074]
-visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -88,6 +88,14 @@ theme_override_styles/panel = SubResource("sb_panel")
 [node name="VBox" type="VBoxContainer" parent="Center/Panel" unique_id=1676397921]
 layout_mode = 2
 theme_override_constants/separation = 14
+
+[node name="Medal" type="TextureRect" parent="Center/Panel/VBox" unique_id=510923457]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 4
+texture = ExtResource("4_medal")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Title" type="Label" parent="Center/Panel/VBox" unique_id=1069246064]
 layout_mode = 2

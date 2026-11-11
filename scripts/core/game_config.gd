@@ -218,6 +218,36 @@ const COMBO_THRESHOLD_2 := 3
 const COMBO_THRESHOLD_3 := 6
 const COMBO_THRESHOLD_5 := 10
 
+## --- Result medals -----------------------------------------------------------
+## Endless runs medal by distance reached; campaign runs medal by score
+## against the session best. Both rules live here so thresholds stay tunable.
+
+enum Medal { BLACK, SILVER, GOLD }
+
+## Distance (m) needed for the endless-run silver and gold medals.
+const MEDAL_DISTANCE_SILVER := 500.0
+const MEDAL_DISTANCE_GOLD := 1000.0
+## Campaign: a silver medal needs this fraction of the session best.
+const MEDAL_BEST_SILVER_RATIO := 0.6
+
+## Endless rule: how far Elias got before the run ended.
+static func medal_for_distance(distance_m: float) -> int:
+	if distance_m >= MEDAL_DISTANCE_GOLD:
+		return Medal.GOLD
+	if distance_m >= MEDAL_DISTANCE_SILVER:
+		return Medal.SILVER
+	return Medal.BLACK
+
+
+## Campaign rule: score against the session best (pass the best recorded
+## BEFORE this run so a first run can still medal).
+static func medal_for_score(score: int, best: int) -> int:
+	if score >= best and score > 0:
+		return Medal.GOLD
+	if best > 0 and score >= int(best * MEDAL_BEST_SILVER_RATIO):
+		return Medal.SILVER
+	return Medal.BLACK
+
 # --- Spawning ----------------------------------------------------------------
 
 ## Distance between hazard rows, easing from start toward the floor.
