@@ -409,6 +409,26 @@ theme_override_styles/focus = SubResource("sb_btn_hover")
 text = "HOW TO PLAY"
 alignment = 0
 
+[node name="Shop" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack" unique_id=1989543669]
+custom_minimum_size = Vector2(380, 68)
+layout_mode = 2
+focus_neighbor_top = NodePath("../Campaign")
+focus_neighbor_bottom = NodePath("../Settings")
+focus_next = NodePath("../Settings")
+focus_previous = NodePath("../Campaign")
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "SHOP"
+alignment = 0
+
 [node name="Settings" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack" unique_id=970688451]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 68)
