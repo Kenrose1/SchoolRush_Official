@@ -33,7 +33,7 @@ func _ready() -> void:
 	await _test_hazard()
 
 	_section("Spawn director")
-	_test_spawn_director()
+	await _test_spawn_director()
 
 	_section("Score system")
 	_test_score_system()
@@ -616,9 +616,26 @@ func _test_hazard() -> void:
 	mover._physics_process(1.0)
 	var dog_speed := 100.0 + float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.DOG]["extra_speed"])
 	_check_near(mover.position.x, GameConfig.SPAWN_X - dog_speed, 0.01, "dog closes in faster than world speed")
+	_check(mover.sprite.flip_h, "dog sprite faces left towards player while running right-to-left")
 	mover.position.x = GameConfig.DESPAWN_X - 1.0
 	mover._physics_process(0.016)
 	_check(mover.is_queued_for_deletion(), "hazards despawn behind the player")
+
+	var alternate_dog := scene.instantiate() as Hazard
+	add_child(alternate_dog)
+	alternate_dog.set_physics_process(false)
+	alternate_dog.setup(GameConfig.HazardKind.DOG, GameConfig.LANE_MIDDLE, 0.0, 1)
+	_check_eq(
+		alternate_dog.sprite.texture.resource_path,
+		GameConfig.DOG_TEXTURES[1],
+		"dog2 is available as the alternate dog sprite",
+	)
+	_check_eq(alternate_dog.sprite.hframes, 6, "dog2 uses the six-frame walk cycle")
+	alternate_dog.sprite.frame = 0
+	alternate_dog._frame_timer = 0.0
+	alternate_dog._process(0.11)
+	_check_eq(alternate_dog.sprite.frame, 1, "dog walk frames animate")
+	alternate_dog.queue_free()
 
 	# End-to-end: the physics server must agree with the geometry above.
 	var player := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
@@ -710,6 +727,37 @@ func _test_hazard() -> void:
 	player._on_hitbox_area_entered(off_lane)
 	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "a same-lane hazard still damages the player")
 
+	player.reset_health()
+	var dog_hit := scene.instantiate() as Hazard
+	add_child(dog_hit)
+	dog_hit.set_physics_process(false)
+	dog_hit.setup(GameConfig.HazardKind.DOG, GameConfig.LANE_TOP, 0.0)
+	player._on_hitbox_area_entered(dog_hit)
+	_check_eq(
+		player.health,
+		GameConfig.MAX_HEARTS - 1,
+		"a dog hit uses the normal one-heart hazard penalty",
+	)
+	dog_hit.queue_free()
+
+	# Dog hit with pursuer active triggers caught and died instead of normal damage.
+	player.reset_health()
+	player.pursuer_active = true
+	var dog_chase_hit := scene.instantiate() as Hazard
+	add_child(dog_chase_hit)
+	dog_chase_hit.set_physics_process(false)
+	dog_chase_hit.setup(GameConfig.HazardKind.DOG, GameConfig.LANE_TOP, 0.0)
+	var dog_caught := [0]
+	var dog_died := [0]
+	player.caught.connect(func(): dog_caught[0] += 1)
+	player.died.connect(func(): dog_died[0] += 1)
+	player._on_hitbox_area_entered(dog_chase_hit)
+	_check_eq(dog_caught[0], 1, "dog hit while pursuer is active triggers caught")
+	_check_eq(dog_died[0], 1, "dog hit while pursuer is active triggers died")
+	_check_eq(player.health, GameConfig.MAX_HEARTS, "dog hit while pursuer is active does not deduct hearts")
+	player.pursuer_active = false
+	dog_chase_hit.queue_free()
+
 	off_lane.queue_free()
 	player.queue_free()
 
@@ -777,6 +825,36 @@ func _test_spawn_director() -> void:
 			reproducible = false
 	_check(reproducible, "seeded pattern generation is reproducible")
 
+	# A dog reservation filters only its own lane from hazard rows.
+	var reserved_rng := RandomNumberGenerator.new()
+	reserved_rng.seed = 12000
+	var reserved_lane := GameConfig.LANE_MIDDLE
+	var reserved_row_count := 0
+	for i in 100:
+		var reserved_row := SpawnDirector.generate_pattern(12000.0, reserved_rng, reserved_lane)
+		if reserved_row.has(reserved_lane) or reserved_row.is_empty():
+			reserved_row_count += 1
+	_check_eq(reserved_row_count, 0, "rows never spawn hazards in the dog lane")
+	_check(
+		SpawnDirector.generate_pattern(12000.0, reserved_rng, reserved_lane).size() > 0,
+		"hazards continue spawning in other lanes while the dog lane is reserved",
+	)
+
+	var dog_lane_rng := RandomNumberGenerator.new()
+	dog_lane_rng.seed = 77
+	_check_eq(
+		SpawnDirector.choose_dog_lane([0, 1, 2], dog_lane_rng),
+		-1,
+		"dog waits when every lane has an entry obstacle",
+	)
+	for i in 50:
+		var blocked_lane := dog_lane_rng.randi_range(0, GameConfig.LANE_COUNT - 1)
+		var chosen_lane := SpawnDirector.choose_dog_lane([blocked_lane], dog_lane_rng)
+		_check(
+			chosen_lane >= 0 and chosen_lane < GameConfig.LANE_COUNT and chosen_lane != blocked_lane,
+			"dog selects an unoccupied entry lane",
+		)
+
 	# Kinds respect their unlock distance.
 	var rng_early := RandomNumberGenerator.new()
 	rng_early.seed = 7
@@ -794,6 +872,91 @@ func _test_spawn_director() -> void:
 		late_kinds[SpawnDirector.pick_kind(60000.0, rng_late)] = true
 	# Dog is parked for M4 (weight 0), so 4 kinds spawn.
 	_check_eq(late_kinds.size(), GameConfig.HAZARD_DATA.size() - 1, "four kinds spawn once unlocked")
+
+	# The distance clock warns first, then spawns dog1 in a clear lane.
+	var event_container := Node2D.new()
+	add_child(event_container)
+	var event_director := SpawnDirector.new()
+	add_child(event_director)
+	event_director.setup(event_container, 2026)
+	event_director._distance_since_row = 0.0
+	event_director._distance_since_pickup = 0.0
+	event_director.tick(0.0, GameConfig.RUN_SPEED, GameConfig.DOG_FIRST_DISTANCE - 1.0)
+	_check_eq(event_director._dog_reserved_lane, -1, "dog stays locked before its first distance")
+	event_director.tick(0.0, GameConfig.RUN_SPEED, GameConfig.DOG_FIRST_DISTANCE)
+	var first_lane := event_director._dog_reserved_lane
+	_check(first_lane >= 0 and first_lane < GameConfig.LANE_COUNT, "dog encounter reserves a lane")
+	_check(event_director._active_dog == null, "warning appears before the dog")
+	_check(
+		event_director._next_dog_distance >= GameConfig.DOG_FIRST_DISTANCE + GameConfig.DOG_GAP_MIN
+		and event_director._next_dog_distance <= GameConfig.DOG_FIRST_DISTANCE + GameConfig.DOG_GAP_MAX,
+		"next dog encounter uses the configured random distance gap",
+	)
+	if event_director._dog_warning != null:
+		_check_eq(
+			event_director._dog_warning.sprite.texture.resource_path,
+			"res://assets/signs/exclamation/Exclamation Mark 1st Outline 64px.png",
+			"dog warning uses the outlined exclamation asset",
+		)
+		_check_near(
+			event_director._dog_warning.position.x,
+			GameConfig.DOG_WARNING_X,
+			0.01,
+			"dog warning appears near the right edge",
+		)
+
+	var reserved_lanes := event_director.spawn_row(GameConfig.DOG_FIRST_DISTANCE, 0.0)
+	_check(not reserved_lanes.has(first_lane), "row spawning skips only the dog's lane")
+	_check(not reserved_lanes.is_empty(), "other lanes still receive hazards during a dog encounter")
+
+	await _physics_frames(int(GameConfig.DOG_WARNING_DURATION * 60.0) + 10)
+	var first_dog := event_director._active_dog
+	_check(first_dog != null, "dog spawns after the warning finishes")
+	if first_dog != null:
+		_check_eq(first_dog.kind, GameConfig.HazardKind.DOG, "encounter creates a dog hazard")
+		_check_eq(
+			first_dog.sprite.texture.resource_path,
+			GameConfig.DOG_TEXTURES[0],
+			"first encounter uses dog1",
+		)
+		_check_eq(first_dog.lane, first_lane, "dog stays in its warned lane")
+		_check(first_dog.position.x < GameConfig.SPAWN_X, "dog runs from right to left")
+		_check(first_dog.sprite.flip_h, "first encounter dog faces left")
+		_check_eq(event_director._dog_reserved_lane, first_lane, "dog lane stays reserved while active")
+		first_dog.queue_free()
+
+	for child in event_container.get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	event_director._refresh_dog_reservation()
+	_check_eq(event_director._dog_reserved_lane, -1, "dog lane is released after the dog despawns")
+
+	var lane_resumed := false
+	for i in 100:
+		var resumed_row := event_director.spawn_row(GameConfig.DOG_FIRST_DISTANCE, 0.0)
+		if resumed_row.has(first_lane):
+			lane_resumed = true
+			break
+	_check(lane_resumed, "normal hazard spawning resumes in the dog lane after despawn")
+
+	for child in event_container.get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	event_director.tick(0.0, GameConfig.RUN_SPEED, event_director._next_dog_distance)
+	await _physics_frames(int(GameConfig.DOG_WARNING_DURATION * 60.0) + 10)
+	var second_dog := event_director._active_dog
+	_check(second_dog != null, "later dog encounter spawns")
+	if second_dog != null:
+		_check_eq(
+			second_dog.sprite.texture.resource_path,
+			GameConfig.DOG_TEXTURES[1],
+			"second encounter alternates to dog2",
+		)
+		_check(second_dog.sprite.flip_h, "second encounter dog faces left")
+		second_dog.queue_free()
+	event_director.queue_free()
+	event_container.queue_free()
+	await get_tree().process_frame
 
 
 func _test_medals() -> void:

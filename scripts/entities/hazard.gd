@@ -24,6 +24,7 @@ var lane_locked: bool = true
 var _data: Dictionary = {}
 var _frame_timer: float = 0.0
 var _passed: bool = false
+var _dog_variant: int = 0
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var shape: CollisionShape2D = $Shape
@@ -39,10 +40,16 @@ func _ready() -> void:
 
 
 ## Configure the hazard. Call after add_child so the child nodes exist.
-func setup(new_kind: GameConfig.HazardKind, new_lane: int, world_speed: float) -> void:
+func setup(
+	new_kind: GameConfig.HazardKind,
+	new_lane: int,
+	world_speed: float,
+	dog_variant: int = 0,
+) -> void:
 	kind = new_kind
 	lane = new_lane
 	speed = world_speed
+	_dog_variant = posmod(dog_variant, GameConfig.DOG_TEXTURES.size())
 	_data = GameConfig.HAZARD_DATA[kind]
 	requires_slide = bool(_data["overhead"])
 	_apply()
@@ -75,13 +82,17 @@ func box_y_range() -> Vector2:
 
 
 func _apply() -> void:
-	var texture := load(String(_data["texture"])) as Texture2D
+	var texture_path := String(_data["texture"])
+	if kind == GameConfig.HazardKind.DOG:
+		texture_path = GameConfig.DOG_TEXTURES[_dog_variant]
+	var texture := load(texture_path) as Texture2D
 	var art_scale := float(_data["scale"])
 	var clearance := float(_data["clearance"])
 
 	position.y = GameConfig.lane_y(lane)
 
 	sprite.texture = texture
+	sprite.flip_h = kind == GameConfig.HazardKind.DOG
 	sprite.scale = Vector2(art_scale, art_scale)
 	sprite.hframes = maxi(int(_data["frames"]), 1)
 	sprite.frame = 0

@@ -12,12 +12,19 @@ signal item_missed
 
 const HAZARD_SCENE := preload("res://scenes/hazard.tscn")
 const COLLECTIBLE_SCENE := preload("res://scenes/collectible.tscn")
+const DOG_WARNING_SCENE := preload("res://scenes/dog_warning.tscn")
 
 var hazards: Node2D = null
 var _rng := RandomNumberGenerator.new()
 var _distance_since_row: float = GameConfig.ROW_GAP_START
 var _distance_since_pickup: float = 0.0
 var _pickup_gap: float = 0.0
+var _next_dog_distance: float = GameConfig.DOG_FIRST_DISTANCE
+var _dog_reserved_lane: int = -1
+var _dog_warning: DogWarning = null
+var _active_dog: Hazard = null
+var _next_dog_variant: int = 0
+var _dog_speed: float = GameConfig.RUN_SPEED
 
 
 ## Attach to the container that receives hazard instances.
@@ -25,12 +32,22 @@ func setup(parent: Node2D, seed_value: int = 0) -> void:
 	hazards = parent
 	_rng.seed = seed_value
 	_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX)
+	_next_dog_distance = GameConfig.DOG_FIRST_DISTANCE
+	_dog_reserved_lane = -1
+	_dog_warning = null
+	_active_dog = null
+	_next_dog_variant = 0
+	_dog_speed = GameConfig.RUN_SPEED
 
 
 ## Advance the spawn clock. Call once per physics frame with the world speed.
 func tick(delta: float, speed: float, distance: float) -> void:
 	if hazards == null:
 		return
+	_refresh_dog_reservation()
+	if distance >= _next_dog_distance and _dog_reserved_lane < 0:
+		_try_start_dog_encounter(distance, speed)
+
 	_distance_since_row += speed * delta
 	var gap := GameConfig.row_gap(distance)
 	while _distance_since_row >= gap:
@@ -45,9 +62,9 @@ func tick(delta: float, speed: float, distance: float) -> void:
 		_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX)
 
 
-## Spawn one row. At most two lanes are blocked, so one is always open.
+## Spawn one row, leaving the active dog's lane out of the hazard pattern.
 func spawn_row(distance: float, speed: float = GameConfig.RUN_SPEED) -> Array[int]:
-	var lanes := generate_pattern(distance, _rng)
+	var lanes := generate_pattern(distance, _rng, _dog_reserved_lane)
 	for lane in lanes:
 		var hazard := HAZARD_SCENE.instantiate() as Hazard
 		hazards.add_child(hazard)
@@ -86,6 +103,87 @@ func spawn_pickup(distance: float, speed: float = GameConfig.RUN_SPEED) -> int:
 	return lane
 
 
+func _try_start_dog_encounter(distance: float, speed: float) -> bool:
+	var occupied := _occupied_dog_entry_lanes()
+	var dog_lane := choose_dog_lane(occupied, _rng)
+	if dog_lane < 0:
+		return false
+
+	_dog_reserved_lane = dog_lane
+	_dog_speed = speed
+	_next_dog_distance = distance + _rng.randf_range(
+		GameConfig.DOG_GAP_MIN,
+		GameConfig.DOG_GAP_MAX,
+	)
+
+	var warning := DOG_WARNING_SCENE.instantiate() as DogWarning
+	warning.position = Vector2(
+		GameConfig.DOG_WARNING_X,
+		GameConfig.lane_y(_dog_reserved_lane) - GameConfig.DOG_WARNING_Y_OFFSET,
+	)
+	hazards.add_child(warning)
+	_dog_warning = warning
+	warning.finished.connect(_on_dog_warning_finished, CONNECT_ONE_SHOT)
+	warning.play()
+	return true
+
+
+func _occupied_dog_entry_lanes() -> Array[int]:
+	var occupied: Array[int] = []
+	var min_x := GameConfig.SPAWN_X - GameConfig.DOG_LANE_ENTRY_CLEARANCE
+	for child in hazards.get_children():
+		if not (child is Hazard or child is Collectible):
+			continue
+		if child.position.x < min_x:
+			continue
+		if child is Hazard:
+			var hazard := child as Hazard
+			if not occupied.has(hazard.lane):
+				occupied.append(hazard.lane)
+		else:
+			var item := child as Collectible
+			if not occupied.has(item.lane):
+				occupied.append(item.lane)
+	return occupied
+
+
+func _on_dog_warning_finished() -> void:
+	_dog_warning = null
+	if hazards == null or _dog_reserved_lane < 0:
+		return
+
+	var dog := HAZARD_SCENE.instantiate() as Hazard
+	hazards.add_child(dog)
+	dog.setup(GameConfig.HazardKind.DOG, _dog_reserved_lane, _dog_speed, _next_dog_variant)
+	dog.position.x = GameConfig.SPAWN_X
+	dog.passed_player.connect(_on_hazard_passed)
+	_active_dog = dog
+	_next_dog_variant = (_next_dog_variant + 1) % GameConfig.DOG_TEXTURES.size()
+
+
+func _refresh_dog_reservation() -> void:
+	if _active_dog == null:
+		return
+	if is_instance_valid(_active_dog) and not _active_dog.is_queued_for_deletion():
+		return
+	_active_dog = null
+	_dog_reserved_lane = -1
+
+
+## Pick a clear lane for the dog, or -1 if all lanes have an entry obstacle.
+static func choose_dog_lane(
+	occupied: Array[int],
+	rng: RandomNumberGenerator,
+) -> int:
+	var open_lanes: Array[int] = []
+	for lane in GameConfig.LANE_COUNT:
+		if not occupied.has(lane):
+			open_lanes.append(lane)
+	if open_lanes.is_empty():
+		return -1
+	return open_lanes[rng.randi() % open_lanes.size()]
+
+
 ## Pure lane choice for the pickup clock. Returns -1 when no lane is open.
 static func choose_pickup_lane(occupied: Array[int], rng: RandomNumberGenerator) -> int:
 	var open_lanes: Array[int] = []
@@ -101,10 +199,17 @@ static func choose_pickup_lane(occupied: Array[int], rng: RandomNumberGenerator)
 ##
 ## Uses Fisher-Yates with the supplied RNG (not Array.shuffle(), which ignores
 ## the seed) so a seeded run is reproducible.
-static func generate_pattern(distance: float, rng: RandomNumberGenerator) -> Array[int]:
+static func generate_pattern(
+	distance: float,
+	rng: RandomNumberGenerator,
+	reserved_lane: int = -1,
+) -> Array[int]:
 	var lanes: Array[int] = []
 	for lane in GameConfig.LANE_COUNT:
-		lanes.append(lane)
+		if lane != reserved_lane:
+			lanes.append(lane)
+	if lanes.is_empty():
+		return []
 	for i in range(lanes.size() - 1, 0, -1):
 		var j := rng.randi_range(0, i)
 		var swap := lanes[i]
@@ -117,7 +222,8 @@ static func generate_pattern(distance: float, rng: RandomNumberGenerator) -> Arr
 		GameConfig.TWO_LANE_CHANCE_MAX,
 		progress,
 	)
-	var blocked := GameConfig.LANE_COUNT - 1 if rng.randf() < two_lane_chance else 1
+	var blocked := 2 if rng.randf() < two_lane_chance else 1
+	blocked = mini(blocked, lanes.size())
 
 	var pattern: Array[int] = []
 	for i in blocked:

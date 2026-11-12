@@ -142,6 +142,18 @@ const SLIDE_HITBOX_HEIGHT_FACTOR := 0.5
 
 enum HazardKind { MANHOLE, DEBRIS, SIGN, GANTRY, DOG }
 
+const DOG_TEXTURES: Array[String] = [
+	"res://assets/characters/dog1/Walk.png",
+	"res://assets/characters/dog2/Walk.png",
+]
+const DOG_FIRST_DISTANCE := 12000.0
+const DOG_GAP_MIN := 8000.0
+const DOG_GAP_MAX := 14000.0
+const DOG_WARNING_DURATION := 0.8
+const DOG_WARNING_X := DESIGN_WIDTH - 120.0
+const DOG_WARNING_Y_OFFSET := 92.0
+const DOG_LANE_ENTRY_CLEARANCE := 520.0
+
 ## Per-kind art and hitbox data.
 ##   clearance    bottom edge sits this far above the lane baseline (overhead)
 ##   overhead     must be slid under; otherwise it is jumped or dodged
@@ -169,9 +181,9 @@ const HAZARD_DATA := {
 		"clearance": 62.0, "overhead": true, "frames": 0, "extra_speed": 0.0,
 	},
 	HazardKind.DOG: {
-		"texture": "res://assets/characters/dog1/Walk.png",
-		"scale": 1.0, "hitbox_w": 40.0, "hitbox_h": 40.0,
-		"clearance": 0.0, "overhead": false, "frames": 6, "extra_speed": 120.0,
+		"texture": DOG_TEXTURES[0],
+		"scale": 3.0, "hitbox_w": 40.0, "hitbox_h": 40.0,
+		"clearance": 0.0, "overhead": false, "frames": 6, "extra_speed": 200.0,
 	},
 }
 
@@ -181,7 +193,7 @@ const HAZARD_UNLOCK := {
 	HazardKind.DEBRIS: 0.0,
 	HazardKind.GANTRY: 8000.0,
 	HazardKind.SIGN: 12000.0,
-	HazardKind.DOG: 20000.0,
+	HazardKind.DOG: DOG_FIRST_DISTANCE,
 }
 
 ## Relative spawn weight of each kind once unlocked.
@@ -190,7 +202,7 @@ const HAZARD_WEIGHT := {
 	HazardKind.DEBRIS: 3.0,
 	HazardKind.GANTRY: 2.5,
 	HazardKind.SIGN: 1.5,
-	## Dog is parked for M4 (re-adds in M6 with a proper pass).
+	## Dogs use the dedicated warned encounter clock, not random hazard rows.
 	HazardKind.DOG: 0.0,
 }
 
