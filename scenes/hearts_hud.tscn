@@ -3,39 +3,66 @@
 [ext_resource type="Script" uid="uid://ch554k806fdhs" path="res://scripts/ui/hearts_hud.gd" id="1_hud"]
 [ext_resource type="Texture2D" uid="uid://cne1vj437o8pt" path="res://assets/heart/heart.png" id="2_heart"]
 
-[node name="HeartsHud" type="Control" unique_id=151054007]
+[sub_resource type="StyleBoxFlat" id="sb_hearts_panel"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.08, 0.07, 0.1, 0.78)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 0.35)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 6
+shadow_offset = Vector2(0, 3)
+
+[node name="HeartsHud" type="Control"]
 layout_mode = 3
 anchors_preset = 0
 mouse_filter = 2
 script = ExtResource("1_hud")
 
-[node name="Row" type="HBoxContainer" parent="." unique_id=1360099758]
+[node name="Panel" type="PanelContainer" parent="."]
 layout_mode = 0
-offset_left = 83.0
-offset_top = 54.0
-offset_right = 243.0
-offset_bottom = 102.0
-theme_override_constants/separation = 8
+offset_left = 36.0
+offset_top = 32.0
+offset_right = 216.0
+offset_bottom = 96.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("sb_hearts_panel")
 
-[node name="Heart1" type="TextureRect" parent="Row" unique_id=51474148]
+[node name="Row" type="HBoxContainer" parent="Panel"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Heart1" type="TextureRect" parent="Panel/Row"]
 texture_filter = 1
-custom_minimum_size = Vector2(48, 48)
+custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
 texture = ExtResource("2_heart")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Heart2" type="TextureRect" parent="Row" unique_id=988600699]
+[node name="Heart2" type="TextureRect" parent="Panel/Row"]
 texture_filter = 1
-custom_minimum_size = Vector2(48, 48)
+custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
 texture = ExtResource("2_heart")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Heart3" type="TextureRect" parent="Row" unique_id=2127933133]
+[node name="Heart3" type="TextureRect" parent="Panel/Row"]
 texture_filter = 1
-custom_minimum_size = Vector2(48, 48)
+custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
 texture = ExtResource("2_heart")
 expand_mode = 1

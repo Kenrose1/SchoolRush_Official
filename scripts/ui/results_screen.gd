@@ -3,11 +3,8 @@ extends Control
 ## Run results: medal, outcome title, final score, session best, distance,
 ## zone, items, retry, menu.
 ##
-## The layout and styling live entirely in scenes/results_screen.tscn so the
-## screen can be inspected and tweaked in the editor; this script only fills
-## the values, colors the title, and plays the staggered reveal. Bests are
-## per run mode and live in the GameState autoload, so a campaign record never
-## mixes with an endless one.
+## Upgraded with "The Morning Report Card / Clearance Slip" styling, dynamic
+## outcome stamps, stamped medal pedestal animation, and spring micro-interactions.
 
 signal retry_pressed
 
@@ -18,12 +15,12 @@ enum Outcome { OUT_OF_HEARTS, CAUGHT, VICTORY }
 static var session_runs := 0
 
 const CREAM := Color(1.0, 0.94, 0.86)
-const CAUGHT_COLOR := Color(1.0, 0.62, 0.52)
+const CAUGHT_COLOR := Color(1.0, 0.42, 0.35)
 const VICTORY_COLOR := Color("#ffb45e")
 
 const TITLE_TEXT := "OUT OF HEARTS"
 const CAUGHT_TITLE_TEXT := "CAUGHT!"
-const VICTORY_TITLE_TEXT := "MADE IT!"
+const VICTORY_TITLE_TEXT := "MADE IT TO CLASS!"
 
 const MENU_SCENE := "res://scenes/main_menu.tscn"
 
@@ -40,19 +37,37 @@ var _medal: int = GameConfig.Medal.BLACK
 @onready var title_label: Label = $Center/Panel/VBox/Title
 @onready var medal_plate: PanelContainer = $Center/Panel/VBox/MedalPlate
 @onready var medal_icon: TextureRect = $Center/Panel/VBox/MedalPlate/Medal
-@onready var stats_grid: GridContainer = $Center/Panel/VBox/Stats
-@onready var best_value: Label = $Center/Panel/VBox/Stats/BestValue
+@onready var stats_grid: GridContainer = $Center/Panel/VBox/StatsCard/Stats
+@onready var best_value: Label = $Center/Panel/VBox/StatsCard/Stats/BestValue
 @onready var new_best_label: Label = $Center/Panel/VBox/NewBest
 @onready var retry_button: Button = $Center/Panel/VBox/Buttons/Retry
 @onready var menu_button: Button = $Center/Panel/VBox/Buttons/Menu
 
 
 func _ready() -> void:
-	# The scene is saved visible so the editor shows the styled panel; the game
-	# hides it here and only reveals it when a run ends.
 	visible = false
 	retry_button.pressed.connect(_on_retry_pressed)
 	menu_button.pressed.connect(_on_menu_pressed)
+	_setup_button(retry_button)
+	_setup_button(menu_button)
+
+
+func _setup_button(btn: Button) -> void:
+	btn.pivot_offset = btn.custom_minimum_size * 0.5
+	btn.mouse_entered.connect(func(): _animate_button_hover(btn, true))
+	btn.mouse_exited.connect(func(): _animate_button_hover(btn, false))
+	btn.focus_entered.connect(func(): _animate_button_hover(btn, true))
+	btn.focus_exited.connect(func(): _animate_button_hover(btn, false))
+
+
+func _animate_button_hover(btn: Button, is_hovered: bool) -> void:
+	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if is_hovered:
+		tw.tween_property(btn, "scale", Vector2(1.05, 1.05), 0.14)
+		tw.tween_property(btn, "modulate", Color(1.15, 1.15, 1.15), 0.14)
+	else:
+		tw.tween_property(btn, "scale", Vector2.ONE, 0.18)
+		tw.tween_property(btn, "modulate", Color.WHITE, 0.18)
 
 
 ## Fill the readouts, award the medal, record the score with GameState, and
@@ -129,14 +144,15 @@ func _on_menu_pressed() -> void:
 	get_tree().change_scene_to_file(MENU_SCENE)
 
 
-## Staggered fade-in so the results feel earned instead of dumped. The medal
-## lands last with a scale pop, and a gold run gets a shine sweep after it.
+## Staggered fade-in and slam effect so results feel earned and impactful.
 func _play_reveal() -> void:
 	var steps: Array[Control] = [title_label]
 	for child in stats_grid.get_children():
 		steps.append(child)
 	if new_best_label.visible:
 		steps.append(new_best_label)
+		new_best_label.rotation_degrees = -4.0
+		new_best_label.pivot_offset = new_best_label.size * 0.5
 	steps.append(retry_button)
 	steps.append(menu_button)
 	steps.append(medal_plate)
@@ -144,20 +160,19 @@ func _play_reveal() -> void:
 		var node := steps[i]
 		node.modulate.a = 0.0
 		var tween := create_tween()
-		tween.tween_property(node, "modulate:a", 1.0, 0.18).set_delay(i * 0.06)
+		tween.tween_property(node, "modulate:a", 1.0, 0.16).set_delay(i * 0.05)
 	_pop_medal.call_deferred()
 
 
-## The award moment: scale-pop from oversized to rest, then a shine sweep on
-## gold. Deferred so the container layout settles before the pivot is set.
+## The award moment: scale-pop from oversized to rest, then a shine sweep on gold.
 func _pop_medal() -> void:
 	medal_icon.pivot_offset = medal_icon.size * 0.5
-	medal_icon.scale = Vector2(1.4, 1.4)
+	medal_icon.scale = Vector2(1.5, 1.5)
 	var tween := create_tween()
 	tween.tween_property(medal_icon, "scale", Vector2.ONE, 0.35) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	if _medal == GameConfig.Medal.GOLD:
 		tween.tween_property(medal_icon, "modulate",
-			Color(1.4, 1.4, 1.4, 1.0), 0.12)
+			Color(1.5, 1.5, 1.5, 1.0), 0.14)
 		tween.tween_property(medal_icon, "modulate",
 			Color.WHITE, 0.22)
