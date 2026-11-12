@@ -10,6 +10,40 @@
 [ext_resource type="Texture2D" uid="uid://cbainy4o7nwae" path="res://assets/props/item_pencil.png" id="8_pencil"]
 [ext_resource type="Texture2D" uid="uid://bpg6acgu2we0s" path="res://assets/props/item_bag.png" id="9_bag"]
 
+[sub_resource type="StyleBoxFlat" id="sb_pill"]
+content_margin_left = 10.0
+content_margin_top = 4.0
+content_margin_right = 10.0
+content_margin_bottom = 4.0
+bg_color = Color(0.95, 0.32, 0.22, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.94, 0.86, 0.9)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 4
+
+[sub_resource type="StyleBoxFlat" id="sb_score_card"]
+content_margin_left = 18.0
+content_margin_top = 10.0
+content_margin_right = 18.0
+content_margin_bottom = 10.0
+bg_color = Color(0.05, 0.04, 0.07, 0.8)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 0.35)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
 [sub_resource type="StyleBoxFlat" id="sb_panel"]
 content_margin_left = 40.0
 content_margin_top = 36.0
@@ -47,6 +81,22 @@ shadow_color = Color(0, 0, 0, 0.35)
 shadow_size = 4
 shadow_offset = Vector2(0, 3)
 
+[sub_resource type="StyleBoxFlat" id="sb_btn_pressed"]
+content_margin_left = 28.0
+content_margin_top = 16.0
+content_margin_right = 28.0
+content_margin_bottom = 12.0
+bg_color = Color(0.06, 0.05, 0.08, 0.95)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.88, 0.6, 0.29, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
 [sub_resource type="StyleBoxFlat" id="sb_btn_hover"]
 content_margin_left = 32.0
 content_margin_top = 14.0
@@ -66,22 +116,6 @@ shadow_color = Color(1, 0.705882, 0.368627, 0.25)
 shadow_size = 8
 shadow_offset = Vector2(0, 3)
 
-[sub_resource type="StyleBoxFlat" id="sb_btn_pressed"]
-content_margin_left = 28.0
-content_margin_top = 16.0
-content_margin_right = 28.0
-content_margin_bottom = 12.0
-bg_color = Color(0.06, 0.05, 0.08, 0.95)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.88, 0.6, 0.29, 1)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-
 [sub_resource type="StyleBoxFlat" id="sb_btn_disabled"]
 content_margin_left = 28.0
 content_margin_top = 14.0
@@ -97,24 +131,6 @@ corner_radius_top_left = 14
 corner_radius_top_right = 14
 corner_radius_bottom_right = 14
 corner_radius_bottom_left = 14
-
-[sub_resource type="StyleBoxFlat" id="sb_pill"]
-content_margin_left = 10.0
-content_margin_top = 4.0
-content_margin_right = 10.0
-content_margin_bottom = 4.0
-bg_color = Color(0.95, 0.32, 0.22, 0.95)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.94, 0.86, 0.9)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-shadow_color = Color(0, 0, 0, 0.4)
-shadow_size = 4
 
 [sub_resource type="StyleBoxFlat" id="sb_pill_soon"]
 content_margin_left = 10.0
@@ -132,23 +148,7 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[sub_resource type="StyleBoxFlat" id="sb_score_card"]
-content_margin_left = 18.0
-content_margin_top = 10.0
-content_margin_right = 18.0
-content_margin_bottom = 10.0
-bg_color = Color(0.05, 0.04, 0.07, 0.8)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.705882, 0.368627, 0.35)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
-[node name="MainMenu" type="Control"]
+[node name="MainMenu" type="Control" unique_id=19326786]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -157,7 +157,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
 
-[node name="Backdrop" type="TextureRect" parent="."]
+[node name="Backdrop" type="TextureRect" parent="." unique_id=1431751600]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -169,7 +169,7 @@ texture = ExtResource("4_bg")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="BackdropDim" type="ColorRect" parent="."]
+[node name="BackdropDim" type="ColorRect" parent="." unique_id=480658868]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -179,7 +179,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.07, 0.05, 0.09, 0.48)
 
-[node name="VignetteContainer" type="Control" parent="."]
+[node name="VignetteContainer" type="Control" parent="." unique_id=1868663654]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -188,7 +188,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="TanodVignette" type="AnimatedSprite2D" parent="VignetteContainer"]
+[node name="TanodVignette" type="AnimatedSprite2D" parent="VignetteContainer" unique_id=1270411486]
 unique_name_in_owner = true
 modulate = Color(0.7, 0.7, 0.8, 0.45)
 position = Vector2(1250, 750)
@@ -198,7 +198,7 @@ animation = &"run"
 autoplay = "run"
 frame_progress = 0.42
 
-[node name="EliasVignette" type="AnimatedSprite2D" parent="VignetteContainer"]
+[node name="EliasVignette" type="AnimatedSprite2D" parent="VignetteContainer" unique_id=1759552920]
 unique_name_in_owner = true
 position = Vector2(1540, 710)
 scale = Vector2(3.2, 3.2)
@@ -207,7 +207,7 @@ animation = &"run"
 autoplay = "run"
 frame_progress = 0.18
 
-[node name="PropBook" type="TextureRect" parent="VignetteContainer"]
+[node name="PropBook" type="TextureRect" parent="VignetteContainer" unique_id=954076981]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 1180.0
@@ -219,7 +219,7 @@ mouse_filter = 2
 texture = ExtResource("7_book")
 expand_mode = 1
 
-[node name="PropPencil" type="TextureRect" parent="VignetteContainer"]
+[node name="PropPencil" type="TextureRect" parent="VignetteContainer" unique_id=1523676241]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 1680.0
@@ -231,7 +231,7 @@ mouse_filter = 2
 texture = ExtResource("8_pencil")
 expand_mode = 1
 
-[node name="PropBag" type="TextureRect" parent="VignetteContainer"]
+[node name="PropBag" type="TextureRect" parent="VignetteContainer" unique_id=870210833]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 1430.0
@@ -243,7 +243,7 @@ mouse_filter = 2
 texture = ExtResource("9_bag")
 expand_mode = 1
 
-[node name="ContentMargin" type="MarginContainer" parent="."]
+[node name="ContentMargin" type="MarginContainer" parent="." unique_id=297095028]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -256,24 +256,24 @@ theme_override_constants/margin_top = 90
 theme_override_constants/margin_right = 110
 theme_override_constants/margin_bottom = 80
 
-[node name="LeftColumn" type="VBoxContainer" parent="ContentMargin"]
+[node name="LeftColumn" type="VBoxContainer" parent="ContentMargin" unique_id=2095990693]
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
 mouse_filter = 2
 theme_override_constants/separation = 28
 
-[node name="HeaderGroup" type="VBoxContainer" parent="ContentMargin/LeftColumn"]
+[node name="HeaderGroup" type="VBoxContainer" parent="ContentMargin/LeftColumn" unique_id=1269304661]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
 
-[node name="BadgeRow" type="HBoxContainer" parent="ContentMargin/LeftColumn/HeaderGroup"]
+[node name="BadgeRow" type="HBoxContainer" parent="ContentMargin/LeftColumn/HeaderGroup" unique_id=1478014787]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 14
 
-[node name="UrgencyPill" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeRow"]
+[node name="UrgencyPill" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeRow" unique_id=99139837]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
@@ -282,11 +282,11 @@ theme_override_font_sizes/font_size = 18
 theme_override_styles/normal = SubResource("sb_pill")
 text = "⏰ 7:28 AM • LATE AGAIN!"
 
-[node name="ScoreCard" type="PanelContainer" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeRow"]
+[node name="ScoreCard" type="PanelContainer" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeRow" unique_id=1965745098]
 layout_mode = 2
 theme_override_styles/panel = SubResource("sb_score_card")
 
-[node name="BestLabel" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeRow/ScoreCard"]
+[node name="BestLabel" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeRow/ScoreCard" unique_id=75810567]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
@@ -294,7 +294,7 @@ theme_override_fonts/font = ExtResource("2_xbold")
 theme_override_font_sizes/font_size = 18
 text = "BEST  000000"
 
-[node name="TitleLabel" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup"]
+[node name="TitleLabel" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup" unique_id=1004709404]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
@@ -306,22 +306,22 @@ theme_override_font_sizes/font_size = 104
 text = "SCHOOL
 RUSH"
 
-[node name="Subtitle" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup"]
+[node name="Subtitle" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup" unique_id=1653288338]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.75)
 theme_override_fonts/font = ExtResource("3_semi")
 theme_override_font_sizes/font_size = 28
 text = "The bell rings in 2 minutes. Don't get caught!"
 
-[node name="MenuPanel" type="PanelContainer" parent="ContentMargin/LeftColumn"]
+[node name="MenuPanel" type="PanelContainer" parent="ContentMargin/LeftColumn" unique_id=1591995058]
 layout_mode = 2
 theme_override_styles/panel = SubResource("sb_panel")
 
-[node name="ButtonStack" type="VBoxContainer" parent="ContentMargin/LeftColumn/MenuPanel"]
+[node name="ButtonStack" type="VBoxContainer" parent="ContentMargin/LeftColumn/MenuPanel" unique_id=1126270709]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Campaign" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack"]
+[node name="Campaign" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack" unique_id=250277396]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 68)
 layout_mode = 2
@@ -342,15 +342,15 @@ theme_override_styles/focus = SubResource("sb_btn_hover")
 text = "RUN TO SCHOOL"
 alignment = 0
 
-[node name="Endless" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack"]
+[node name="Endless" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack" unique_id=1403385528]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 68)
 layout_mode = 2
+tooltip_text = "Endless mode arrives in a future update"
 focus_neighbor_top = NodePath("../Campaign")
 focus_neighbor_bottom = NodePath("../HowTo")
 focus_next = NodePath("../HowTo")
 focus_previous = NodePath("../Campaign")
-tooltip_text = "Endless mode arrives in a future update"
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
 theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
@@ -367,7 +367,7 @@ disabled = true
 text = "ENDLESS MODE"
 alignment = 0
 
-[node name="Soon" type="Label" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack/Endless"]
+[node name="Soon" type="Label" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack/Endless" unique_id=293479511]
 layout_mode = 1
 anchors_preset = 6
 anchor_left = 1.0
@@ -388,7 +388,7 @@ text = "SOON"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="HowTo" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack"]
+[node name="HowTo" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack" unique_id=152294037]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 68)
 layout_mode = 2
@@ -409,7 +409,7 @@ theme_override_styles/focus = SubResource("sb_btn_hover")
 text = "HOW TO PLAY"
 alignment = 0
 
-[node name="Settings" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack"]
+[node name="Settings" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack" unique_id=970688451]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 68)
 layout_mode = 2
@@ -430,7 +430,7 @@ theme_override_styles/focus = SubResource("sb_btn_hover")
 text = "SETTINGS"
 alignment = 0
 
-[node name="Quit" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack"]
+[node name="Quit" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack" unique_id=350328395]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 68)
 layout_mode = 2
@@ -451,7 +451,7 @@ theme_override_styles/focus = SubResource("sb_btn_hover")
 text = "QUIT"
 alignment = 0
 
-[node name="BottomBar" type="HBoxContainer" parent="."]
+[node name="BottomBar" type="HBoxContainer" parent="." unique_id=41308994]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -465,26 +465,26 @@ grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
 
-[node name="Hints" type="Label" parent="BottomBar"]
+[node name="Hints" type="Label" parent="BottomBar" unique_id=1488097610]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.6)
 theme_override_fonts/font = ExtResource("3_semi")
 theme_override_font_sizes/font_size = 18
 text = "[↑ / ↓] Select   [ENTER / SPACE] Confirm   [ESC] Back"
 
-[node name="Spacer" type="Control" parent="BottomBar"]
+[node name="Spacer" type="Control" parent="BottomBar" unique_id=709178915]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="Version" type="Label" parent="BottomBar"]
+[node name="Version" type="Label" parent="BottomBar" unique_id=855920486]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.5)
 theme_override_fonts/font = ExtResource("3_semi")
 theme_override_font_sizes/font_size = 18
 text = "ARE STUDIO • v0.6"
 
-[node name="HowToCenter" type="CenterContainer" parent="."]
+[node name="HowToCenter" type="CenterContainer" parent="." unique_id=1380398941]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -493,17 +493,17 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="HowToPanel" type="PanelContainer" parent="HowToCenter"]
+[node name="HowToPanel" type="PanelContainer" parent="HowToCenter" unique_id=72009027]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_override_styles/panel = SubResource("sb_panel")
 
-[node name="VBox" type="VBoxContainer" parent="HowToCenter/HowToPanel"]
+[node name="VBox" type="VBoxContainer" parent="HowToCenter/HowToPanel" unique_id=9793619]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Title" type="Label" parent="HowToCenter/HowToPanel/VBox"]
+[node name="Title" type="Label" parent="HowToCenter/HowToPanel/VBox" unique_id=512593704]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
@@ -514,83 +514,83 @@ theme_override_font_sizes/font_size = 46
 text = "HOW TO PLAY"
 horizontal_alignment = 1
 
-[node name="Rows" type="GridContainer" parent="HowToCenter/HowToPanel/VBox"]
+[node name="Rows" type="GridContainer" parent="HowToCenter/HowToPanel/VBox" unique_id=2005973540]
 layout_mode = 2
 theme_override_constants/h_separation = 36
 theme_override_constants/v_separation = 12
 columns = 2
 
-[node name="Key1" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Key1" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=239760048]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
 theme_override_fonts/font = ExtResource("2_xbold")
 theme_override_font_sizes/font_size = 26
 text = "W / ↑"
 
-[node name="Action1" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Action1" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=370375005]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.85)
 theme_override_fonts/font = ExtResource("3_semi")
 theme_override_font_sizes/font_size = 24
 text = "MOVE UP A LANE"
 
-[node name="Key2" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Key2" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1004221658]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
 theme_override_fonts/font = ExtResource("2_xbold")
 theme_override_font_sizes/font_size = 26
 text = "S / ↓"
 
-[node name="Action2" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Action2" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1699510224]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.85)
 theme_override_fonts/font = ExtResource("3_semi")
 theme_override_font_sizes/font_size = 24
 text = "MOVE DOWN A LANE"
 
-[node name="Key3" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Key3" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1837215080]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
 theme_override_fonts/font = ExtResource("2_xbold")
 theme_override_font_sizes/font_size = 26
 text = "SPACE"
 
-[node name="Action3" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Action3" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=698899238]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.85)
 theme_override_fonts/font = ExtResource("3_semi")
 theme_override_font_sizes/font_size = 24
 text = "JUMP OVER LOW HAZARDS"
 
-[node name="Key4" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Key4" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=1782774083]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
 theme_override_fonts/font = ExtResource("2_xbold")
 theme_override_font_sizes/font_size = 26
 text = "CTRL / SHIFT"
 
-[node name="Action4" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Action4" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=56698391]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.85)
 theme_override_fonts/font = ExtResource("3_semi")
 theme_override_font_sizes/font_size = 24
 text = "SLIDE UNDER HIGH HAZARDS"
 
-[node name="Key5" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Key5" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=648702339]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
 theme_override_fonts/font = ExtResource("2_xbold")
 theme_override_font_sizes/font_size = 26
 text = "ESC"
 
-[node name="Action5" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows"]
+[node name="Action5" type="Label" parent="HowToCenter/HowToPanel/VBox/Rows" unique_id=286625668]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.85)
 theme_override_fonts/font = ExtResource("3_semi")
 theme_override_font_sizes/font_size = 24
 text = "PAUSE / BACK"
 
-[node name="BackButton" type="Button" parent="HowToCenter/HowToPanel/VBox"]
+[node name="BackButton" type="Button" parent="HowToCenter/HowToPanel/VBox" unique_id=455055086]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(260, 58)
 layout_mode = 2
