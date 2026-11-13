@@ -285,6 +285,49 @@ static func campaign_medal(finished: bool, score: int, previous_best: int) -> in
 		return Medal.GOLD
 	return Medal.SILVER
 
+## --- Progress bar ------------------------------------------------------------
+
+## Campaign course progress as a 0..1 fraction of the finish line. Uses the
+## per-run zone lengths, so retuned durations re-proportion the bar for free.
+static func campaign_progress(
+	distance: float,
+	home_length: float,
+	street_length: float,
+	finish_distance: float,
+) -> float:
+	if finish_distance <= 0.0:
+		return 0.0
+	return clampf(distance / finish_distance, 0.0, 1.0)
+
+
+## Campaign bar segment widths as fractions of the whole track, in
+## (home, street, school) order. Each zone gets its real share of the course.
+static func campaign_segment_fractions(
+	home_length: float,
+	street_length: float,
+	finish_distance: float,
+) -> Vector3:
+	if finish_distance <= 0.0:
+		return Vector3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0)
+	var school_length := maxf(finish_distance - home_length - street_length, 0.0)
+	return Vector3(
+		home_length / finish_distance,
+		street_length / finish_distance,
+		school_length / finish_distance,
+	)
+
+
+## Endless bar progress as a 0..1 fraction toward the gold medal distance.
+## Distances arrive in px (world distance); medals are measured in metres.
+static func endless_progress(distance_px: float) -> float:
+	return clampf(distance_px / (MEDAL_DISTANCE_GOLD * 100.0), 0.0, 1.0)
+
+
+## Endless silver-tick position as a 0..1 fraction of the track.
+static func endless_silver_fraction() -> float:
+	return MEDAL_DISTANCE_SILVER / MEDAL_DISTANCE_GOLD
+
+
 # --- Spawning ----------------------------------------------------------------
 
 ## Distance between hazard rows, easing from start toward the floor.

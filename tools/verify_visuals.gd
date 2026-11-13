@@ -105,6 +105,7 @@ func _ready() -> void:
 	world.results.visible = false
 	world.arrest.visible = false
 	world.player.sprite.visible = true
+	world.progress_hud.visible = true
 	world.set_run_mode(GameConfig.RunMode.ENDLESS)
 	world.distance = (
 		world.home_zone_length + world.street_zone_length
@@ -112,6 +113,7 @@ func _ready() -> void:
 	)
 	world.speed = world._base_speed()
 	world._update_zone()
+	world._update_progress()
 	world._update_debug()
 	world.queue_redraw()
 	await _shot("m5_08_endless")
@@ -122,9 +124,11 @@ func _ready() -> void:
 	world.results.visible = false
 	world.arrest.visible = false
 	world.player.sprite.visible = true
+	world.progress_hud.visible = true
 	world.set_process(false)
 	world.distance = world.home_zone_length + 1.0
 	world._update_zone()
+	world._update_progress()
 	world._zone_fade_time_left = GameConfig.ZONE_FADE_TIME * 0.5
 	world._zone_fade.color.a = 0.5
 	world._update_debug()
@@ -134,10 +138,24 @@ func _ready() -> void:
 
 	world._zone_fade_time_left = 0.0
 	world._zone_fade.color.a = 0.0
+	world._update_progress()
 	world._update_debug()
 	world.queue_redraw()
 	await _wait(2)
 	await _shot("m5_03_street")
+
+	# Campaign bar staged at 60% of the course: past the home segment, deep in
+	# the street, school segment still ahead.
+	world.distance = world.campaign_finish_distance * 0.6
+	world._update_zone()
+	world._update_progress()
+	world._update_debug()
+	world.queue_redraw()
+	await _wait(2)
+	await _shot("m5_09_campaign_progress")
+	world.distance = world.home_zone_length + 1.0
+	world._update_zone()
+	world._update_progress()
 
 	# The arrest animation from the M4 capture can finish late and re-show the
 	# overlay; drop its one-shot callbacks so the remaining zone shots stay clean.
@@ -150,11 +168,13 @@ func _ready() -> void:
 	world.results.visible = false
 	world.arrest.visible = false
 	world.player.sprite.visible = true
+	world.progress_hud.visible = true
 
 	# Street -> School: hold the second fade mid-way, then stage a hazard run
 	# in the hallway and reveal the terminal school zone.
 	world.distance = world.home_zone_length + world.street_zone_length + 1.0
 	world._update_zone()
+	world._update_progress()
 	world._zone_fade_time_left = GameConfig.ZONE_FADE_TIME * 0.5
 	world._zone_fade.color.a = 0.5
 	world._update_debug()
@@ -171,6 +191,7 @@ func _ready() -> void:
 		_spawn(world, entry[0], entry[1], entry[2])
 	for entry: Array in ITEM_SHOWCASE:
 		_spawn_item(world, entry[0], entry[1], entry[2])
+	world._update_progress()
 	world._update_debug()
 	world.queue_redraw()
 	await _wait(2)

@@ -75,6 +75,7 @@ var _school_background_texture: Texture2D
 @onready var director: SpawnDirector = $SpawnDirector
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
+@onready var progress_hud: ProgressBarHud = $Hud/HudRoot/Progress
 @onready var pause_menu: PauseMenu = $Hud/HudRoot/Pause
 @onready var results: ResultsScreen = $GameOver/Results
 @onready var _debug_label: Label = $Hud/HudRoot/Debug
@@ -157,6 +158,7 @@ func _ready() -> void:
 	score_hud.set_score(score_system.score)
 	score_hud.set_combo(1, 0)
 	score_hud.set_items(0)
+	_update_progress()
 
 	director.hazard_passed.connect(score_system.add_hazard_passed)
 	director.item_missed.connect(_on_item_missed)
@@ -212,6 +214,7 @@ func _physics_process(delta: float) -> void:
 			child.speed = speed
 	distance += speed * delta
 	_update_zone()
+	_update_progress()
 	# Campaign: stop spawning before the line so the last stretch is a clean
 	# sprint, then end the run in a victory the moment Elias reaches it.
 	if mode == GameConfig.RunMode.CAMPAIGN:
@@ -228,6 +231,23 @@ func _physics_process(delta: float) -> void:
 	player.pursuer_active = pursuer.is_active()
 	queue_redraw()
 	_update_debug()
+
+
+## Push the top-center progress bar for the current mode: the campaign course
+## track, or the endless gold-milestone bar.
+func _update_progress() -> void:
+	if progress_hud == null:
+		return
+	if mode == GameConfig.RunMode.CAMPAIGN:
+		progress_hud.set_campaign(
+			distance,
+			home_zone_length,
+			street_zone_length,
+			campaign_finish_distance,
+			current_zone,
+		)
+	else:
+		progress_hud.set_endless(distance)
 
 
 ## Step the zone clock. HOME and STREET are timed; the mode decides what comes
@@ -362,6 +382,9 @@ func _finish_campaign() -> void:
 
 
 func _show_game_over(outcome: int) -> void:
+	# The progress bar must not peek out from under the results overlay.
+	if progress_hud != null:
+		progress_hud.visible = false
 	# Campaign: finish-gated score rule (gold needs a new best). Endless:
 	# medal by distance reached. The best is read BEFORE show_results records
 	# this run's score with GameState.

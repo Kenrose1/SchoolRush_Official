@@ -44,6 +44,9 @@ func _ready() -> void:
 	_section("Modes")
 	_test_modes()
 
+	_section("Progress bar")
+	_test_progress()
+
 	_section("Game state")
 	_test_game_state()
 
@@ -1108,6 +1111,76 @@ func _test_modes() -> void:
 			ramp_monotonic = false
 		ramp_prev = ramp_mult
 	_check(ramp_monotonic, "the endless ramp only increases with distance")
+
+
+func _test_progress() -> void:
+	# Campaign fractions use the per-run zone lengths, so retuned durations
+	# re-proportion the bar automatically.
+	var home := 1000.0
+	var street := 1000.0
+	var finish := 3000.0
+	_check_near(GameConfig.campaign_progress(0.0, home, street, finish), 0.0, 0.0001,
+		"campaign progress starts at zero")
+	_check_near(GameConfig.campaign_progress(home, home, street, finish), 1000.0 / 3000.0, 0.0001,
+		"campaign progress hits the home boundary at the home fraction")
+	_check_near(
+		GameConfig.campaign_progress(home + street, home, street, finish),
+		2000.0 / 3000.0, 0.0001,
+		"campaign progress hits the street boundary at the street fraction")
+	_check_near(GameConfig.campaign_progress(finish, home, street, finish), 1.0, 0.0001,
+		"campaign progress reaches one at the finish line")
+	_check_near(GameConfig.campaign_progress(finish * 2.0, home, street, finish), 1.0, 0.0001,
+		"campaign progress clamps past the finish line")
+	_check_near(GameConfig.campaign_progress(0.0, home, street, 0.0), 0.0, 0.0001,
+		"campaign progress guards a degenerate finish distance")
+
+	var segs := GameConfig.campaign_segment_fractions(home, street, finish)
+	_check_near(segs.x + segs.y + segs.z, 1.0, 0.0001,
+		"campaign segments sum to the whole track")
+	_check_near(segs.x, 1000.0 / 3000.0, 0.0001, "the home segment takes its real share")
+	_check_near(segs.z, 1000.0 / 3000.0, 0.0001, "the school segment takes its real share")
+	# Retuning the campaign re-proportions: a longer home grows its segment.
+	var segs_long := GameConfig.campaign_segment_fractions(2000.0, 1000.0, 4000.0)
+	_check_near(segs_long.x, 0.5, 0.0001,
+		"a retuned longer home grows its segment share")
+
+	# Endless milestones: px in, metres thresholds; silver tick sits at half.
+	_check_near(GameConfig.endless_progress(0.0), 0.0, 0.0001,
+		"endless progress starts at zero")
+	_check_near(
+		GameConfig.endless_progress(GameConfig.MEDAL_DISTANCE_SILVER * 100.0),
+		0.5, 0.0001,
+		"endless progress sits at half the track at the silver distance")
+	_check_near(
+		GameConfig.endless_progress(GameConfig.MEDAL_DISTANCE_GOLD * 100.0),
+		1.0, 0.0001,
+		"endless progress reaches one at the gold distance")
+	_check_near(
+		GameConfig.endless_progress(GameConfig.MEDAL_DISTANCE_GOLD * 1000.0),
+		1.0, 0.0001,
+		"endless progress clamps past gold")
+	_check_near(GameConfig.endless_silver_fraction(), 0.5, 0.0001,
+		"the silver tick sits at half the endless track")
+
+	# The HUD component renders both modes headlessly.
+	var scene := load("res://scenes/hud.tscn") as PackedScene
+	_check(scene != null, "hud scene loads")
+	if scene == null:
+		return
+	var hud_root := scene.instantiate()
+	add_child(hud_root)
+	var progress_hud := hud_root.get_node("HudRoot/Progress") as ProgressBarHud
+	_check(progress_hud != null, "the hud hosts the progress bar")
+	if progress_hud != null:
+		_check(progress_hud.visible, "the progress bar starts visible")
+		progress_hud.set_campaign(1500.0, 1000.0, 1000.0, 3000.0, GameConfig.Zone.STREET)
+		_check_near(progress_hud.progress_fraction(), 0.5, 0.0001,
+			"the campaign bar renders the mid-course fraction")
+		progress_hud.set_endless(GameConfig.MEDAL_DISTANCE_GOLD * 100.0)
+		_check_near(progress_hud.progress_fraction(), 1.0, 0.0001,
+			"the endless bar fills at the gold distance")
+		progress_hud.visible = false
+	hud_root.queue_free()
 
 
 func _test_game_state() -> void:
