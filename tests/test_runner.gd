@@ -1491,6 +1491,25 @@ func _test_pursuer() -> void:
 	_check(pursuer.state == Pursuer.State.DORMANT, "fade returns to dormant")
 	_check(not pursuer.visible, "pursuer hides again when dormant")
 
+	# Endless ramp: the tanod tracks the faster of world speed and base speed.
+	# A fresh instance keeps these checks independent of the counters above.
+	var chaser := scene.instantiate() as Pursuer
+	add_child(chaser)
+	chaser.set_physics_process(false)
+	chaser.wake()
+	chaser.chase_time = 0.0
+	chaser.set_world_speed(GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR)
+	var slow_gap := chaser.gap
+	chaser._physics_process(1.0)
+	_check(chaser.gap < slow_gap, "a slowdown below base still lets the tanod gain")
+
+	chaser.chase_time = GameConfig.PURSUER_CHASE_RAMP_TIME
+	chaser.set_world_speed(GameConfig.RUN_SPEED * GameConfig.ENDLESS_RAMP_MAX_MULTIPLIER)
+	var ramp_gap := chaser.gap
+	chaser._physics_process(1.0)
+	_check_near(chaser.gap, ramp_gap, 0.01, "at full endless ramp the tanod keeps pace")
+	chaser.queue_free()
+
 	# Catch by gap closing.
 	pursuer.wake()
 	var catches := [0]

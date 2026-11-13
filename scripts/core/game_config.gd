@@ -303,6 +303,9 @@ const DESPAWN_X := -400.0
 # --- Pursuer (tanod) ---------------------------------------------------------
 
 ## Chase speed as a fraction of RUN_SPEED. 0.95 = 399 px/s at base speed.
+## Applied to the faster of the current world speed and RUN_SPEED, so the
+## tanod keeps up with the endless speed ramp while a momentum dip (world
+## below RUN_SPEED) still lets him close the gap.
 const PURSUER_CHASE_FACTOR := 0.95
 ## Eases toward full speed if a chase drags on (seconds to reach 1.0x).
 const PURSUER_CHASE_RAMP_TIME := 10.0

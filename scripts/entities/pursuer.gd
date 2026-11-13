@@ -94,7 +94,7 @@ func _physics_process(delta: float) -> void:
 			1.0,
 			clampf(chase_time / GameConfig.PURSUER_CHASE_RAMP_TIME, 0.0, 1.0),
 		)
-		var pursuer_speed := GameConfig.RUN_SPEED * factor
+		var pursuer_speed := maxf(_world_speed, GameConfig.RUN_SPEED) * factor
 		# World speed comes from the caller via _world_speed (set each frame).
 		gap += (_world_speed - pursuer_speed) * delta
 		if gap <= GameConfig.PURSUER_CATCH_DISTANCE:
