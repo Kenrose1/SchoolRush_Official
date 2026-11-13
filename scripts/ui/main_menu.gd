@@ -38,13 +38,14 @@ func _ready() -> void:
 	best_label.text = BEST_FORMAT % GameState.best_campaign
 	
 	campaign_button.pressed.connect(_on_campaign_pressed)
+	endless_button.pressed.connect(_on_endless_pressed)
 	how_to_button.pressed.connect(_on_how_to_pressed)
 	back_button.pressed.connect(_on_how_to_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
 	settings_panel.closed.connect(_on_settings_closed)
 	quit_button.pressed.connect(_on_quit_pressed)
-	
-	_buttons = [campaign_button, how_to_button, settings_button, quit_button]
+
+	_buttons = [campaign_button, endless_button, how_to_button, settings_button, quit_button]
 	for btn in _buttons:
 		_setup_button_effects(btn)
 	
@@ -116,6 +117,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_campaign_pressed() -> void:
 	GameState.mode = GameConfig.RunMode.CAMPAIGN
+	get_tree().change_scene_to_file(WORLD_SCENE)
+
+
+func _on_endless_pressed() -> void:
+	GameState.mode = GameConfig.RunMode.ENDLESS
 	get_tree().change_scene_to_file(WORLD_SCENE)
 
 

@@ -133,22 +133,6 @@ corner_radius_top_right = 14
 corner_radius_bottom_right = 14
 corner_radius_bottom_left = 14
 
-[sub_resource type="StyleBoxFlat" id="sb_pill_soon"]
-content_margin_left = 10.0
-content_margin_top = 3.0
-content_margin_right = 10.0
-content_margin_bottom = 3.0
-bg_color = Color(0.05, 0.04, 0.07, 0.9)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 0.705882, 0.368627, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
 [node name="MainMenu" type="Control" unique_id=19326786]
 layout_mode = 3
 anchors_preset = 15
@@ -269,12 +253,17 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
 
-[node name="BadgeRow" type="HBoxContainer" parent="ContentMargin/LeftColumn/HeaderGroup" unique_id=1478014787]
+[node name="BadgeSpacer" type="MarginContainer" parent="ContentMargin/LeftColumn/HeaderGroup" unique_id=1478014788]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_top = -16
+
+[node name="BadgeRow" type="HBoxContainer" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeSpacer" unique_id=1478014787]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 14
 
-[node name="UrgencyPill" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeRow" unique_id=99139837]
+[node name="UrgencyPill" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeSpacer/BadgeRow" unique_id=99139837]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
@@ -283,11 +272,11 @@ theme_override_font_sizes/font_size = 18
 theme_override_styles/normal = SubResource("sb_pill")
 text = "⏰ 7:28 AM • LATE AGAIN!"
 
-[node name="ScoreCard" type="PanelContainer" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeRow" unique_id=1965745098]
+[node name="ScoreCard" type="PanelContainer" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeSpacer/BadgeRow" unique_id=1965745098]
 layout_mode = 2
 theme_override_styles/panel = SubResource("sb_score_card")
 
-[node name="BestLabel" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeRow/ScoreCard" unique_id=75810567]
+[node name="BestLabel" type="Label" parent="ContentMargin/LeftColumn/HeaderGroup/BadgeSpacer/BadgeRow/ScoreCard" unique_id=75810567]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
@@ -347,12 +336,10 @@ alignment = 0
 unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 68)
 layout_mode = 2
-tooltip_text = "Endless mode arrives in a future update"
 focus_neighbor_top = NodePath("../Campaign")
 focus_neighbor_bottom = NodePath("../HowTo")
 focus_next = NodePath("../HowTo")
 focus_previous = NodePath("../Campaign")
-focus_mode = 0
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
 theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
 theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
@@ -364,30 +351,8 @@ theme_override_styles/normal = SubResource("sb_btn_normal")
 theme_override_styles/pressed = SubResource("sb_btn_pressed")
 theme_override_styles/hover = SubResource("sb_btn_hover")
 theme_override_styles/disabled = SubResource("sb_btn_disabled")
-disabled = true
 text = "ENDLESS MODE"
 alignment = 0
-
-[node name="Soon" type="Label" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack/Endless" unique_id=293479511]
-layout_mode = 1
-anchors_preset = 6
-anchor_left = 1.0
-anchor_top = 0.5
-anchor_right = 1.0
-anchor_bottom = 0.5
-offset_left = -90.0
-offset_top = -14.0
-offset_right = -20.0
-offset_bottom = 14.0
-grow_horizontal = 0
-grow_vertical = 2
-theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
-theme_override_fonts/font = ExtResource("2_xbold")
-theme_override_font_sizes/font_size = 15
-theme_override_styles/normal = SubResource("sb_pill_soon")
-text = "SOON"
-horizontal_alignment = 1
-vertical_alignment = 1
 
 [node name="HowTo" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack" unique_id=152294037]
 unique_name_in_owner = true

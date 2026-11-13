@@ -895,6 +895,19 @@ func _test_spawn_director() -> void:
 		and event_director._next_dog_distance <= GameConfig.DOG_FIRST_DISTANCE + GameConfig.DOG_GAP_MAX,
 		"next dog encounter uses the configured random distance gap",
 	)
+
+	# Regression: real ticks during the warning window must not release the
+	# reservation, or the dog never spawns when the warning finishes.
+	for dog_tick_i in 5:
+		event_director.tick(
+			1.0 / 60.0, GameConfig.RUN_SPEED, GameConfig.DOG_FIRST_DISTANCE + 1.0)
+	_check_eq(
+		event_director._dog_reserved_lane,
+		first_lane,
+		"ticking during the warning keeps the dog lane reserved",
+	)
+	_check(event_director._active_dog == null, "no dog until the warning finishes")
+
 	if event_director._dog_warning != null:
 		_check_eq(
 			event_director._dog_warning.sprite.texture.resource_path,
@@ -1073,6 +1086,28 @@ func _test_modes() -> void:
 		GameConfig.Zone.SCHOOL,
 		"campaign enters the school past the street",
 	)
+
+	_check_near(GameConfig.endless_speed_multiplier(0.0), 1.0, 0.0001,
+		"the endless ramp starts at 1.0x")
+	_check_near(GameConfig.endless_speed_multiplier(GameConfig.ENDLESS_RAMP_DISTANCE * 0.5), 1.25, 0.0001,
+		"the endless ramp is linear at half the ramp distance")
+	_check_near(
+		GameConfig.endless_speed_multiplier(GameConfig.ENDLESS_RAMP_DISTANCE),
+		GameConfig.ENDLESS_RAMP_MAX_MULTIPLIER, 0.0001,
+		"the endless ramp reaches its cap at the ramp distance")
+	_check_near(
+		GameConfig.endless_speed_multiplier(GameConfig.ENDLESS_RAMP_DISTANCE * 10.0),
+		GameConfig.ENDLESS_RAMP_MAX_MULTIPLIER, 0.0001,
+		"the endless ramp never exceeds its cap")
+	var ramp_prev := 0.0
+	var ramp_monotonic := true
+	for ramp_step in range(1, 9):
+		var ramp_mult := GameConfig.endless_speed_multiplier(
+			GameConfig.ENDLESS_RAMP_DISTANCE * ramp_step / 8.0)
+		if ramp_mult <= ramp_prev:
+			ramp_monotonic = false
+		ramp_prev = ramp_mult
+	_check(ramp_monotonic, "the endless ramp only increases with distance")
 
 
 func _test_game_state() -> void:
@@ -1566,18 +1601,14 @@ func _test_menu() -> void:
 		"the best readout mirrors the campaign record",
 	)
 
-	_check(menu.endless_button.disabled, "endless is parked behind the campaign pass")
-	_check_eq(
+	_check(not menu.endless_button.disabled, "endless is playable today")
+	_check_ne(
 		menu.endless_button.focus_mode,
 		Control.FOCUS_NONE,
-		"endless cannot steal keyboard focus",
+		"endless can take keyboard focus",
 	)
-	var soon := menu.endless_button.get_node_or_null("Soon") as Label
-	_check(soon != null, "the endless button carries a SOON pill")
-	if soon != null:
-		_check_eq(soon.text, "SOON", "the pill reads SOON")
-		_check_eq(soon.mouse_filter, Control.MOUSE_FILTER_IGNORE,
-			"the pill never eats clicks meant for the button")
+	_check(menu.endless_button.get_node_or_null("Soon") == null,
+		"the endless button no longer carries a SOON pill")
 
 	_check(not menu.how_to_panel.visible, "the how-to overlay starts hidden")
 	_check_eq(
@@ -1602,6 +1633,10 @@ func _test_menu() -> void:
 	_check(
 		menu.campaign_button.pressed.is_connected(menu._on_campaign_pressed),
 		"campaign is wired to launch the run",
+	)
+	_check(
+		menu.endless_button.pressed.is_connected(menu._on_endless_pressed),
+		"endless is wired to launch the run",
 	)
 	_check(
 		menu.quit_button.pressed.is_connected(menu._on_quit_pressed),
@@ -1905,10 +1940,18 @@ func _test_scenes() -> void:
 			world._update_zone()
 			_check_eq(world.current_zone, GameConfig.Zone.STREET,
 				"endless stays in the street forever")
+			_check_near(
+				world._base_speed(),
+				GameConfig.RUN_SPEED * GameConfig.endless_speed_multiplier(world.distance),
+				0.01,
+				"endless base speed rides the ramp",
+			)
 			world.set_run_mode(GameConfig.RunMode.CAMPAIGN)
 			world._update_zone()
 			_check_eq(world.current_zone, GameConfig.Zone.SCHOOL,
 				"campaign enters the school at the same distance")
+			_check_near(world._base_speed(), GameConfig.RUN_SPEED, 0.01,
+				"campaign base speed ignores the ramp at any distance")
 			GameState.best_campaign = 0
 			world._finished = false
 			world.distance = world.campaign_finish_distance
@@ -2026,6 +2069,10 @@ func _check(condition: bool, label: String) -> void:
 
 func _check_eq(actual: Variant, expected: Variant, label: String) -> void:
 	_check(actual == expected, "%s (expected %s, got %s)" % [label, expected, actual])
+
+
+func _check_ne(actual: Variant, expected: Variant, label: String) -> void:
+	_check(actual != expected, "%s (expected NOT %s, got %s)" % [label, expected, actual])
 
 
 func _check_near(actual: float, expected: float, tolerance: float, label: String) -> void:

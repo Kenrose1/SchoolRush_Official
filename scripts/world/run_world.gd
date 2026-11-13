@@ -175,14 +175,23 @@ func set_run_mode(new_mode: int) -> void:
 	)
 
 
+## Speed the run should settle at outside a momentum dip: campaign stays at
+## RUN_SPEED; endless ramps with distance so late runs get faster.
+func _base_speed() -> float:
+	if mode == GameConfig.RunMode.ENDLESS:
+		return GameConfig.RUN_SPEED * GameConfig.endless_speed_multiplier(distance)
+	return GameConfig.RUN_SPEED
+
+
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	if not is_running:
 		return
+	var base := _base_speed()
 	if momentum_time_left > 0.0:
 		momentum_time_left = maxf(momentum_time_left - delta, 0.0)
-		speed = GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR
+		speed = base * GameConfig.MOMENTUM_DIP_FACTOR
 		if momentum_time_left <= 0.0:
 			momentum_recover_time_left = GameConfig.MOMENTUM_RECOVER_TIME
 	elif momentum_recover_time_left > 0.0:
@@ -190,12 +199,12 @@ func _physics_process(delta: float) -> void:
 		var t := 1.0 - clampf(
 			momentum_recover_time_left / GameConfig.MOMENTUM_RECOVER_TIME, 0.0, 1.0)
 		speed = lerpf(
-			GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR,
-			GameConfig.RUN_SPEED,
+			base * GameConfig.MOMENTUM_DIP_FACTOR,
+			base,
 			t,
 		)
 	else:
-		speed = GameConfig.RUN_SPEED
+		speed = base
 	# Keep live hazards/items on the exact current world speed so they ride
 	# the road with no slide through the dip and the ease-back.
 	for child in hazards.get_children():

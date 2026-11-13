@@ -163,7 +163,10 @@ func _on_dog_warning_finished() -> void:
 
 func _refresh_dog_reservation() -> void:
 	# A freed dog compares equal to null in Godot 4, so both a null reference
-	# and a despawned dog fall through to the release below.
+	# and a despawned dog fall through to the release below. While the warning
+	# is still playing the dog does not exist yet, so the reservation holds.
+	if is_instance_valid(_dog_warning) and not _dog_warning.is_queued_for_deletion():
+		return
 	if is_instance_valid(_active_dog) and not _active_dog.is_queued_for_deletion():
 		return
 	_active_dog = null

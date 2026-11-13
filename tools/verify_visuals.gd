@@ -100,6 +100,24 @@ func _ready() -> void:
 	await _wait(90)
 	await _shot("m4_02_caught")
 
+	# Endless deep-street staging: ramped SPEED in the debug readout, street
+	# backdrop, no FINISH line. The run is stopped, so the frame is stable.
+	world.results.visible = false
+	world.arrest.visible = false
+	world.player.sprite.visible = true
+	world.set_run_mode(GameConfig.RunMode.ENDLESS)
+	world.distance = (
+		world.home_zone_length + world.street_zone_length
+		+ GameConfig.ENDLESS_RAMP_DISTANCE * 0.75
+	)
+	world.speed = world._base_speed()
+	world._update_zone()
+	world._update_debug()
+	world.queue_redraw()
+	await _shot("m5_08_endless")
+	world.set_run_mode(GameConfig.RunMode.CAMPAIGN)
+	world.distance = 5880.0
+
 	# M5: hold the zone fade mid-way, then reveal the street zone.
 	world.results.visible = false
 	world.arrest.visible = false

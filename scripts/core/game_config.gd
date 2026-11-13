@@ -106,6 +106,19 @@ const SLIDE_DURATION := 0.55
 ## Base forward speed, used by every zone.
 const RUN_SPEED := 420.0
 
+## Endless speed ramp: a linear multiplier on RUN_SPEED that starts at 1.0 and
+## reaches ENDLESS_RAMP_MAX_MULTIPLIER once ENDLESS_RAMP_DISTANCE px of road
+## have been travelled. Campaign runs never ramp.
+const ENDLESS_RAMP_MAX_MULTIPLIER := 1.5
+const ENDLESS_RAMP_DISTANCE := 40000.0
+
+## Speed multiplier at [param distance_px] for the endless ramp. Monotonic,
+## capped at ENDLESS_RAMP_MAX_MULTIPLIER; distance-based so it is deterministic
+## and testable headless.
+static func endless_speed_multiplier(distance_px: float) -> float:
+	return 1.0 + (ENDLESS_RAMP_MAX_MULTIPLIER - 1.0) * clampf(
+		distance_px / ENDLESS_RAMP_DISTANCE, 0.0, 1.0)
+
 ## Scrolling ground ticks, used to make speed readable in the M1 gray box.
 const GROUND_TICK_LENGTH := 64.0
 const GROUND_TICK_GAP := 96.0
