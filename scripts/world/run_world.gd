@@ -134,7 +134,8 @@ func _ready() -> void:
 		queue_redraw()
 		return
 	set_run_mode(GameState.mode)
-	_debug_label.visible = GameConfig.DEBUG_OVERLAY
+	_debug_label.visible = GameState.debug_overlay
+	GameState.debug_overlay_changed.connect(_on_debug_overlay_changed)
 	results.visible = false
 	arrest.visible = false
 	arrest.scale = Vector2(GameConfig.ARREST_SCALE, GameConfig.ARREST_SCALE)
@@ -250,12 +251,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	match (event as InputEventKey).physical_keycode:
 		KEY_F3:
-			_debug_label.visible = not _debug_label.visible
+			GameState.set_debug_overlay(not GameState.debug_overlay)
 			get_viewport().set_input_as_handled()
 		KEY_R:
 			if not is_running:
 				get_tree().reload_current_scene()
 				get_viewport().set_input_as_handled()
+
+
+## Apply a debug-overlay flip from the settings panel or F3, refreshing the
+## readout so a re-enabled overlay shows live values instead of stale text.
+func _on_debug_overlay_changed(shown: bool) -> void:
+	_debug_label.visible = shown
+	if shown:
+		_update_debug()
 
 
 # --- Run lifecycle -----------------------------------------------------------

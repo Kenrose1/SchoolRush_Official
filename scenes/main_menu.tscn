@@ -9,6 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://ckqlklo3ew6nf" path="res://assets/props/item_book.png" id="7_book"]
 [ext_resource type="Texture2D" uid="uid://cbainy4o7nwae" path="res://assets/props/item_pencil.png" id="8_pencil"]
 [ext_resource type="Texture2D" uid="uid://bpg6acgu2we0s" path="res://assets/props/item_bag.png" id="9_bag"]
+[ext_resource type="PackedScene" path="res://scenes/settings_panel.tscn" id="10_settings"]
 
 [sub_resource type="StyleBoxFlat" id="sb_pill"]
 content_margin_left = 10.0
@@ -623,3 +624,16 @@ theme_override_styles/pressed = SubResource("sb_btn_pressed")
 theme_override_styles/hover = SubResource("sb_btn_hover")
 theme_override_styles/focus = SubResource("sb_btn_hover")
 text = "GOT IT"
+
+[node name="SettingsCenter" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SettingsPanel" parent="SettingsCenter" instance=ExtResource("10_settings")]
+unique_name_in_owner = true
+layout_mode = 2

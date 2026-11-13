@@ -14,6 +14,21 @@ var mode: int = GameConfig.RunMode.CAMPAIGN
 var best_campaign: int = 0
 var best_endless: int = 0
 
+## Emitted when the debug overlay preference flips (settings panel or F3).
+signal debug_overlay_changed(shown: bool)
+
+## Whether the run's debug readout shows. Session-only: it resets to the
+## GameConfig.DEBUG_OVERLAY default on every launch.
+var debug_overlay: bool = GameConfig.DEBUG_OVERLAY
+
+
+## Flip the debug overlay preference and broadcast it.
+func set_debug_overlay(value: bool) -> void:
+	if value == debug_overlay:
+		return
+	debug_overlay = value
+	debug_overlay_changed.emit(value)
+
 
 ## The best score that matters for the current [member mode].
 func best_for_mode(for_mode: int = -1) -> int:

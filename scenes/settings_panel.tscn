@@ -1,0 +1,219 @@
+[gd_scene format=3 uid="uid://de7y84lnoxl7t"]
+
+[ext_resource type="Script" uid="uid://budimuddptded" path="res://scripts/ui/settings_panel.gd" id="1_settings"]
+[ext_resource type="FontFile" uid="uid://cll8r0y660eqw" path="res://assets/fonts/static/InterTight-ExtraBold.ttf" id="2_xbold"]
+
+[sub_resource type="StyleBoxFlat" id="sb_panel"]
+content_margin_left = 44.0
+content_margin_top = 36.0
+content_margin_right = 44.0
+content_margin_bottom = 40.0
+bg_color = Color(0.08, 0.07, 0.1, 0.94)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 0.705882, 0.368627, 0.45)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+shadow_size = 16
+shadow_offset = Vector2(0, 8)
+
+[sub_resource type="StyleBoxFlat" id="sb_slider_groove"]
+content_margin_top = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0.05, 0.04, 0.07, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.94, 0.86, 0.2)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="sb_slider_fill"]
+bg_color = Color(1, 0.705882, 0.368627, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_normal"]
+content_margin_left = 28.0
+content_margin_top = 12.0
+content_margin_right = 28.0
+content_margin_bottom = 12.0
+bg_color = Color(0.1, 0.09, 0.13, 0.82)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 0.25)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_hover"]
+content_margin_left = 28.0
+content_margin_top = 12.0
+content_margin_right = 28.0
+content_margin_bottom = 12.0
+bg_color = Color(0.18, 0.14, 0.22, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[node name="SettingsPanel" type="PanelContainer" unique_id=855371639]
+custom_minimum_size = Vector2(600, 0)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("sb_panel")
+script = ExtResource("1_settings")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=957997985]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="VBox" unique_id=1122173932]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 44
+text = "SETTINGS"
+horizontal_alignment = 1
+
+[node name="MasterRow" type="HBoxContainer" parent="VBox" unique_id=302507456]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="MasterLabel" type="Label" parent="VBox/MasterRow" unique_id=737296331]
+custom_minimum_size = Vector2(210, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 24
+text = "MASTER"
+
+[node name="MasterSlider" type="HSlider" parent="VBox/MasterRow" unique_id=359625712]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/slider = SubResource("sb_slider_groove")
+theme_override_styles/grabber_area = SubResource("sb_slider_fill")
+theme_override_styles/grabber_area_highlight = SubResource("sb_slider_fill")
+value = 100.0
+
+[node name="MusicRow" type="HBoxContainer" parent="VBox" unique_id=769610968]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="MusicLabel" type="Label" parent="VBox/MusicRow" unique_id=716847856]
+custom_minimum_size = Vector2(210, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 24
+text = "MUSIC"
+
+[node name="MusicSlider" type="HSlider" parent="VBox/MusicRow" unique_id=321039701]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/slider = SubResource("sb_slider_groove")
+theme_override_styles/grabber_area = SubResource("sb_slider_fill")
+theme_override_styles/grabber_area_highlight = SubResource("sb_slider_fill")
+value = 100.0
+
+[node name="SfxRow" type="HBoxContainer" parent="VBox" unique_id=640332461]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="SfxLabel" type="Label" parent="VBox/SfxRow" unique_id=1517401376]
+custom_minimum_size = Vector2(210, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 24
+text = "SFX"
+
+[node name="SfxSlider" type="HSlider" parent="VBox/SfxRow" unique_id=254380884]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/slider = SubResource("sb_slider_groove")
+theme_override_styles/grabber_area = SubResource("sb_slider_fill")
+theme_override_styles/grabber_area_highlight = SubResource("sb_slider_fill")
+value = 100.0
+
+[node name="FullscreenRow" type="HBoxContainer" parent="VBox" unique_id=2114543664]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="FullscreenLabel" type="Label" parent="VBox/FullscreenRow" unique_id=1314914122]
+custom_minimum_size = Vector2(210, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 24
+text = "FULLSCREEN"
+
+[node name="FullscreenCheck" type="CheckButton" parent="VBox/FullscreenRow" unique_id=154629494]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/icon_max_width = 56
+
+[node name="DebugRow" type="HBoxContainer" parent="VBox" unique_id=1593998359]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="DebugLabel" type="Label" parent="VBox/DebugRow" unique_id=30046515]
+custom_minimum_size = Vector2(210, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 24
+text = "DEBUG OVERLAY"
+
+[node name="DebugCheck" type="CheckButton" parent="VBox/DebugRow" unique_id=1007633228]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/icon_max_width = 56
+button_pressed = true
+
+[node name="BackButton" type="Button" parent="VBox" unique_id=1976440118]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 28
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "BACK"

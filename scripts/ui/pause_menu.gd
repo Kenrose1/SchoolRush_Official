@@ -30,6 +30,8 @@ var _world: RunWorld = null
 
 @onready var button: Button = $Button
 @onready var overlay: Control = $Overlay
+@onready var center: CenterContainer = $Overlay/Center
+@onready var settings_panel: SettingsPanel = %SettingsPanel
 @onready var title: Label = $Overlay/Center/Panel/VBox/Title
 @onready var resume_button: Button = $Overlay/Center/Panel/VBox/Resume
 @onready var restart_button: Button = $Overlay/Center/Panel/VBox/Restart
@@ -50,6 +52,8 @@ func _ready() -> void:
 	
 	resume_button.pressed.connect(_on_resume_pressed)
 	restart_button.pressed.connect(_on_restart_pressed)
+	settings_button.pressed.connect(_on_settings_pressed)
+	settings_panel.closed.connect(_on_settings_closed)
 	quit_button.pressed.connect(_on_quit_pressed)
 
 
@@ -86,6 +90,11 @@ func set_paused(value: bool) -> void:
 	overlay.visible = value
 	button.visible = not value and _can_pause()
 	if value:
+		# A settings panel left open from a previous pause must not survive
+		# into the next one - close it before the menu takes focus.
+		if settings_panel.visible:
+			settings_panel.close()
+			center.visible = true
 		resume_button.grab_focus()
 	pause_changed.emit(value)
 
@@ -101,6 +110,18 @@ func _on_resume_pressed() -> void:
 func _on_restart_pressed() -> void:
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+
+
+## Swap the pause button column for the shared settings panel.
+func _on_settings_pressed() -> void:
+	center.visible = false
+	settings_panel.open()
+
+
+## Back out of settings and hand focus to the button that opened it.
+func _on_settings_closed() -> void:
+	center.visible = true
+	settings_button.grab_focus()
 
 
 func _on_quit_pressed() -> void:

@@ -17,6 +17,7 @@ const BEST_FORMAT := "BEST  %06d"
 @onready var best_label: Label = %BestLabel
 @onready var how_to_panel: PanelContainer = %HowToPanel
 @onready var back_button: Button = %BackButton
+@onready var settings_panel: SettingsPanel = %SettingsPanel
 @onready var elias_sprite: AnimatedSprite2D = %EliasVignette
 @onready var tanod_sprite: AnimatedSprite2D = %TanodVignette
 @onready var title_label: Label = %TitleLabel
@@ -39,6 +40,8 @@ func _ready() -> void:
 	campaign_button.pressed.connect(_on_campaign_pressed)
 	how_to_button.pressed.connect(_on_how_to_pressed)
 	back_button.pressed.connect(_on_how_to_pressed)
+	settings_button.pressed.connect(_on_settings_pressed)
+	settings_panel.closed.connect(_on_settings_closed)
 	quit_button.pressed.connect(_on_quit_pressed)
 	
 	_buttons = [campaign_button, how_to_button, settings_button, quit_button]
@@ -122,6 +125,19 @@ func _on_how_to_pressed() -> void:
 		back_button.grab_focus()
 	else:
 		campaign_button.grab_focus()
+
+
+## Open the settings panel. The how-to overlay closes first so the two
+## overlays never stack.
+func _on_settings_pressed() -> void:
+	if how_to_panel.visible:
+		_on_how_to_pressed()
+	settings_panel.open()
+
+
+## Back out of settings and hand focus to the button that opened it.
+func _on_settings_closed() -> void:
+	settings_button.grab_focus()
 
 
 func _on_quit_pressed() -> void:

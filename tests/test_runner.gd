@@ -59,6 +59,9 @@ func _ready() -> void:
 	_section("Main menu")
 	_test_menu()
 
+	_section("Settings")
+	_test_settings()
+
 	_section("Scenes")
 	_test_scenes()
 
@@ -1541,8 +1544,8 @@ func _test_menu() -> void:
 	if menu == null:
 		return
 
-	_check_eq(menu.campaign_button.text, "CAMPAIGN", "the campaign button reads CAMPAIGN")
-	_check_eq(menu.endless_button.text, "ENDLESS", "the endless button reads ENDLESS")
+	_check_eq(menu.campaign_button.text, "RUN TO SCHOOL", "the campaign button reads RUN TO SCHOOL")
+	_check_eq(menu.endless_button.text, "ENDLESS MODE", "the endless button reads ENDLESS MODE")
 	_check_eq(menu.how_to_button.text, "HOW TO PLAY", "the how-to button reads HOW TO PLAY")
 	_check_eq(menu.quit_button.text, "QUIT", "the quit button reads QUIT")
 
@@ -1554,8 +1557,8 @@ func _test_menu() -> void:
 	)
 	_check_eq(
 		menu.best_label.get_theme_font("font").resource_path,
-		"res://assets/fonts/static/InterTight-SemiBold.ttf",
-		"the best readout uses Inter Tight SemiBold",
+		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
+		"the best readout uses Inter Tight ExtraBold",
 	)
 	_check_eq(
 		menu.best_label.text,
@@ -1605,6 +1608,139 @@ func _test_menu() -> void:
 		"quit is wired to close the app",
 	)
 	menu.queue_free()
+
+
+func _test_settings() -> void:
+	# The shared panel loads with its controls wired.
+	var panel_scene := load("res://scenes/settings_panel.tscn") as PackedScene
+	_check(panel_scene != null, "settings panel scene loads")
+	if panel_scene == null:
+		return
+
+	var panel := panel_scene.instantiate() as SettingsPanel
+	add_child(panel)
+	if panel == null:
+		return
+	_check(not panel.visible, "the settings panel starts hidden")
+
+	# The bus layout ships Master, Music and SFX for the sliders to drive.
+	_check_eq(
+		AudioServer.get_bus_index("Master"), SettingsPanel.BUS_MASTER,
+		"the Master bus sits at index 0",
+	)
+	_check_eq(
+		AudioServer.get_bus_index("Music"), SettingsPanel.BUS_MUSIC,
+		"the Music bus sits at index 1",
+	)
+	_check_eq(
+		AudioServer.get_bus_index("SFX"), SettingsPanel.BUS_SFX,
+		"the SFX bus sits at index 2",
+	)
+
+	# Volume helpers: percent <-> db round trip, mute at zero, clamped top.
+	SettingsPanel.set_bus_volume_percent(SettingsPanel.BUS_MUSIC, 50)
+	_check(
+		absf(SettingsPanel.bus_volume_percent(SettingsPanel.BUS_MUSIC) - 50.0) < 0.01,
+		"setting 50% music reads back 50%",
+	)
+	_check(
+		absf(AudioServer.get_bus_volume_db(SettingsPanel.BUS_MUSIC) - linear_to_db(0.5)) < 0.01,
+		"50% music lands on the matching db value",
+	)
+	_check(
+		not AudioServer.is_bus_mute(SettingsPanel.BUS_MUSIC),
+		"a mid volume leaves the bus unmuted",
+	)
+	SettingsPanel.set_bus_volume_percent(SettingsPanel.BUS_MUSIC, 0)
+	_check(AudioServer.is_bus_mute(SettingsPanel.BUS_MUSIC), "0% music mutes the bus")
+	_check_eq(SettingsPanel.bus_volume_percent(SettingsPanel.BUS_MUSIC), 0.0, "0% music reads back 0")
+	SettingsPanel.set_bus_volume_percent(SettingsPanel.BUS_MUSIC, 100)
+	_check(
+		not AudioServer.is_bus_mute(SettingsPanel.BUS_MUSIC),
+		"100% music unmutes the bus",
+	)
+	_check(
+		absf(AudioServer.get_bus_volume_db(SettingsPanel.BUS_MUSIC)) < 0.01,
+		"100% music is unity gain",
+	)
+	SettingsPanel.set_bus_volume_percent(SettingsPanel.BUS_MUSIC, 150)
+	_check_eq(
+		SettingsPanel.bus_volume_percent(SettingsPanel.BUS_MUSIC), 100.0,
+		"out-of-range percents clamp to 100",
+	)
+
+	# open() syncs every control to the live state.
+	panel.open()
+	_check(panel.visible, "open() reveals the panel")
+	_check_eq(
+		panel.master_slider.value,
+		SettingsPanel.bus_volume_percent(SettingsPanel.BUS_MASTER),
+		"open() syncs the master slider to the bus",
+	)
+	_check_eq(
+		panel.debug_check.button_pressed, GameState.debug_overlay,
+		"open() syncs the debug check to GameState",
+	)
+
+	# The debug toggle writes through to GameState (restored right after).
+	var was_debug := GameState.debug_overlay
+	panel.debug_check.button_pressed = not was_debug
+	_check_eq(GameState.debug_overlay, not was_debug, "the debug toggle writes through to GameState")
+	GameState.set_debug_overlay(was_debug)
+
+	# The fullscreen toggle tracks its state (window mode itself is
+	# platform-dependent, so only the control is asserted).
+	var was_fullscreen := panel.fullscreen_check.button_pressed
+	panel.fullscreen_check.button_pressed = not was_fullscreen
+	_check_eq(
+		panel.fullscreen_check.button_pressed, not was_fullscreen,
+		"the fullscreen check tracks its toggle",
+	)
+	panel.fullscreen_check.button_pressed = was_fullscreen
+
+	# close() hides the panel and tells the host.
+	var closed_fired := [false]
+	panel.closed.connect(func(): closed_fired[0] = true)
+	panel.close()
+	_check(not panel.visible, "close() hides the panel")
+	_check(closed_fired[0], "close() emits closed")
+	panel.queue_free()
+
+	# Menu integration: SETTINGS opens the panel, BACK restores the button.
+	var menu := (load("res://scenes/main_menu.tscn") as PackedScene).instantiate() as MainMenu
+	add_child(menu)
+	menu._on_settings_pressed()
+	_check(menu.settings_panel.visible, "the menu's SETTINGS button opens the panel")
+	menu.settings_panel.close()
+	_check(not menu.settings_panel.visible, "BACK hides the menu's panel")
+	_check(
+		menu.settings_button.has_focus(),
+		"closing settings refocuses the SETTINGS button",
+	)
+	menu.queue_free()
+
+	# Pause integration: the overlay swaps its button column for the panel.
+	var hud := (load("res://scenes/hud.tscn") as PackedScene).instantiate()
+	add_child(hud)
+	var pause := hud.get_node("HudRoot/Pause") as PauseMenu
+	_check(pause != null, "the hud carries the pause menu")
+	if pause != null:
+		pause._on_settings_pressed()
+		_check(not pause.center.visible, "pause settings hide the button column")
+		_check(pause.settings_panel.visible, "pause settings show the shared panel")
+		pause.settings_panel.close()
+		_check(pause.center.visible, "closing settings restores the button column")
+		_check(
+			pause.settings_button.has_focus(),
+			"closing pause settings refocuses SETTINGS",
+		)
+		# A panel left open must not survive into the next pause.
+		pause._on_settings_pressed()
+		pause.set_paused(true)
+		_check(not pause.settings_panel.visible, "re-pausing closes a left-open panel")
+		_check(pause.center.visible, "re-pausing restores the button column")
+		pause.set_paused(false)
+	hud.queue_free()
 
 
 func _test_scenes() -> void:
@@ -1779,14 +1915,14 @@ func _test_scenes() -> void:
 			world._finish_campaign()
 			_check(not world.is_running, "crossing the finish stops the run")
 			_check(world.results.visible, "the finish shows the results overlay")
-			_check_eq(world.results.title_label.text, "MADE IT!",
+			_check_eq(world.results.title_label.text, "MADE IT TO CLASS!",
 				"a finished campaign reads MADE IT!")
 			_check_eq(world.results.stat_text("distance"), "FINISH",
 				"a finished run reports the line, not a distance")
 			_check_eq(world.results.awarded_medal(), GameConfig.Medal.SILVER,
 				"a first clear medals silver")
 			world._finish_campaign()
-			_check_eq(world.results.title_label.text, "MADE IT!",
+			_check_eq(world.results.title_label.text, "MADE IT TO CLASS!",
 				"the finish reports exactly once")
 
 			# Campaign spawn cutoff: the last stretch before the line is clear.
@@ -1829,7 +1965,7 @@ func _test_scenes() -> void:
 				far._physics_process(1.0 / 60.0)
 			_check(not far.is_running, "physics crossing the line stops the run")
 			_check(far.results.visible, "physics crossing the line shows the results")
-			_check_eq(far.results.title_label.text, "MADE IT!",
+			_check_eq(far.results.title_label.text, "MADE IT TO CLASS!",
 				"a physics-driven finish reads MADE IT!")
 			_check(far.distance < far.campaign_finish_distance + GameConfig.RUN_SPEED,
 				"the world froze within a second of the line")

@@ -37,6 +37,11 @@ func _ready() -> void:
 	add_child(menu)
 	await _wait(2)
 	await _shot("m5_00_menu")
+	# Settings panel open, captured from the menu host.
+	menu._on_settings_pressed()
+	await _wait(2)
+	await _shot("m5_01_settings")
+	menu.settings_panel.close()
 	menu.queue_free()
 	await _wait(2)
 
@@ -52,6 +57,9 @@ func _ready() -> void:
 	# paused, so wait on the draw signal rather than on physics frames.
 	world.pause_menu.set_paused(true)
 	await _shot("m5_06_paused")
+	world.pause_menu._on_settings_pressed()
+	await _shot("m5_07_pause_settings")
+	world.pause_menu.settings_panel.close()
 	world.pause_menu.set_paused(false)
 	await _wait(2)
 
