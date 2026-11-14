@@ -13,7 +13,7 @@ signal slide_started
 signal slide_finished
 signal damaged(remaining_hearts: int)
 signal health_changed(current: int, maximum: int)
-signal shield_changed(charges: int)
+signal shield_changed(current: int, maximum: int)
 signal shield_used(charges: int)
 signal item_collected(kind: int)
 signal died
@@ -39,6 +39,8 @@ var max_health: int = GameConfig.MAX_HEARTS
 var shield_charges: int = 0
 var shield_max: int = 0
 var invulnerable_time_left: float = 0.0
+## Test counter: how many times the hurt sound actually fired.
+var hurt_play_count: int = 0
 ## Set by RunWorld each frame from the pursuer. While true, a hazard hit is an
 ## instant loss (hearts and i-frames are ignored).
 var pursuer_active: bool = false
@@ -50,6 +52,7 @@ var _current_anim: StringName = &""
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var hitbox: Area2D = $Hitbox
 @onready var hitbox_shape: CollisionShape2D = $Hitbox/Shape
+@onready var hurt_sfx: AudioStreamPlayer = %HurtSfx
 
 ## Per-instance copy so sliding cannot resize shapes shared between players.
 var _box: RectangleShape2D
@@ -73,7 +76,7 @@ func _ready() -> void:
 	_play(&"run")
 	_apply_pose()
 	health_changed.emit(health, max_health)
-	shield_changed.emit(shield_charges)
+	shield_changed.emit(shield_charges, shield_max)
 
 
 func _physics_process(delta: float) -> void:
@@ -154,17 +157,25 @@ func take_damage(amount: int = 1) -> bool:
 	if shield_charges > 0:
 		shield_charges = maxi(shield_charges - 1, 0)
 		invulnerable_time_left = GameConfig.I_FRAME_TIME
-		shield_changed.emit(shield_charges)
+		shield_changed.emit(shield_charges, shield_max)
 		shield_used.emit(shield_charges)
 		return false
 	health = maxi(health - amount, 0)
 	invulnerable_time_left = GameConfig.I_FRAME_TIME
 	_hurt_time_left = GameConfig.HURT_ANIM_TIME
+	_play_hurt_sound()
 	damaged.emit(health)
 	health_changed.emit(health, max_health)
 	if health == 0:
 		died.emit()
 	return true
+
+
+## Hurt sound fires only when a heart is actually lost - shield absorbs and
+## i-frame-blocked hits stay silent. Counted for the test suite.
+func _play_hurt_sound() -> void:
+	hurt_play_count += 1
+	hurt_sfx.play()
 
 
 ## Restore full health and shields and clear invulnerability (used by tests
@@ -175,7 +186,7 @@ func reset_health() -> void:
 	invulnerable_time_left = 0.0
 	_hurt_time_left = 0.0
 	health_changed.emit(health, max_health)
-	shield_changed.emit(shield_charges)
+	shield_changed.emit(shield_charges, shield_max)
 
 
 # --- Movement ----------------------------------------------------------------

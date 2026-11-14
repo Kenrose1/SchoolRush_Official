@@ -10,9 +10,28 @@ extends Node
 var _checks := 0
 var _failures := 0
 
+# The whole suite runs against this scratch save so the player's real
+# progress (wallet + bought upgrades) can never skew gameplay tests.
+const SUITE_SAVE_PATH := "user://test_suite_scratch.cfg"
+var _real_save_path: String
+var _real_coins: int
+var _real_levels: Dictionary
+
 
 func _ready() -> void:
 	await get_tree().process_frame
+
+	# Isolate from the real save: defaults for wallet and shop levels.
+	_real_save_path = GameState.save_path
+	_real_coins = GameState.coins
+	_real_levels = GameState.shop_levels.duplicate()
+	GameState.save_path = SUITE_SAVE_PATH
+	GameState.coins = 0
+	GameState.shop_levels = {}
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var stale := SUITE_SAVE_PATH + suffix
+		if FileAccess.file_exists(stale):
+			DirAccess.remove_absolute(stale)
 
 	_section("GameConfig")
 	_test_config()
@@ -79,6 +98,12 @@ func _ready() -> void:
 
 	_section("Scenes")
 	_test_scenes()
+
+	# Hand the player's real save back before exiting.
+	GameState.save_path = _real_save_path
+	GameState.coins = _real_coins
+	GameState.shop_levels = _real_levels
+	GameState.coins_changed.emit(GameState.coins)
 
 	_report()
 
@@ -493,7 +518,13 @@ func _test_health() -> void:
 	_check(player.can_take_damage(), "a fresh player can take damage")
 	_check_eq(health_events.size(), 1, "initial health is broadcast")
 
+	# Hurt sound: node, bus, and landed-hit-only behavior.
+	_check(player.hurt_sfx != null, "the player carries a hurt sound player")
+	_check_eq((player.hurt_sfx as AudioStreamPlayer).bus, "SFX", "the hurt sound routes to the SFX bus")
+	_check(player.hurt_play_count == 0, "the hurt sound is silent before any hit")
+
 	_check(player.take_damage(), "the first hit lands")
+	_check_eq(player.hurt_play_count, 1, "a landed hit plays the hurt sound")
 	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "the first hit removes one heart")
 	_check_eq(damaged_events.size(), 1, "damaged fires once")
 	_check_eq(health_events.size(), 2, "health_changed fires on damage")
@@ -501,6 +532,7 @@ func _test_health() -> void:
 	_check(not player.can_take_damage(), "the player is invulnerable right after a hit")
 	_check(not player.take_damage(), "a hit inside the i-frame window is ignored")
 	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "the ignored hit costs no heart")
+	_check_eq(player.hurt_play_count, 1, "an i-frame-blocked hit stays silent")
 
 	var steps := int(ceil(GameConfig.I_FRAME_TIME * 60.0)) + 2
 	for i in steps:
@@ -1830,7 +1862,7 @@ func _test_shop() -> void:
 	add_child(shielded)
 	shielded.set_physics_process(false)
 	var shield_events: Array[int] = []
-	shielded.shield_changed.connect(func(charges: int) -> void: shield_events.append(charges))
+	shielded.shield_changed.connect(func(current: int, maximum: int) -> void: shield_events.append(current))
 	var shield_hits: Array[int] = []
 	shielded.damaged.connect(func(remaining: int) -> void: shield_hits.append(remaining))
 
@@ -1841,6 +1873,7 @@ func _test_shop() -> void:
 	_check_eq(shielded.health, GameConfig.MAX_HEARTS, "an absorbed hit costs no heart")
 	_check_eq(shield_hits.size(), 0, "an absorbed hit never emits damaged")
 	_check_eq(shield_events.size(), 1, "the shield signal fires per absorb")
+	_check_eq(shielded.hurt_play_count, 0, "an absorbed hit stays silent")
 	_check_near(shielded.invulnerable_time_left, GameConfig.I_FRAME_TIME, 0.001,
 		"an absorb still grants i-frames")
 	_check(not shielded.take_damage(), "a hit inside the post-absorb i-frames is ignored")
@@ -1852,6 +1885,7 @@ func _test_shop() -> void:
 		shielded._physics_process(1.0 / 60.0)
 	_check(shielded.take_damage(), "a hit with no charges lands")
 	_check_eq(shielded.health, GameConfig.MAX_HEARTS - 1, "a landed hit costs a heart")
+	_check_eq(shielded.hurt_play_count, 1, "a landed hit plays the hurt sound")
 	shielded.reset_health()
 	_check_eq(shielded.shield_charges, 2, "reset refills the shields")
 	shielded.queue_free()
@@ -1913,25 +1947,73 @@ func _test_shop() -> void:
 	GameState.coins = pre_coins
 	GameState.save_path = pre_save_path
 
-	# --- HUD: shield pips ride the hearts card --------------------------------
+	# --- HUD: shield pips live on their own movable panel below the hearts ----
 	var hud_scene := load("res://scenes/hud.tscn") as PackedScene
 	var hud_root := hud_scene.instantiate()
 	add_child(hud_root)
 	var hud := hud_root.get_node("HudRoot/Hearts") as HeartsHud
+	var shield_panel := hud.get_node("ShieldPanel") as PanelContainer
+	_check(shield_panel != null, "the shield has its own panel")
+	_check(shield_panel.get_parent() == hud.get_node("Panel").get_parent(),
+		"the shield panel is a sibling of the hearts panel, not a child")
+	_check(shield_panel.position.y > hud.get_node("Panel").position.y,
+		"the shield panel sits below the hearts panel")
+	_check(not shield_panel.visible, "the shield panel hides when nothing is bought")
 	hud.set_shields(2, 2)
+	_check(shield_panel.visible, "the shield panel appears when charges exist")
 	_check_eq(hud.shield_count(), 2, "two bought charges show two pips")
 	hud.set_shields(1, 2)
-	_check_eq(hud.shield_count(), 2, "a spent pip stays visible but dimmed")
-	var pips: Array = hud.get_node("Panel/Row").get_children().filter(
-		func(child: Node) -> bool: return child is TextureRect and child.texture == hud.SHIELD_TEXTURE)
-	if pips.size() == 2:
-		_check_near((pips[0] as TextureRect).modulate.a, 1.0, 0.01, "a charged pip is bright")
-		_check_near((pips[1] as TextureRect).modulate.a, 0.25, 0.01, "a spent pip is dim")
-	else:
-		_check(false, "the shield pips render in the hearts row")
+	_check_eq(hud.shield_count(), 1, "a spent pip disappears entirely")
+	hud.set_shields(0, 2)
+	_check_eq(hud.shield_count(), 0, "the last spent pip disappears too")
+	_check(not shield_panel.visible,
+		"the shield panel disappears once every charge is spent")
+	# A refill (e.g. reset_health) brings the panel back automatically.
+	hud.set_shields(2, 2)
+	_check(shield_panel.visible, "a refill brings the shield panel back")
+	_check_eq(hud.shield_count(), 2, "a refill restores both pips")
 	hud.set_shields(0, 0)
-	_check_eq(hud.shield_count(), 0, "no shield level shows no pips")
+	_check(not shield_panel.visible,
+		"the shield panel collapses when the upgrade is not bought")
+	var row := hud.get_node("Panel/Row") as HBoxContainer
+	var shield_row := hud.get_node("ShieldPanel/ShieldRow") as HBoxContainer
+	_check(shield_row.get_parent() == shield_panel,
+		"the shield row belongs to the shield panel")
+	_check(row.get_parent() == hud.get_node("Panel"),
+		"the hearts row belongs to the hearts panel")
+	hud.set_shields(2, 2)
+	var shield_row_node := hud.get_node("ShieldPanel/ShieldRow")
+	if shield_row_node.get_child_count() > 0:
+		var pip := shield_row_node.get_child(0) as TextureRect
+		if pip != null:
+			_check_eq(pip.custom_minimum_size, Vector2(44, 44),
+				"shield pips render at heart size (44 px)")
 	hud_root.queue_free()
+
+	# --- HUD: the real run wiring updates the shield pips on absorb ----------
+	# Regression guard for the signal mismatch: shield_changed used to emit one
+	# argument while set_shields takes two, so pips never vanished mid-run.
+	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = 2
+	var run_scene := load("res://scenes/main.tscn") as PackedScene
+	var run_root := run_scene.instantiate()
+	add_child(run_root)
+	var run_player := run_root.get_node("RunWorld/Player") as Player
+	var run_hud := run_root.get_node("RunWorld/Hud/HudRoot/Hearts") as HeartsHud
+	_check(run_player != null, "the run scene has a player")
+	_check(run_hud != null, "the run scene has a hearts HUD")
+	if run_player != null and run_hud != null:
+		run_player.set_physics_process(false)
+		_check_eq(run_hud.shield_count(), 2, "a run with shields starts at two pips")
+		run_player.take_damage()
+		_check_eq(run_hud.shield_count(), 1, "an absorbed hit removes one pip live")
+		for i in int(ceil(GameConfig.I_FRAME_TIME * 60.0)) + 2:
+			run_player._physics_process(1.0 / 60.0)
+		run_player.take_damage()
+		_check_eq(run_hud.shield_count(), 0, "the second absorb removes the last pip")
+		_check(not (run_hud.get_node("ShieldPanel") as Control).visible,
+			"the panel disappears when the last charge is spent")
+	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = 0
+	run_root.queue_free()
 
 	# --- Panel: cards, disabled states, focus, close --------------------------
 	GameState.coins = 500
@@ -1949,6 +2031,18 @@ func _test_shop() -> void:
 	_check(not buy_button.disabled, "an affordable card's buy button is enabled")
 	_check_eq(buy_button.text, "BUY  %d" % GameConfig.shop_cost(
 		GameConfig.ShopUpgrade.HEARTS, 0), "the buy button shows the next price")
+
+	# Card labels use the game's Inter Tight fonts, not the engine default.
+	var card: Dictionary = panel._cards[GameConfig.ShopUpgrade.HEARTS]
+	_check_eq((card["name"] as Label).get_theme_font("font").resource_path,
+		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
+		"card names use Inter Tight ExtraBold")
+	_check_eq((card["desc"] as Label).get_theme_font("font").resource_path,
+		"res://assets/fonts/static/InterTight-SemiBold.ttf",
+		"card descriptions use Inter Tight SemiBold")
+	_check_eq((card["buy"] as Button).get_theme_font("font").resource_path,
+		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
+		"buy buttons use Inter Tight ExtraBold")
 	panel.close()
 	_check(not panel.visible, "close() hides the store")
 
@@ -2302,11 +2396,15 @@ func _test_menu_music() -> void:
 	menu.shop_panel.close()
 	menu.settings_panel.close()
 
-	# Menu-only guarantee: the run scene has no music player of its own.
+	# Menu-only guarantee: the run scene plays no MUSIC of its own (gameplay
+	# SFX like the player's hurt sound are allowed on the SFX bus).
 	var run_root := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(run_root)
-	_check_eq(run_root.find_children("*", "AudioStreamPlayer", true, false).size(), 0,
-		"the run scene carries no music player (menu only)")
+	var run_music := 0
+	for player_node: Node in run_root.find_children("*", "AudioStreamPlayer", true, false):
+		if (player_node as AudioStreamPlayer).bus == &"Music":
+			run_music += 1
+	_check_eq(run_music, 0, "the run scene carries no music (menu only)")
 	run_root.queue_free()
 	menu.queue_free()
 

@@ -20,6 +20,13 @@ const CARD_ICONS := {
 	GameConfig.ShopUpgrade.SHIELD: preload("res://assets/icon/upgrades/shield.png"),
 }
 
+# Card labels are built in code, so the Inter Tight weights are applied
+# explicitly - the engine default font would otherwise take over.
+const NAME_FONT: FontFile = preload(
+	"res://assets/fonts/static/InterTight-ExtraBold.ttf")
+const SUB_FONT: FontFile = preload(
+	"res://assets/fonts/static/InterTight-SemiBold.ttf")
+
 @onready var wallet_label: Label = %WalletLabel
 @onready var wallet_chip: HBoxContainer = %WalletChip
 @onready var grid: GridContainer = %UpgradeGrid
@@ -89,6 +96,7 @@ func _build_cards() -> void:
 		var name_label := Label.new()
 		name_label.text = data["name"]
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_label.add_theme_font_override("font", NAME_FONT)
 		name_label.add_theme_font_size_override("font_size", 26)
 		name_label.add_theme_color_override(
 			"font_color", Color(1.0, 0.94, 0.86))
@@ -99,6 +107,7 @@ func _build_cards() -> void:
 		desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		desc_label.custom_minimum_size = Vector2(250.0, 0.0)
+		desc_label.add_theme_font_override("font", SUB_FONT)
 		desc_label.add_theme_font_size_override("font_size", 18)
 		desc_label.add_theme_color_override(
 			"font_color", Color(1.0, 0.94, 0.86, 0.7))
@@ -110,6 +119,7 @@ func _build_cards() -> void:
 		var buy := Button.new()
 		buy.custom_minimum_size = Vector2(150.0, 48.0)
 		buy.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		buy.add_theme_font_override("font", NAME_FONT)
 		buy.add_theme_font_size_override("font_size", 22)
 		buy.add_theme_color_override("font_color", Color(1.0, 0.94, 0.86))
 		buy.add_theme_color_override("font_focus_color", Color(1.0, 0.94, 0.86))
@@ -123,7 +133,8 @@ func _build_cards() -> void:
 		card.add_child(buy)
 
 		grid.add_child(frame)
-		_cards[kind] = {"pips": pips, "buy": buy, "card": frame}
+		_cards[kind] = {"pips": pips, "buy": buy, "card": frame,
+			"name": name_label, "desc": desc_label}
 
 
 func _make_card_frame() -> PanelContainer:

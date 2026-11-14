@@ -8,6 +8,8 @@ const SHIELD_TEXTURE := preload("res://assets/icon/upgrades/shield.png")
 
 @onready var _panel: PanelContainer = $Panel
 @onready var _row: HBoxContainer = $Panel/Row
+@onready var _shield_panel: PanelContainer = $ShieldPanel
+@onready var _shield_row: HBoxContainer = $ShieldPanel/ShieldRow
 var _hearts: Array[TextureRect] = []
 var _shields: Array[TextureRect] = []
 var _last_current: int = -1
@@ -54,28 +56,20 @@ func set_hearts(current: int, maximum: int) -> void:
 	_last_current = current
 
 
-## Shield charges bought in the shop, shown as pips after the hearts. A spent
-## charge dims in place with a pop, so the block reads clearly mid-run.
+## Shield charges bought in the shop, drawn on their own movable panel BELOW
+## the hearts card. A spent charge disappears entirely (with max 2 you go
+## two -> one -> none), and once the last charge is spent the whole panel
+## hides too - it comes back when the charges are refilled (e.g. on reset).
 func set_shields(current: int, maximum: int) -> void:
+	_shield_panel.visible = current > 0
 	if maximum > 0 and _shields.is_empty():
 		# Build the pip set once, sized for the bought level.
-		var spacer := Control.new()
-		spacer.custom_minimum_size = Vector2(10, 0)
-		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_row.add_child(spacer)
 		for i in maximum:
 			var icon := _make_shield_icon()
-			_row.add_child(icon)
+			_shield_row.add_child(icon)
 			_shields.append(icon)
 	for index in _shields.size():
-		var icon := _shields[index]
-		icon.visible = index < maximum
-		if index >= maximum:
-			continue
-		var charged := index < current
-		icon.modulate = Color(1.0, 1.0, 1.0, 1.0) if charged else Color(1.0, 1.0, 1.0, 0.25)
-		if not charged and _last_shields > current and _last_shields != -1:
-			_play_shield_pop(icon)
+		_shields[index].visible = index < current
 	_last_shields = current
 
 
@@ -88,19 +82,13 @@ func shield_count() -> int:
 	return visible
 
 
-func _play_shield_pop(icon: TextureRect) -> void:
-	var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(icon, "scale", Vector2(1.5, 1.5), 0.1)
-	tw.tween_property(icon, "scale", Vector2.ONE, 0.18)
-
-
 func _make_shield_icon() -> TextureRect:
 	var icon := TextureRect.new()
-	icon.custom_minimum_size = Vector2(36.0, 36.0)
+	icon.custom_minimum_size = Vector2(44.0, 44.0)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	icon.pivot_offset = Vector2(18.0, 18.0)
+	icon.pivot_offset = Vector2(22.0, 22.0)
 	icon.texture = SHIELD_TEXTURE
 	return icon
 

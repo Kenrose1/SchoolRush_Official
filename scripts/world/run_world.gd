@@ -149,7 +149,7 @@ func _ready() -> void:
 	player.caught.connect(_on_player_caught)
 	player.item_collected.connect(_on_item_collected)
 	player.damaged.connect(_on_player_damaged)
-	# Shield pips ride the hearts card; pushed on every charge change.
+	# Shield pips live on their own panel; pushed on every charge change.
 	player.shield_changed.connect(hud.set_shields)
 	pursuer.caught.connect(_on_pursuer_caught)
 	pursuer.lunge_finished.connect(_on_lunge_finished)
