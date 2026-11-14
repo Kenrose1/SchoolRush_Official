@@ -41,18 +41,28 @@ var shield_max: int = 0
 var invulnerable_time_left: float = 0.0
 ## Test counter: how many times the hurt sound actually fired.
 var hurt_play_count: int = 0
+## Counted for the test suite; pitch is re-rolled per launch (see below).
+var jump_play_count: int = 0
 ## Set by RunWorld each frame from the pursuer. While true, a hazard hit is an
 ## instant loss (hearts and i-frames are ignored).
 var pursuer_active: bool = false
 
+## Pitch spread for the jump sound: each launch re-rolls playback pitch in
+## 1.0 ± this value, so consecutive jumps never sound identical.
+const JUMP_PITCH_VARIATION := 0.05
+
 var _lean: float = 0.0
 var _hurt_time_left: float = 0.0
 var _current_anim: StringName = &""
+## Per-launch pitch variation for the jump sound, so repeated jumps do not
+## sound like a machine gun.
+var _sfx_rng := RandomNumberGenerator.new()
 
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var hitbox: Area2D = $Hitbox
 @onready var hitbox_shape: CollisionShape2D = $Hitbox/Shape
 @onready var hurt_sfx: AudioStreamPlayer = %HurtSfx
+@onready var jump_sfx: AudioStreamPlayer = %JumpSfx
 
 ## Per-instance copy so sliding cannot resize shapes shared between players.
 var _box: RectangleShape2D
@@ -60,6 +70,7 @@ var _box: RectangleShape2D
 
 func _ready() -> void:
 	lane_y = GameConfig.lane_y(lane)
+	_sfx_rng.randomize()
 	# Shop upgrades: bigger heart pool and starting shield charges.
 	max_health = GameConfig.shop_max_hearts(GameState.shop_level(GameConfig.ShopUpgrade.HEARTS))
 	health = max_health
@@ -129,6 +140,7 @@ func jump() -> bool:
 	# Spring Shoes upgrade scales the launch speed (and so the apex).
 	vertical_speed = GameConfig.shop_jump_speed(
 		GameState.shop_level(GameConfig.ShopUpgrade.JUMP))
+	_play_jump_sound()
 	jumped.emit()
 	return true
 
@@ -176,6 +188,15 @@ func take_damage(amount: int = 1) -> bool:
 func _play_hurt_sound() -> void:
 	hurt_play_count += 1
 	hurt_sfx.play()
+
+
+## Jump sound fires once per actual launch (jump() returns early mid-air), with
+## a re-rolled pitch in ±JUMP_PITCH_VARIATION so repeats do not sound identical.
+func _play_jump_sound() -> void:
+	jump_play_count += 1
+	jump_sfx.pitch_scale = 1.0 + _sfx_rng.randf_range(
+		-JUMP_PITCH_VARIATION, JUMP_PITCH_VARIATION)
+	jump_sfx.play()
 
 
 ## Restore full health and shields and clear invulnerability (used by tests

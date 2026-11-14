@@ -11,7 +11,7 @@
 [ext_resource type="Texture2D" uid="uid://bpg6acgu2we0s" path="res://assets/props/item_bag.png" id="9_bag"]
 [ext_resource type="PackedScene" uid="uid://de7y84lnoxl7t" path="res://scenes/settings_panel.tscn" id="10_settings"]
 [ext_resource type="PackedScene" path="res://scenes/shop_panel.tscn" id="11_shop"]
-[ext_resource type="AudioStream" path="res://assets/sounds/menumusic.mp3" id="12_music"]
+[ext_resource type="AudioStream" uid="uid://ccwpy4tj80c1o" path="res://assets/sounds/menumusic.mp3" id="12_music"]
 
 [sub_resource type="StyleBoxFlat" id="sb_pill"]
 content_margin_left = 10.0
@@ -178,7 +178,7 @@ mouse_filter = 2
 [node name="TanodVignette" type="AnimatedSprite2D" parent="VignetteContainer" unique_id=1270411486]
 unique_name_in_owner = true
 modulate = Color(0.7, 0.7, 0.8, 0.45)
-position = Vector2(1250, 750)
+position = Vector2(1220, 740)
 scale = Vector2(2.4, 2.4)
 sprite_frames = ExtResource("6_tanod_frames")
 animation = &"run"
@@ -619,9 +619,9 @@ mouse_filter = 2
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="MenuMusic" type="AudioStreamPlayer" parent="."]
+[node name="MenuMusic" type="AudioStreamPlayer" parent="." unique_id=453149556]
 unique_name_in_owner = true
 stream = ExtResource("12_music")
 volume_db = -8.0
-bus = &"Music"
 autoplay = true
+bus = &"Music"

@@ -523,6 +523,32 @@ func _test_health() -> void:
 	_check_eq((player.hurt_sfx as AudioStreamPlayer).bus, "SFX", "the hurt sound routes to the SFX bus")
 	_check(player.hurt_play_count == 0, "the hurt sound is silent before any hit")
 
+	# Jump sound: one per launch, on the SFX bus, with re-rolled pitch.
+	_check(player.jump_sfx != null, "the player carries a jump sound player")
+	_check_eq((player.jump_sfx as AudioStreamPlayer).bus, "SFX", "the jump sound routes to the SFX bus")
+	_check(player.jump_play_count == 0, "the jump sound is silent before any jump")
+	player.in_air = false
+	_check(player.jump(), "the first jump launches")
+	_check_eq(player.jump_play_count, 1, "a launch plays the jump sound")
+	_check(
+		player.jump_sfx.pitch_scale >= 1.0 - player.JUMP_PITCH_VARIATION
+		and player.jump_sfx.pitch_scale <= 1.0 + player.JUMP_PITCH_VARIATION,
+		"the jump pitch stays within the +-5% variation",
+	)
+	_check(not player.jump(), "a jump while airborne does not launch again")
+	_check_eq(player.jump_play_count, 1, "a blocked mid-air jump stays silent")
+	player.in_air = false
+	player.air_height = 0.0
+	_check(player.jump(), "the second jump launches after landing")
+	_check_eq(player.jump_play_count, 2, "a second launch plays again")
+	_check(
+		player.jump_sfx.pitch_scale >= 1.0 - player.JUMP_PITCH_VARIATION
+		and player.jump_sfx.pitch_scale <= 1.0 + player.JUMP_PITCH_VARIATION,
+		"the re-rolled pitch stays within the +-5% variation",
+	)
+	player.in_air = false
+	player.air_height = 0.0
+
 	_check(player.take_damage(), "the first hit lands")
 	_check_eq(player.hurt_play_count, 1, "a landed hit plays the hurt sound")
 	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "the first hit removes one heart")

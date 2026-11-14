@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://d045t21ykph3x" path="res://scripts/entities/player.gd" id="1_player"]
 [ext_resource type="SpriteFrames" path="res://assets/characters/elias/elias_frames.tres" id="2_frames"]
 [ext_resource type="AudioStream" path="res://assets/sounds/hurt.wav" id="3_hurt"]
+[ext_resource type="AudioStream" path="res://assets/sounds/jumpsound.mp3" id="4_jump"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hitbox"]
 size = Vector2(52.95359, 78.363335)
@@ -26,5 +27,11 @@ shape = SubResource("RectangleShape2D_hitbox")
 [node name="HurtSfx" type="AudioStreamPlayer" parent="."]
 unique_name_in_owner = true
 stream = ExtResource("3_hurt")
+volume_db = -2.0
+bus = &"SFX"
+
+[node name="JumpSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("4_jump")
 volume_db = -2.0
 bus = &"SFX"
