@@ -1983,6 +1983,8 @@ func _test_shop() -> void:
 		"the hearts row belongs to the hearts panel")
 	hud.set_shields(2, 2)
 	var shield_row_node := hud.get_node("ShieldPanel/ShieldRow")
+	_check_eq((shield_row_node as HBoxContainer).alignment,
+		BoxContainer.ALIGNMENT_BEGIN, "shield pips left-align inside the panel")
 	if shield_row_node.get_child_count() > 0:
 		var pip := shield_row_node.get_child(0) as TextureRect
 		if pip != null:
