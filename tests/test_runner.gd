@@ -687,6 +687,46 @@ func _test_hazard() -> void:
 	_check_eq(alternate_dog.sprite.frame, 1, "dog walk frames animate")
 	alternate_dog.queue_free()
 
+	# --- Street car: two variants, one hitbox, faster than the world -----------
+	var car := scene.instantiate() as Hazard
+	add_child(car)
+	car.set_physics_process(false)
+	car.setup(GameConfig.HazardKind.CAR, GameConfig.LANE_TOP, 100.0)
+	car.position.x = GameConfig.SPAWN_X
+	_check_eq(car.sprite.texture.resource_path, GameConfig.CAR_TEXTURES[0],
+		"car variant 0 uses the red jeep sheet")
+	_check(car.sprite.flip_h, "the car faces left (drives toward the player)")
+	_check_eq(car.sprite.hframes, 8, "the car animates eight sheet frames")
+	_check_near(car.shape.shape.size.x,
+		float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["hitbox_w"]),
+		0.01, "the car uses the shared car hitbox width")
+	_check_near(car.shape.shape.size.y,
+		float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["hitbox_h"]),
+		0.01, "the car uses the shared car hitbox height")
+	car._physics_process(1.0)
+	var car_speed := 100.0 + float(
+		GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["extra_speed"])
+	_check_near(car.position.x, GameConfig.SPAWN_X - car_speed, 0.01,
+		"the car closes in faster than the world scrolls")
+	car.queue_free()
+
+	var convertible := scene.instantiate() as Hazard
+	add_child(convertible)
+	convertible.set_physics_process(false)
+	convertible.setup(GameConfig.HazardKind.CAR, GameConfig.LANE_MIDDLE, 0.0, 1)
+	_check_eq(convertible.sprite.texture.resource_path, GameConfig.CAR_TEXTURES[1],
+		"car variant 1 uses the convertible sheet")
+	_check_near(convertible.sprite.scale.x,
+		float(GameConfig.CAR_VARIANTS[1]["scale"]),
+		0.01, "car variant 1 uses its own scale")
+	_check_near(convertible.shape.shape.size.x,
+		float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["hitbox_w"]),
+		0.01, "both car variants share the hitbox")
+	convertible.setup(GameConfig.HazardKind.CAR, GameConfig.LANE_MIDDLE, 0.0, 9)
+	_check_eq(convertible.sprite.texture.resource_path, GameConfig.CAR_TEXTURES[1],
+		"an out-of-range car variant wraps safely")
+	convertible.queue_free()
+
 	# End-to-end: the physics server must agree with the geometry above.
 	var player := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
 	add_child(player)
@@ -920,8 +960,30 @@ func _test_spawn_director() -> void:
 	var late_kinds := {}
 	for i in 2000:
 		late_kinds[SpawnDirector.pick_kind(60000.0, rng_late)] = true
-	# Dog is parked for M4 (weight 0), so 4 kinds spawn.
-	_check_eq(late_kinds.size(), GameConfig.HAZARD_DATA.size() - 1, "four kinds spawn once unlocked")
+	# Dog is parked for M4 (weight 0) and the car is street-locked, so 4 kinds
+	# spawn outside the street.
+	_check_eq(late_kinds.size(), GameConfig.HAZARD_DATA.size() - 2,
+		"four kinds spawn once unlocked outside the street")
+
+	# The car only rolls in the street zone.
+	var rng_car := RandomNumberGenerator.new()
+	rng_car.seed = 11
+	var car_seen := false
+	var car_off_street := true
+	for i in 2000:
+		if SpawnDirector.pick_kind(60000.0, rng_car, GameConfig.Zone.STREET) \
+				== GameConfig.HazardKind.CAR:
+			car_seen = true
+		if SpawnDirector.pick_kind(60000.0, rng_car, GameConfig.Zone.HOME) \
+				== GameConfig.HazardKind.CAR:
+			car_off_street = false
+		if SpawnDirector.pick_kind(60000.0, rng_car, GameConfig.Zone.SCHOOL) \
+				== GameConfig.HazardKind.CAR:
+			car_off_street = false
+		if SpawnDirector.pick_kind(60000.0, rng_car) == GameConfig.HazardKind.CAR:
+			car_off_street = false
+	_check(car_seen, "the street zone rolls cars")
+	_check(car_off_street, "the car never rolls outside the street zone")
 
 	# The distance clock warns first, then spawns dog1 in a clear lane.
 	var event_container := Node2D.new()
@@ -1001,6 +1063,131 @@ func _test_spawn_director() -> void:
 			lane_resumed = true
 			break
 	_check(lane_resumed, "normal hazard spawning resumes in the dog lane after despawn")
+
+	# --- Street cars warn like the dog, then enter from the right edge ---------
+	var car_container := Node2D.new()
+	add_child(car_container)
+	var car_director := SpawnDirector.new()
+	add_child(car_director)
+	car_director.setup(car_container, 404)
+	car_director._start_car_warning(GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
+	_check_eq(car_director._car_warnings.size(), 1, "a warned car waits for its warning")
+	var car_warning := car_container.get_children().back() as HazardWarning
+	_check(car_warning != null, "the car warning appears in the tree")
+	if car_warning != null:
+		_check_eq(car_warning.sprite.texture.resource_path, GameConfig.CAR_WARNING_TEXTURE,
+			"the car warning uses the second exclamation art")
+	var car_lane := int(car_director._car_warnings[0]["lane"])
+	_check_eq(car_lane, GameConfig.LANE_MIDDLE, "the car warning records its lane")
+
+	# Pickups, coin runs, and rows keep out of the warned lane.
+	var warned_pickup := car_director.spawn_pickup(0.0, 0.0)
+	_check(warned_pickup < 0 or warned_pickup != car_lane,
+		"pickups skip the warned car lane")
+	var warned_coin_run := car_director.spawn_coin_run(0.0, 0.0)
+	_check(warned_coin_run < 0 or warned_coin_run != car_lane,
+		"coin runs skip the warned car lane")
+	for i in 20:
+		var warned_row := car_director.spawn_row(60000.0, 0.0)
+		_check(not warned_row.has(car_lane), "rows skip the warned car lane")
+	_check_eq(car_director._car_warnings.size(), 1,
+		"row spawning does not consume the car warning")
+
+	# The car enters only after the warning finishes.
+	await _physics_frames(int(GameConfig.CAR_WARNING_DURATION * 60.0) + 12)
+	var warned_car: Hazard = null
+	for child in car_container.get_children():
+		if child is Hazard and (child as Hazard).kind == GameConfig.HazardKind.CAR:
+			warned_car = child as Hazard
+	_check(warned_car != null, "the car spawns once its warning finishes")
+	if warned_car != null:
+		_check_eq(warned_car.lane, car_lane, "the car takes its warned lane")
+		_check(warned_car.position.x < GameConfig.SPAWN_X,
+			"the car enters from the right edge")
+	_check_eq(car_director._car_warnings.size(), 0,
+		"the pending car is consumed after spawn")
+
+	for child in car_container.get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	car_director.queue_free()
+	car_container.queue_free()
+	await get_tree().process_frame
+
+	# --- Car cooldown: one warning, then a 3000-4800 px gap ---------------------
+	var cool_container := Node2D.new()
+	add_child(cool_container)
+	var cool_director := SpawnDirector.new()
+	add_child(cool_director)
+	cool_director.setup(cool_container, 405)
+
+	# The gate itself: street only, clear pending, and past the clock.
+	_check(not cool_director._car_allowed(1000.0, GameConfig.Zone.STREET),
+		"no car before the first-car distance")
+	_check(cool_director._car_allowed(
+			GameConfig.CAR_FIRST_DISTANCE, GameConfig.Zone.STREET),
+		"cars are allowed at the first-car distance")
+	_check(not cool_director._car_allowed(60000.0, GameConfig.Zone.HOME),
+		"cars are never allowed outside the street")
+	cool_director._car_warnings.append({
+		"lane": 0, "speed": 0.0, "variant": 0, "warning": null,
+	})
+	_check(not cool_director._car_allowed(60000.0, GameConfig.Zone.STREET),
+		"no second car while one warning is pending")
+	cool_director._car_warnings.clear()
+
+	# Before the first-car distance no car ever starts.
+	cool_director._next_car_distance = GameConfig.CAR_FIRST_DISTANCE
+	var early_car := false
+	for i in 40:
+		cool_director.spawn_row(1000.0, 0.0, GameConfig.Zone.STREET)
+		if not cool_director._car_warnings.is_empty():
+			early_car = true
+			break
+	_check(not early_car, "no car starts before the first-car distance")
+
+	# Once the clock allows, a street row eventually warns, and the clock
+	# arms a full 3000-4800 px gap before the next car may be considered.
+	cool_director._next_car_distance = 0.0
+	var warned := false
+	for i in 80:
+		cool_director.spawn_row(60000.0, 0.0, GameConfig.Zone.STREET)
+		if not cool_director._car_warnings.is_empty():
+			warned = true
+			break
+	_check(warned, "a street row warns once the cooldown elapsed")
+	_check(
+		cool_director._next_car_distance >= 60000.0 + GameConfig.CAR_GAP_MIN
+		and cool_director._next_car_distance <= 60000.0 + GameConfig.CAR_GAP_MAX,
+		"the next car waits a full 3000-4800 px gap",
+	)
+
+	# Rows during the gap never start another car.
+	cool_director._car_warnings.clear()
+	var second_car := false
+	for i in 20:
+		cool_director.spawn_row(60000.0, 0.0, GameConfig.Zone.STREET)
+		if not cool_director._car_warnings.is_empty():
+			second_car = true
+			break
+	_check(not second_car, "no car starts during the cooldown gap")
+
+	# The explicit gate: allow_car = false skips the car even in the street.
+	var rng_no_car := RandomNumberGenerator.new()
+	rng_no_car.seed = 13
+	var closed_gate_car := false
+	for i in 2000:
+		if SpawnDirector.pick_kind(60000.0, rng_no_car, GameConfig.Zone.STREET, false) \
+				== GameConfig.HazardKind.CAR:
+			closed_gate_car = true
+	_check(not closed_gate_car, "pick_kind never rolls a car when the gate is closed")
+
+	for child in cool_container.get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	cool_director.queue_free()
+	cool_container.queue_free()
+	await get_tree().process_frame
 
 	for child in event_container.get_children():
 		child.queue_free()

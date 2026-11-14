@@ -234,9 +234,9 @@ func _physics_process(delta: float) -> void:
 			_finish_campaign()
 			return
 		if distance < campaign_finish_distance - GameConfig.CAMPAIGN_SPAWN_CUTOFF_PX:
-			director.tick(delta, speed, distance)
+			director.tick(delta, speed, distance, current_zone)
 	else:
-		director.tick(delta, speed, distance)
+		director.tick(delta, speed, distance, current_zone)
 	score_system.add_distance(distance)
 	pursuer.set_world_speed(speed)
 	pursuer.track(player.lane_y)

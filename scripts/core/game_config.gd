@@ -153,7 +153,7 @@ const SLIDE_HITBOX_HEIGHT_FACTOR := 0.5
 
 # --- Hazards -----------------------------------------------------------------
 
-enum HazardKind { MANHOLE, DEBRIS, SIGN, GANTRY, DOG }
+enum HazardKind { MANHOLE, DEBRIS, SIGN, GANTRY, DOG, CAR }
 
 const DOG_TEXTURES: Array[String] = [
 	"res://assets/characters/dog1/Walk.png",
@@ -167,11 +167,35 @@ const DOG_WARNING_X := DESIGN_WIDTH - 120.0
 const DOG_WARNING_Y_OFFSET := 92.0
 const DOG_LANE_ENTRY_CLEARANCE := 520.0
 
+## Street-only car. The sheets use different cell sizes and car heights, so each
+## variant carries its own scale; both read ~91 px tall on the road and share
+## one hitbox. Art faces right, so it is flipped to drive left toward the player.
+const CAR_TEXTURES: Array[String] = [
+	"res://assets/characters/car/Ride1.png",
+	"res://assets/characters/car/Ride2.png",
+]
+const CAR_VARIANTS := [
+	{"texture": CAR_TEXTURES[0], "scale": 1.20},
+	{"texture": CAR_TEXTURES[1], "scale": 1.38},
+]
+const CAR_WARNING_DURATION := 0.6
+const CAR_WARNING_X := DESIGN_WIDTH - 120.0
+const CAR_WARNING_Y_OFFSET := 92.0
+const CAR_WARNING_TEXTURE := "res://assets/signs/exclamation/Exclamation Mark 2nd Outline 64px.png"
+## Cooldown between two car warnings, measured in travelled distance so the
+## spacing stays identical if RUN_SPEED changes. 3000-4800 px is about
+## 7-11 s at RUN_SPEED 420, i.e. roughly 2-3 cars per street zone.
+const CAR_FIRST_DISTANCE := 1500.0
+const CAR_GAP_MIN := 3000.0
+const CAR_GAP_MAX := 4800.0
+
 ## Per-kind art and hitbox data.
 ##   clearance    bottom edge sits this far above the lane baseline (overhead)
 ##   overhead     must be slid under; otherwise it is jumped or dodged
 ##   frames       0 = single image, >0 = horizontal sprite sheet frame count
 ##   extra_speed  added leftward speed for moving hazards
+##   flip_h       art faces right; flip it so the hazard travels leftward
+##   zone         street-only kinds skip every zone but Zone.STREET
 const HAZARD_DATA := {
 	HazardKind.MANHOLE: {
 		"texture": "res://assets/hazards/haz_manhole.png",
@@ -197,6 +221,13 @@ const HAZARD_DATA := {
 		"texture": DOG_TEXTURES[0],
 		"scale": 3.0, "hitbox_w": 40.0, "hitbox_h": 40.0,
 		"clearance": 0.0, "overhead": false, "frames": 6, "extra_speed": 200.0,
+		"flip_h": true, "zone": Zone.STREET,
+	},
+	HazardKind.CAR: {
+		"texture": CAR_TEXTURES[0],
+		"scale": 1.20, "hitbox_w": 240.0, "hitbox_h": 84.0,
+		"clearance": 0.0, "overhead": false, "frames": 8, "extra_speed": 240.0,
+		"flip_h": true, "zone": Zone.STREET,
 	},
 }
 
@@ -207,6 +238,7 @@ const HAZARD_UNLOCK := {
 	HazardKind.GANTRY: 8000.0,
 	HazardKind.SIGN: 12000.0,
 	HazardKind.DOG: DOG_FIRST_DISTANCE,
+	HazardKind.CAR: 0.0,
 }
 
 ## Relative spawn weight of each kind once unlocked.
@@ -217,6 +249,9 @@ const HAZARD_WEIGHT := {
 	HazardKind.SIGN: 1.5,
 	## Dogs use the dedicated warned encounter clock, not random hazard rows.
 	HazardKind.DOG: 0.0,
+	## Cars warn first (like the dog), so their row weight is meaningful only
+	## in the street zone where the kind is allowed at all.
+	HazardKind.CAR: 2.0,
 }
 
 # --- School Items ------------------------------------------------------------

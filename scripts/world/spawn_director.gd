@@ -12,7 +12,11 @@ signal item_missed
 
 const HAZARD_SCENE := preload("res://scenes/hazard.tscn")
 const COLLECTIBLE_SCENE := preload("res://scenes/collectible.tscn")
-const DOG_WARNING_SCENE := preload("res://scenes/dog_warning.tscn")
+const WARNING_SCENE := preload("res://scenes/hazard_warning.tscn")
+const DOG_WARNING_TEXTURE := preload(
+	"res://assets/signs/exclamation/Exclamation Mark 1st Outline 64px.png")
+const CAR_WARNING_TEXTURE := preload(
+	"res://assets/signs/exclamation/Exclamation Mark 2nd Outline 64px.png")
 
 var hazards: Node2D = null
 var _rng := RandomNumberGenerator.new()
@@ -28,10 +32,23 @@ var _coin_run_lane: int = -1
 var _coin_run_coins: Array = []
 var _next_dog_distance: float = GameConfig.DOG_FIRST_DISTANCE
 var _dog_reserved_lane: int = -1
-var _dog_warning: DogWarning = null
+var _dog_warning: HazardWarning = null
 var _active_dog: Hazard = null
 var _next_dog_variant: int = 0
 var _dog_speed: float = GameConfig.RUN_SPEED
+## Cars warn first: one pending entry per warned lane
+## {lane: int, speed: float, variant: int, warning: HazardWarning}.
+var _car_warnings: Array[Dictionary] = []
+## Cooldown clock for car warnings: the travelled distance at which another
+## car may be considered. Reset to CAR_FIRST_DISTANCE by setup().
+var _next_car_distance: float = GameConfig.CAR_FIRST_DISTANCE
+
+## Tuning knobs, editable in the Inspector of the SpawnDirector node in
+## run_world.tscn. Defaults come from GameConfig so tests and code use the
+## same numbers.
+@export_range(0.0, 30000.0, 100.0) var car_first_distance_px: float = GameConfig.CAR_FIRST_DISTANCE
+@export_range(0.0, 30000.0, 100.0) var car_gap_min_px: float = GameConfig.CAR_GAP_MIN
+@export_range(0.0, 30000.0, 100.0) var car_gap_max_px: float = GameConfig.CAR_GAP_MAX
 
 
 ## Attach to the container that receives hazard instances.
@@ -54,10 +71,18 @@ func setup(parent: Node2D, seed_value: int = 0) -> void:
 	_active_dog = null
 	_next_dog_variant = 0
 	_dog_speed = GameConfig.RUN_SPEED
+	_car_warnings = []
+	_next_car_distance = car_first_distance_px
 
 
 ## Advance the spawn clock. Call once per physics frame with the world speed.
-func tick(delta: float, speed: float, distance: float) -> void:
+## [param zone] gates street-only kinds (the car) to Zone.STREET.
+func tick(
+	delta: float,
+	speed: float,
+	distance: float,
+	zone: int = -1,
+) -> void:
 	if hazards == null:
 		return
 	_refresh_dog_reservation()
@@ -69,7 +94,7 @@ func tick(delta: float, speed: float, distance: float) -> void:
 	var gap := GameConfig.row_gap(distance)
 	while _distance_since_row >= gap:
 		_distance_since_row -= gap
-		spawn_row(distance, speed)
+		spawn_row(distance, speed, zone)
 		gap = GameConfig.row_gap(distance)
 
 	_distance_since_pickup += speed * delta
@@ -87,14 +112,33 @@ func tick(delta: float, speed: float, distance: float) -> void:
 			GameConfig.COIN_RUN_GAP_MIN, GameConfig.COIN_RUN_GAP_MAX) * _luck_gap_factor
 
 
-## Spawn one row, leaving the active dog's lane and any live coin-run lane out
-## of the hazard pattern, so trails are never cut off by a row.
-func spawn_row(distance: float, speed: float = GameConfig.RUN_SPEED) -> Array[int]:
-	var lanes := generate_pattern(distance, _rng, _dog_reserved_lane, _coin_run_lane)
+## Spawn one row, leaving the active dog's lane, any live coin-run lane, and
+## any pending car-warning lane out of the hazard pattern, so special hazards
+## never share their lane with a row hazard.
+## [param zone] gates street-only kinds (the car) to Zone.STREET.
+## Returns the blocked lanes.
+func spawn_row(
+	distance: float,
+	speed: float = GameConfig.RUN_SPEED,
+	zone: int = -1,
+) -> Array[int]:
+	var lanes := generate_pattern(
+		distance, _rng, _dog_reserved_lane, _coin_run_lane, _car_reserved_lanes())
+	# At most one car per row, and only when the cooldown allows one.
+	var allow_car := _car_allowed(distance, zone)
 	for lane in lanes:
+		var kind := pick_kind(distance, _rng, zone, allow_car)
+		if kind == GameConfig.HazardKind.CAR:
+			_start_car_warning(lane, speed)
+			allow_car = false
+			_next_car_distance = distance + _rng.randf_range(
+				minf(car_gap_min_px, car_gap_max_px),
+				maxf(car_gap_min_px, car_gap_max_px),
+			)
+			continue
 		var hazard := HAZARD_SCENE.instantiate() as Hazard
 		hazards.add_child(hazard)
-		hazard.setup(pick_kind(distance, _rng), lane, speed)
+		hazard.setup(kind, lane, speed)
 		hazard.position.x = GameConfig.SPAWN_X
 		hazard.passed_player.connect(_on_hazard_passed)
 	return lanes
@@ -104,6 +148,9 @@ func spawn_row(distance: float, speed: float = GameConfig.RUN_SPEED) -> Array[in
 ## Returns the lane used, or -1 when the pickup was skipped.
 func spawn_pickup(distance: float, speed: float = GameConfig.RUN_SPEED) -> int:
 	var occupied := _occupied_pickup_lanes()
+	for lane in _car_reserved_lanes():
+		if not occupied.has(lane):
+			occupied.append(lane)
 
 	var lane := choose_pickup_lane(occupied, _rng)
 	if lane < 0:
@@ -133,6 +180,9 @@ func spawn_coin_run(distance: float, speed: float = GameConfig.RUN_SPEED) -> int
 	var occupied := _occupied_pickup_lanes()
 	if _dog_reserved_lane >= 0 and not occupied.has(_dog_reserved_lane):
 		occupied.append(_dog_reserved_lane)
+	for lane in _car_reserved_lanes():
+		if not occupied.has(lane):
+			occupied.append(lane)
 	var lane := choose_pickup_lane(occupied, _rng)
 	if lane < 0:
 		return -1
@@ -148,6 +198,69 @@ func spawn_coin_run(distance: float, speed: float = GameConfig.RUN_SPEED) -> int
 	return lane
 
 
+# --- Street cars (warn, then enter fast) -------------------------------------
+
+## True when another car warning may start at [param distance]: only in the
+## street zone, never while one warning is pending, and only after the
+## cooldown gap since the previous warning.
+func _car_allowed(distance: float, zone: int) -> bool:
+	if zone != GameConfig.Zone.STREET:
+		return false
+	if not _car_warnings.is_empty():
+		return false
+	return distance >= _next_car_distance
+
+
+## Lanes with a car warning still showing. Rows, pickups, and coin runs keep
+## out of them so nothing shares the car's lane before it arrives.
+func _car_reserved_lanes() -> Array[int]:
+	var lanes: Array[int] = []
+	for entry in _car_warnings:
+		if not lanes.has(int(entry["lane"])):
+			lanes.append(int(entry["lane"]))
+	return lanes
+
+
+## Show the exclamation in [param lane], then spawn the car when it finishes.
+func _start_car_warning(lane: int, speed: float) -> void:
+	var variant := _rng.randi() % GameConfig.CAR_VARIANTS.size()
+	var warning := WARNING_SCENE.instantiate() as HazardWarning
+	warning.setup(CAR_WARNING_TEXTURE, GameConfig.CAR_WARNING_DURATION)
+	warning.position = Vector2(
+		GameConfig.CAR_WARNING_X,
+		GameConfig.lane_y(lane) - GameConfig.CAR_WARNING_Y_OFFSET,
+	)
+	hazards.add_child(warning)
+	warning.play()
+	warning.finished.connect(_on_car_warning_finished.bind(lane))
+	_car_warnings.append({
+		"lane": lane, "speed": speed, "variant": variant, "warning": warning,
+	})
+
+
+func _on_car_warning_finished(lane: int) -> void:
+	# Take the pending entry for this lane, then spawn the car it announced.
+	# (The warning node frees itself after emitting finished.)
+	var entry: Dictionary = {}
+	for i in range(_car_warnings.size() - 1, -1, -1):
+		if int(_car_warnings[i]["lane"]) == lane:
+			entry = _car_warnings[i]
+			_car_warnings.remove_at(i)
+			break
+	if hazards == null:
+		return
+	var car := HAZARD_SCENE.instantiate() as Hazard
+	hazards.add_child(car)
+	car.setup(
+		GameConfig.HazardKind.CAR,
+		lane,
+		float(entry.get("speed", GameConfig.RUN_SPEED)),
+		int(entry.get("variant", 0)),
+	)
+	car.position.x = GameConfig.SPAWN_X
+	car.passed_player.connect(_on_hazard_passed)
+
+
 func _try_start_dog_encounter(distance: float, speed: float) -> bool:
 	var occupied := _occupied_dog_entry_lanes()
 	var dog_lane := choose_dog_lane(occupied, _rng)
@@ -161,7 +274,8 @@ func _try_start_dog_encounter(distance: float, speed: float) -> bool:
 		GameConfig.DOG_GAP_MAX,
 	)
 
-	var warning := DOG_WARNING_SCENE.instantiate() as DogWarning
+	var warning := WARNING_SCENE.instantiate() as HazardWarning
+	warning.setup(DOG_WARNING_TEXTURE, GameConfig.DOG_WARNING_DURATION)
 	warning.position = Vector2(
 		GameConfig.DOG_WARNING_X,
 		GameConfig.lane_y(_dog_reserved_lane) - GameConfig.DOG_WARNING_Y_OFFSET,
@@ -175,6 +289,10 @@ func _try_start_dog_encounter(distance: float, speed: float) -> bool:
 
 func _occupied_dog_entry_lanes() -> Array[int]:
 	var occupied: Array[int] = []
+	# A pending car warning owns its lane; never send the dog there.
+	for lane in _car_reserved_lanes():
+		if not occupied.has(lane):
+			occupied.append(lane)
 	var min_x := GameConfig.SPAWN_X - GameConfig.DOG_LANE_ENTRY_CLEARANCE
 	for child in hazards.get_children():
 		if not (child is Hazard or child is Collectible):
@@ -275,11 +393,15 @@ static func generate_pattern(
 	rng: RandomNumberGenerator,
 	reserved_lane: int = -1,
 	also_reserved: int = -1,
+	more_reserved: Array[int] = [],
 ) -> Array[int]:
 	var lanes: Array[int] = []
 	for lane in GameConfig.LANE_COUNT:
-		if lane != reserved_lane and lane != also_reserved:
-			lanes.append(lane)
+		if lane == reserved_lane or lane == also_reserved:
+			continue
+		if lane in more_reserved:
+			continue
+		lanes.append(lane)
 	if lanes.is_empty():
 		return []
 	for i in range(lanes.size() - 1, 0, -1):
@@ -305,11 +427,26 @@ static func generate_pattern(
 
 
 ## Weighted kind choice among the kinds unlocked at [param distance].
-static func pick_kind(distance: float, rng: RandomNumberGenerator) -> GameConfig.HazardKind:
+## [param zone] gates street-only kinds (the car): -1 or a non-street zone
+## never rolls a car; Zone.STREET does.
+## [param allow_car] is the director's cooldown gate: when false the car is
+## skipped even in the street zone.
+static func pick_kind(
+	distance: float,
+	rng: RandomNumberGenerator,
+	zone: int = -1,
+	allow_car: bool = true,
+) -> GameConfig.HazardKind:
 	var total := 0.0
 	for kind: int in GameConfig.HAZARD_DATA:
-		if distance >= float(GameConfig.HAZARD_UNLOCK[kind]):
-			total += float(GameConfig.HAZARD_WEIGHT[kind])
+		if distance < float(GameConfig.HAZARD_UNLOCK[kind]):
+			continue
+		if kind == GameConfig.HazardKind.CAR and not allow_car:
+			continue
+		var kind_zone := int(GameConfig.HAZARD_DATA[kind].get("zone", -99))
+		if kind_zone != -99 and kind_zone != zone:
+			continue
+		total += float(GameConfig.HAZARD_WEIGHT[kind])
 
 	if total <= 0.0:
 		return GameConfig.HazardKind.MANHOLE
@@ -317,6 +454,11 @@ static func pick_kind(distance: float, rng: RandomNumberGenerator) -> GameConfig
 	var roll := rng.randf() * total
 	for kind: int in GameConfig.HAZARD_DATA:
 		if distance < float(GameConfig.HAZARD_UNLOCK[kind]):
+			continue
+		if kind == GameConfig.HazardKind.CAR and not allow_car:
+			continue
+		var kind_zone := int(GameConfig.HAZARD_DATA[kind].get("zone", -99))
+		if kind_zone != -99 and kind_zone != zone:
 			continue
 		roll -= float(GameConfig.HAZARD_WEIGHT[kind])
 		if roll <= 0.0:

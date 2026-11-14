@@ -1,8 +1,0 @@
-[gd_scene format=3]
-
-[ext_resource type="Script" path="res://scripts/entities/dog_warning.gd" id="1_warning"]
-
-[node name="DogWarning" type="Node2D"]
-script = ExtResource("1_warning")
-
-[node name="Sprite" type="Sprite2D" parent="."]
