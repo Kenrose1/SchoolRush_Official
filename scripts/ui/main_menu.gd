@@ -8,6 +8,9 @@ extends Control
 
 const WORLD_SCENE := "res://scenes/main.tscn"
 const BEST_FORMAT := "BEST  %06d"
+const MUSIC_DB := -8.0
+const MUSIC_FADE_FROM_DB := -40.0
+const MUSIC_FADE_TIME := 1.5
 
 @onready var campaign_button: Button = %Campaign
 @onready var endless_button: Button = %Endless
@@ -20,6 +23,7 @@ const BEST_FORMAT := "BEST  %06d"
 @onready var settings_panel: SettingsPanel = %SettingsPanel
 @onready var shop_button: Button = %Shop
 @onready var shop_panel: ShopPanel = %ShopPanel
+@onready var menu_music: AudioStreamPlayer = %MenuMusic
 @onready var elias_sprite: AnimatedSprite2D = %EliasVignette
 @onready var tanod_sprite: AnimatedSprite2D = %TanodVignette
 @onready var title_label: Label = %TitleLabel
@@ -38,7 +42,11 @@ var _prop_origins: Dictionary = {}
 func _ready() -> void:
 	how_to_panel.visible = false
 	best_label.text = BEST_FORMAT % GameState.best_campaign
-	
+
+	# Menu music fades in gently instead of slamming in at full volume.
+	menu_music.volume_db = MUSIC_FADE_FROM_DB
+	create_tween().tween_property(menu_music, "volume_db", MUSIC_DB, MUSIC_FADE_TIME)
+
 	campaign_button.pressed.connect(_on_campaign_pressed)
 	endless_button.pressed.connect(_on_endless_pressed)
 	how_to_button.pressed.connect(_on_how_to_pressed)

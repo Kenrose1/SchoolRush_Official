@@ -71,6 +71,9 @@ func _ready() -> void:
 	_section("Main menu")
 	_test_menu()
 
+	_section("Menu music")
+	_test_menu_music()
+
 	_section("Settings")
 	_test_settings()
 
@@ -2262,6 +2265,49 @@ func _test_menu() -> void:
 		menu.quit_button.pressed.is_connected(menu._on_quit_pressed),
 		"quit is wired to close the app",
 	)
+	menu.queue_free()
+
+
+func _test_menu_music() -> void:
+	var menu := (load("res://scenes/main_menu.tscn") as PackedScene).instantiate() as MainMenu
+	add_child(menu)
+
+	var music := menu.menu_music
+	_check(music != null, "the menu has a music player")
+	if music == null:
+		menu.queue_free()
+		return
+	var stream := music.stream as AudioStreamMP3
+	_check(stream != null, "the music player carries the menu stream")
+	_check_eq(music.bus, &"Music", "menu music routes to the Music bus")
+	_check(music.autoplay, "menu music autoplays with the scene")
+	_check(music.playing, "menu music is playing on the menu")
+	_check(stream.loop, "the menu track loops (import loop enabled)")
+	_check_near(stream.get_length(), 191.5, 1.0, "the menu track is the full 3:11 song")
+	_check_near(music.volume_db, MainMenu.MUSIC_FADE_FROM_DB, 0.001,
+		"the fade-in starts quiet before the tween steps")
+
+	# The overlays live in the same scene, so the music must survive each of
+	# them opening (user requirement: shop / how-to / settings keep playing).
+	menu._on_shop_pressed()
+	_check(menu.shop_panel.visible, "the shop opens over the menu")
+	_check(music.playing, "the music keeps playing while the shop is open")
+	menu._on_how_to_pressed()
+	_check(menu.how_to_panel.visible, "how-to opens over the menu")
+	_check(music.playing, "the music keeps playing while how-to is open")
+	menu._on_how_to_pressed()
+	menu._on_settings_pressed()
+	_check(menu.settings_panel.visible, "settings opens over the menu")
+	_check(music.playing, "the music keeps playing while settings is open")
+	menu.shop_panel.close()
+	menu.settings_panel.close()
+
+	# Menu-only guarantee: the run scene has no music player of its own.
+	var run_root := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	add_child(run_root)
+	_check_eq(run_root.find_children("*", "AudioStreamPlayer", true, false).size(), 0,
+		"the run scene carries no music player (menu only)")
+	run_root.queue_free()
 	menu.queue_free()
 
 
