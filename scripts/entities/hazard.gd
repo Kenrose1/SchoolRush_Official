@@ -94,7 +94,7 @@ func _apply() -> void:
 			var car: Dictionary = GameConfig.CAR_VARIANTS[
 				posmod(_variant, GameConfig.CAR_VARIANTS.size())]
 			texture_path = String(car["texture"])
-			art_scale = float(car["scale"])
+			art_scale = float(car["scale"]) * GameConfig.CAR_SCALE_MULT
 	var texture := load(texture_path) as Texture2D
 	var clearance := float(_data["clearance"])
 

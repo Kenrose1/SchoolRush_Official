@@ -168,8 +168,9 @@ const DOG_WARNING_Y_OFFSET := 92.0
 const DOG_LANE_ENTRY_CLEARANCE := 520.0
 
 ## Street-only car. The sheets use different cell sizes and car heights, so each
-## variant carries its own scale; both read ~91 px tall on the road and share
-## one hitbox. Art faces right, so it is flipped to drive left toward the player.
+## variant carries its own scale; both read ~105 px tall on the road (with
+## CAR_SCALE_MULT applied) and share one hitbox. Art faces right, so it is
+## flipped to drive left toward the player.
 const CAR_TEXTURES: Array[String] = [
 	"res://assets/characters/car/Ride1.png",
 	"res://assets/characters/car/Ride2.png",
@@ -178,6 +179,8 @@ const CAR_VARIANTS := [
 	{"texture": CAR_TEXTURES[0], "scale": 1.20},
 	{"texture": CAR_TEXTURES[1], "scale": 1.38},
 ]
+## Visual size multiplier for every car variant. 1.0 = the original sheet fit.
+const CAR_SCALE_MULT := 1.15
 const CAR_WARNING_DURATION := 0.6
 const CAR_WARNING_X := DESIGN_WIDTH - 120.0
 const CAR_WARNING_Y_OFFSET := 92.0
@@ -223,10 +226,14 @@ const HAZARD_DATA := {
 		"clearance": 0.0, "overhead": false, "frames": 6, "extra_speed": 200.0,
 		"flip_h": true, "zone": Zone.STREET,
 	},
+	## Dodge-only until SPRING SHOES 3: at extra_speed 700 the car sweeps past
+	## in (280 + player hitbox) / 1120 ≈ 0.31 s, which fits inside the
+	## level-3+ jump-clear window above the 100 px hitbox but outlasts the
+	## level-2 window, so switching lanes is the only dodge below level 3.
 	HazardKind.CAR: {
 		"texture": CAR_TEXTURES[0],
-		"scale": 1.20, "hitbox_w": 240.0, "hitbox_h": 84.0,
-		"clearance": 0.0, "overhead": false, "frames": 8, "extra_speed": 240.0,
+		"scale": 1.20, "hitbox_w": 280.0, "hitbox_h": 100.0,
+		"clearance": 0.0, "overhead": false, "frames": 8, "extra_speed": 700.0,
 		"flip_h": true, "zone": Zone.STREET,
 	},
 }
@@ -344,6 +351,16 @@ static func shop_luck_gap_factor(level: int) -> float:
 ## (apex scales with the square of launch speed).
 static func shop_jump_speed(level: int) -> float:
 	return JUMP_SPEED * sqrt(1.0 + 0.08 * clampi(level, 0, 5))
+
+
+## Seconds the player's hitbox stays above [param height] for a jump launch at
+## [param level]. 0.0 when the apex never reaches the height. A hazard of that
+## hitbox height is jumpable at [param level] iff this window exceeds the time
+## the hazard spends sweeping horizontally past the player's hitbox.
+static func jump_clear_window(height: float, level: int) -> float:
+	var v := shop_jump_speed(level)
+	var disc := v * v - 2.0 * GRAVITY * height
+	return 0.0 if disc <= 0.0 else 2.0 * sqrt(disc) / GRAVITY
 
 ## Max hearts for a hearts level (base MAX_HEARTS plus the bought extras).
 static func shop_max_hearts(level: int) -> int:

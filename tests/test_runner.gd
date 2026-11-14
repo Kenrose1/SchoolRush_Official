@@ -717,8 +717,8 @@ func _test_hazard() -> void:
 	_check_eq(convertible.sprite.texture.resource_path, GameConfig.CAR_TEXTURES[1],
 		"car variant 1 uses the convertible sheet")
 	_check_near(convertible.sprite.scale.x,
-		float(GameConfig.CAR_VARIANTS[1]["scale"]),
-		0.01, "car variant 1 uses its own scale")
+		float(GameConfig.CAR_VARIANTS[1]["scale"]) * GameConfig.CAR_SCALE_MULT,
+		0.01, "car variant 1 uses its own scale times CAR_SCALE_MULT")
 	_check_near(convertible.shape.shape.size.x,
 		float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["hitbox_w"]),
 		0.01, "both car variants share the hitbox")
@@ -726,6 +726,33 @@ func _test_hazard() -> void:
 	_check_eq(convertible.sprite.texture.resource_path, GameConfig.CAR_TEXTURES[1],
 		"an out-of-range car variant wraps safely")
 	convertible.queue_free()
+
+	# Both car variants render the same on-screen height: the two sheet scales
+	# exist to keep Ride1 and Ride2 matched, CAR_SCALE_MULT moves them together.
+	# 76 and 66 are the measured alpha-content heights of the Ride1 and Ride2
+	# cells (256 px and 192 px tall respectively, art at the cell bottom).
+	var jeep_height: float = (
+		76.0 * float(GameConfig.CAR_VARIANTS[0]["scale"]) * GameConfig.CAR_SCALE_MULT)
+	var convertible_height: float = (
+		66.0 * float(GameConfig.CAR_VARIANTS[1]["scale"]) * GameConfig.CAR_SCALE_MULT)
+	_check_near(jeep_height, convertible_height, 1.0,
+		"both car variants render the same on-screen height")
+
+	# Jump clearance math: at extra_speed 720 the car sweeps past in about
+	# 0.30 s, so only SPRING SHOES 3+ keeps the hitbox above 100 px that long.
+	var car_pass_time: float = (
+		(float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["hitbox_w"])
+			+ GameConfig.HITBOX_SIZE.x)
+		/ (GameConfig.RUN_SPEED
+			+ float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["extra_speed"])))
+	_check(GameConfig.jump_clear_window(
+			float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["hitbox_h"]), 2)
+		< car_pass_time,
+		"spring shoes 2 cannot clear the car")
+	_check(GameConfig.jump_clear_window(
+			float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["hitbox_h"]), 3)
+		> car_pass_time,
+		"spring shoes 3 unlocks jumping the car")
 
 	# End-to-end: the physics server must agree with the geometry above.
 	var player := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
@@ -847,6 +874,61 @@ func _test_hazard() -> void:
 	_check_eq(player.health, GameConfig.MAX_HEARTS, "dog hit while pursuer is active does not deduct hearts")
 	player.pursuer_active = false
 	dog_chase_hit.queue_free()
+
+	# --- Car jump dodge: a timed jump clears the car from SPRING SHOES 3 on -----
+	var pre_jump_levels: Dictionary = GameState.shop_levels.duplicate()
+	var car_data: Dictionary = GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]
+	var car_w := float(car_data["hitbox_w"])
+	var car_h := float(car_data["hitbox_h"])
+	var car_closure := GameConfig.RUN_SPEED + float(car_data["extra_speed"])
+	var car_contact_gap := car_w * 0.5 + GameConfig.HITBOX_SIZE.x * 0.5
+	var car_sweep_time := (car_w + GameConfig.HITBOX_SIZE.x) / car_closure
+	for jump_level: int in [0, 3]:
+		GameState.shop_levels = { GameConfig.ShopUpgrade.JUMP: jump_level }
+		var jump_v := GameConfig.shop_jump_speed(jump_level)
+		var jump_disc := jump_v * jump_v - 2.0 * GameConfig.GRAVITY * car_h
+		var rise_time := 0.0
+		if jump_disc > 0.0:
+			rise_time = (jump_v - sqrt(jump_disc)) / GameConfig.GRAVITY
+		var clear_window := GameConfig.jump_clear_window(car_h, jump_level)
+		# Center the horizontal pass inside the above-car-height window when it
+		# fits, so the timing is as fair as the upgrade level allows.
+		var lead := rise_time + maxf((clear_window - car_sweep_time) * 0.5, 0.0)
+		var jump_car_start := GameConfig.PLAYER_X + car_contact_gap + car_closure * lead
+
+		player.set_physics_process(true)
+		player.reset_health()
+		player.invulnerable_time_left = 0.0
+		player.air_height = 0.0
+		player.vertical_speed = 0.0
+		player.lane = GameConfig.LANE_MIDDLE
+		player.is_sliding = false
+		player._update_hitbox()
+		player._apply_pose()
+
+		var jump_car := scene.instantiate() as Hazard
+		add_child(jump_car)
+		jump_car.setup(
+			GameConfig.HazardKind.CAR, GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
+		jump_car.position.x = jump_car_start
+
+		player.jump()
+		await _physics_frames(40)
+		if jump_level >= 3:
+			_check_eq(
+				player.health,
+				GameConfig.MAX_HEARTS,
+				"spring shoes 3 clears the car with a timed jump (live physics)",
+			)
+		else:
+			_check_eq(
+				player.health,
+				GameConfig.MAX_HEARTS - 1,
+				"spring shoes 0 cannot jump the car (live physics)",
+			)
+		jump_car.queue_free()
+		await _physics_frames(2)
+	GameState.shop_levels = pre_jump_levels
 
 	off_lane.queue_free()
 	player.queue_free()
