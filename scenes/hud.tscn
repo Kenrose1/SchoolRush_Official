@@ -6,7 +6,7 @@
 [ext_resource type="FontFile" uid="uid://cll8r0y660eqw" path="res://assets/fonts/static/InterTight-ExtraBold.ttf" id="4_xbold"]
 [ext_resource type="FontFile" uid="uid://dw4y3ym6vohju" path="res://assets/fonts/static/InterTight-SemiBold.ttf" id="5_semi"]
 [ext_resource type="PackedScene" path="res://scenes/settings_panel.tscn" id="6_settings"]
-[ext_resource type="Script" path="res://scripts/ui/progress_bar_hud.gd" id="7_progress"]
+[ext_resource type="PackedScene" path="res://scenes/progress_bar_hud.tscn" id="7_progress"]
 
 [sub_resource type="StyleBoxFlat" id="sb_pause_btn"]
 content_margin_left = 2.0
@@ -71,15 +71,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("2_score")
 
-[node name="Progress" type="Control" parent="HudRoot"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("7_progress")
+[node name="Progress" parent="HudRoot" instance=ExtResource("7_progress")]
 
 [node name="Debug" type="Label" parent="HudRoot"]
 process_mode = 3

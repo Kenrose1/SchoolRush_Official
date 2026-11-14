@@ -197,6 +197,33 @@ func _ready() -> void:
 	await _wait(2)
 	await _shot("m5_05_school")
 
+	# Coin run: clear the hallway, stage a trail of coins in one lane, and
+	# credit a scratch wallet so the HUD counter shows a real balance without
+	# touching the player's save.
+	for child in world.hazards.get_children():
+		child.queue_free()
+	await _wait(2)
+	var saved_wallet_path := GameState.save_path
+	var saved_coins := GameState.coins
+	GameState.save_path = "user://capture_wallet_scratch.cfg"
+	GameState.coins = 0
+	for i in 4:
+		_spawn_item(
+			world, GameConfig.ItemKind.COIN, GameConfig.LANE_MIDDLE,
+			900.0 + float(i) * GameConfig.COIN_SPACING)
+	GameState.add_coins(23)
+	world._update_progress()
+	world._update_debug()
+	world.queue_redraw()
+	await _wait(2)
+	await _shot("m5_10_coin_run")
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var scratch := "user://capture_wallet_scratch.cfg" + suffix
+		if FileAccess.file_exists(scratch):
+			DirAccess.remove_absolute(scratch)
+	GameState.save_path = saved_wallet_path
+	GameState.coins = saved_coins
+
 	# Campaign: cross the finish line for the MADE IT! victory. Stage a best
 	# below the run's score so the capture shows the gold badge.
 	world.set_run_mode(GameConfig.RunMode.CAMPAIGN)

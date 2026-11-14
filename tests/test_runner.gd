@@ -56,6 +56,9 @@ func _ready() -> void:
 	_section("Pickup director")
 	_test_pickup_director()
 
+	_section("Coins")
+	_test_coins()
+
 	_section("Pursuer")
 	await _test_pursuer()
 
@@ -1361,6 +1364,20 @@ func _test_collectible() -> void:
 	_check(not drifter.collect(), "a missed item cannot be collected")
 	drifter.queue_free()
 
+	# Currency never reports a miss: a coin trail the player runs past leaves
+	# the combo alone, unlike School Items.
+	var coin_drift := scene.instantiate() as Collectible
+	add_child(coin_drift)
+	coin_drift.set_physics_process(false)
+	coin_drift.setup(GameConfig.ItemKind.COIN, GameConfig.LANE_MIDDLE, 100.0)
+	var coin_missed_count := [0]
+	coin_drift.missed.connect(func() -> void: coin_missed_count[0] += 1)
+	coin_drift.position.x = GameConfig.PLAYER_X
+	coin_drift._physics_process(0.5)
+	_check_eq(coin_missed_count[0], 0, "a coin past the player never fires missed")
+	_check(coin_drift.collect(), "a coin past the player is still collectible")
+	coin_drift.queue_free()
+
 	# Live physics: grounded player collects, jumping player misses.
 	var player := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
 	add_child(player)
@@ -1487,6 +1504,172 @@ func _test_pickup_director() -> void:
 
 	container.queue_free()
 	director.queue_free()
+
+
+func _test_coins() -> void:
+	# --- Config contract -----------------------------------------------------
+	_check(GameConfig.ITEM_DATA.has(GameConfig.ItemKind.COIN), "coin has item data")
+	var coin_data: Dictionary = GameConfig.ITEM_DATA[GameConfig.ItemKind.COIN]
+	_check(ResourceLoader.exists(String(coin_data["texture"])), "coin art exists on disk")
+	_check(coin_data.get("currency", false), "the coin is marked as currency")
+	for kind: int in GameConfig.ITEM_DATA:
+		if kind == GameConfig.ItemKind.COIN:
+			continue
+		_check(
+			not GameConfig.ITEM_DATA[kind].get("currency", false),
+			"school items are not currency (kind %d)" % kind,
+		)
+	_check(GameConfig.COIN_RUN_MIN == 3 and GameConfig.COIN_RUN_MAX == 5,
+		"coin runs drop three to five coins")
+	_check(GameConfig.COIN_RUN_GAP_MIN > GameConfig.PICKUP_GAP_MAX,
+		"coin runs are rarer than school item pickups")
+
+	# --- Coin runs: one clear lane, spaced trail, reserved against rows ------
+	var container := Node2D.new()
+	add_child(container)
+	var director := SpawnDirector.new()
+	add_child(director)
+	director.setup(container, 7)
+
+	# The very first run must respect the dog's reserved lane.
+	director._dog_reserved_lane = GameConfig.LANE_TOP
+	var run_lane := director.spawn_coin_run(0.0, 0.0)
+	_check(run_lane >= 0, "a coin run spawns in a clear lane")
+	_check(run_lane != GameConfig.LANE_TOP, "a coin run never takes the dog's reserved lane")
+	director._dog_reserved_lane = -1
+	if run_lane >= 0:
+		var coins_found: Array = []
+		for child in container.get_children():
+			if child is Collectible and child.get_kind() == GameConfig.ItemKind.COIN:
+				coins_found.append(child)
+		_check(
+			coins_found.size() >= GameConfig.COIN_RUN_MIN
+			and coins_found.size() <= GameConfig.COIN_RUN_MAX,
+			"the run drops 3-5 coins (%d)" % coins_found.size(),
+		)
+		var same_lane := true
+		var spaced := true
+		var first_coin := coins_found[0] as Collectible
+		for i in coins_found.size():
+			var coin := coins_found[i] as Collectible
+			if coin.lane != run_lane:
+				same_lane = false
+			if not is_equal_approx(
+				coin.position.x - first_coin.position.x,
+				float(i) * GameConfig.COIN_SPACING,
+			):
+				spaced = false
+		_check(same_lane, "every coin of the run shares one lane")
+		_check(spaced, "the trail is spaced COIN_SPACING apart")
+		_check_eq(director._coin_run_lane, run_lane, "the run reserves its lane")
+
+		# A second run is skipped while the first trail is live.
+		_check_eq(director.spawn_coin_run(0.0, 0.0), -1,
+			"only one coin run lives at a time")
+
+		# Hazard rows never enter the live trail lane.
+		for i in 12:
+			director.spawn_row(1000.0 + 30.0 * float(i), 0.0)
+		var row_violations := 0
+		for child in container.get_children():
+			if child is Hazard and child.lane == run_lane:
+				row_violations += 1
+		_check_eq(row_violations, 0, "hazard rows never enter the live coin lane")
+
+		# Once the trail is gone the lane is released for rows and dog runs.
+		for coin in coins_found:
+			coin.queue_free()
+		director._refresh_coin_reservation()
+		_check_eq(director._coin_run_lane, -1, "the coin lane releases when the trail ends")
+
+	container.queue_free()
+	director.queue_free()
+
+	# --- Wallet: event, write-through, round trip, defensive load ------------
+	var scratch := "user://test_wallet_scratch.cfg"
+	var pre_save_path := GameState.save_path
+	var pre_coins := GameState.coins
+	GameState.save_path = scratch
+	GameState.coins = 0
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var stale := scratch + suffix
+		if FileAccess.file_exists(stale):
+			DirAccess.remove_absolute(stale)
+
+	var coin_events: Array[int] = []
+	GameState.coins_changed.connect(func(count: int) -> void: coin_events.append(count))
+	GameState.add_coins(7)
+	_check_eq(GameState.coins, 7, "add_coins credits the wallet")
+	_check_eq(coin_events.size(), 1, "the wallet signal fires per deposit")
+	_check_eq(coin_events[0], 7, "the wallet signal carries the new balance")
+	GameState.add_coins(0)
+	GameState.add_coins(-3)
+	_check_eq(coin_events.size(), 1, "zero and negative deposits are ignored")
+	_check_eq(GameState.coins, 7, "the wallet only moves on positive deposits")
+	_check(FileAccess.file_exists(scratch), "the wallet writes through to disk")
+
+	# Round trip: a fresh load reads the same balance.
+	GameState.coins = 0
+	GameState._load_wallet()
+	_check_eq(GameState.coins, 7, "a restart reloads the saved balance")
+
+	# A corrupt file loads as an empty wallet, never a crash.
+	var garbage := FileAccess.open(scratch, FileAccess.WRITE)
+	garbage.store_string("this is not a ConfigFile")
+	garbage.close()
+	GameState.coins = 99
+	GameState._load_wallet()
+	_check_eq(GameState.coins, 0, "a corrupt save loads as an empty wallet")
+
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var stale := scratch + suffix
+		if FileAccess.file_exists(stale):
+			DirAccess.remove_absolute(stale)
+
+	# --- Currency routing: coins bypass the score system ----------------------
+	GameState.coins = 0
+	var wallet_root := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	add_child(wallet_root)
+	var world := wallet_root.get_node("RunWorld") as RunWorld
+	world.set_physics_process(false)
+	var score_before := world.score_system.score
+	var items_before := world.score_system.item_count
+	var chain_before := world.score_system.chain
+	world._on_item_collected(GameConfig.ItemKind.COIN)
+	_check_eq(GameState.coins, GameConfig.COIN_VALUE,
+		"a collected coin credits the wallet")
+	_check_eq(world.score_system.score, score_before, "coins never touch the score")
+	_check_eq(world.score_system.item_count, items_before, "coins never touch the item count")
+	_check_eq(world.score_system.chain, chain_before, "coins never build the combo")
+	world._on_item_collected(GameConfig.ItemKind.PENCIL)
+	_check_eq(world.score_system.item_count, items_before + 1,
+		"school items still count through the score system")
+	var chain_after_item := world.score_system.chain
+	world._on_item_collected(GameConfig.ItemKind.COIN)
+	_check_eq(world.score_system.chain, chain_after_item,
+		"coins do not extend a live combo")
+	_check_eq(GameState.coins, 2 * GameConfig.COIN_VALUE,
+		"every collected coin reaches the wallet")
+	wallet_root.queue_free()
+
+	# --- HUD readout follows the wallet signal --------------------------------
+	var hud_scene := load("res://scenes/hud.tscn") as PackedScene
+	var hud_root := hud_scene.instantiate()
+	add_child(hud_root)
+	var hud_score := hud_root.get_node("HudRoot/Score") as ScoreHud
+	GameState.coins_changed.connect(hud_score.set_coins)
+	hud_score.set_coins(GameState.coins)
+	_check_eq(hud_score.label_text("coins"), "COINS  %d" % GameState.coins,
+		"the coin readout shows the wallet balance")
+	GameState.add_coins(5)
+	_check_eq(hud_score.label_text("coins"), "COINS  %d" % GameState.coins,
+		"the coin readout updates from the wallet signal")
+	GameState.coins_changed.disconnect(hud_score.set_coins)
+	hud_root.queue_free()
+
+	# Restore the player's real save target and balance.
+	GameState.save_path = pre_save_path
+	GameState.coins = pre_coins
 
 
 func _test_pursuer() -> void:

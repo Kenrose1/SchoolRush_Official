@@ -48,7 +48,11 @@ func _physics_process(delta: float) -> void:
 	if _collected:
 		return
 	position.x -= speed * delta
-	if not _missed and position.x < GameConfig.PLAYER_X - GameConfig.ITEM_HITBOX_SIZE.x * 0.5:
+	# Currency (coins) never reports a miss: a trail the player runs past
+	# leaves the combo alone, unlike School Items which break it.
+	var is_currency: bool = _data.get("currency", false)
+	if not _missed and not is_currency and position.x < (
+			GameConfig.PLAYER_X - GameConfig.ITEM_HITBOX_SIZE.x * 0.5):
 		_missed = true
 		missed.emit()
 	if position.x < GameConfig.DESPAWN_X:

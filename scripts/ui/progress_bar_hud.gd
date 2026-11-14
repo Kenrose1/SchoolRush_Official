@@ -58,17 +58,11 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_setup_styles()
 
-	_bar = Control.new()
+	# The drawing surface comes from scenes/progress_bar_hud.tscn (top-center),
+	# so its geometry is editable in the editor Inspector.
+	_bar = $Bar
 	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Top-center strip between hearts card and score card.
-	_bar.anchor_left = 0.5
-	_bar.anchor_right = 0.5
-	_bar.offset_left = -TRACK_WIDTH * 0.5
-	_bar.offset_right = TRACK_WIDTH * 0.5
-	_bar.offset_top = 28.0
-	_bar.offset_bottom = 28.0 + TRACK_HEIGHT
 	_bar.draw.connect(_on_bar_draw)
-	add_child(_bar)
 
 
 func _process(delta: float) -> void:

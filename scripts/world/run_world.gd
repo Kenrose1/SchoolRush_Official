@@ -155,9 +155,12 @@ func _ready() -> void:
 	score_system.score_changed.connect(score_hud.set_score)
 	score_system.combo_changed.connect(score_hud.set_combo)
 	score_system.item_count_changed.connect(score_hud.set_items)
+	# Coins ride their own event: wallet signal -> HUD, one subscription.
+	GameState.coins_changed.connect(score_hud.set_coins)
 	score_hud.set_score(score_system.score)
 	score_hud.set_combo(1, 0)
 	score_hud.set_items(0)
+	score_hud.set_coins(GameState.coins)
 	_update_progress()
 
 	director.hazard_passed.connect(score_system.add_hazard_passed)
@@ -302,7 +305,12 @@ func _on_health_changed(current: int, maximum: int) -> void:
 	hud.set_hearts(current, maximum)
 
 
-func _on_item_collected(_kind: int) -> void:
+func _on_item_collected(kind: int) -> void:
+	# Currency is not score: coins go straight to the persistent wallet and
+	# touch neither the score, the item count, nor the combo.
+	if kind == GameConfig.ItemKind.COIN:
+		GameState.add_coins(GameConfig.COIN_VALUE)
+		return
 	score_system.add_item_pickup()
 
 

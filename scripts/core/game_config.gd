@@ -221,14 +221,21 @@ const HAZARD_WEIGHT := {
 
 # --- School Items ------------------------------------------------------------
 
-enum ItemKind { PENCIL, ERASER, BOOK, BAG }
+enum ItemKind { PENCIL, ERASER, BOOK, BAG, COIN }
 
 ## Per-kind art. All items float at the same hover height and share one hitbox.
+## Currency kinds carry "currency": true - they route to the coin wallet
+## instead of the score, and never break the pickup combo when missed.
 const ITEM_DATA := {
 	ItemKind.PENCIL: {"texture": "res://assets/props/item_pencil.png", "scale": 0.44},
 	ItemKind.ERASER: {"texture": "res://assets/props/item_eraser.png", "scale": 0.42},
 	ItemKind.BOOK: {"texture": "res://assets/props/item_book.png", "scale": 0.55},
 	ItemKind.BAG: {"texture": "res://assets/props/item_bag.png", "scale": 0.50},
+	ItemKind.COIN: {
+		"texture": "res://assets/icon/coin/Golden Coin 2nd Outline 64px.png",
+		"scale": 0.62,
+		"currency": true,
+	},
 }
 
 ## School Items run on their own distance clock, between hazard rows.
@@ -242,6 +249,18 @@ const ITEM_HOVER_HEIGHT := 62.0
 const ITEM_HITBOX_SIZE := Vector2(44.0, 44.0)
 const ITEM_BOB_HEIGHT := 6.0
 const ITEM_BOB_SPEED := 4.0
+
+## Coins run on their own distance clock, like School Items but rarer. A run
+## drops COIN_RUN_MIN..COIN_RUN_MAX coins at once, all in one clear lane,
+## spaced COIN_SPACING px apart so Elias collects them in a trail.
+const COIN_RUN_GAP_MIN := 2400.0
+const COIN_RUN_GAP_MAX := 4200.0
+const COIN_RUN_MIN := 3
+const COIN_RUN_MAX := 5
+const COIN_SPACING := 160.0
+
+## Currency added to the persistent wallet per coin collected.
+const COIN_VALUE := 1
 
 # --- Score -------------------------------------------------------------------
 

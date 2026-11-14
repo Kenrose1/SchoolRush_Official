@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://4irmtum0hmn6"]
+
+[ext_resource type="Script" uid="uid://cv7bgdcth5ijn" path="res://scripts/ui/progress_bar_hud.gd" id="1_progress"]
+
+[node name="Progress" type="Control" unique_id=972676584]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_progress")
+
+[node name="Bar" type="Control" parent="." unique_id=1168058822]
+custom_minimum_size = Vector2(600, 38)
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -297.0
+offset_top = 57.0
+offset_right = 303.0
+offset_bottom = 95.0
+grow_horizontal = 2
+mouse_filter = 2

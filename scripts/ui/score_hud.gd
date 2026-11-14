@@ -13,11 +13,13 @@ const SUB_FONT: Font = preload(SUB_FONT_PATH)
 const TEXT_COLOR := Color(1.0, 0.94, 0.86)
 const AMBER_COLOR := Color(1.0, 0.705882, 0.368627)
 const COMBO_COLOR := Color(1.0, 0.42, 0.28)
+const COIN_ICON: Texture2D = preload("res://assets/icon/coin/Golden Coin 2nd Outline 64px.png")
 
 var _card: PanelContainer
 var _score_label: Label
 var _combo_label: Label
 var _items_label: Label
+var _coins_label: Label
 var _last_chain: int = 0
 
 
@@ -31,7 +33,7 @@ func _ready() -> void:
 	_card.offset_left = -460.0
 	_card.offset_top = 24.0
 	_card.offset_right = -116.0
-	_card.offset_bottom = 176.0
+	_card.offset_bottom = 204.0
 
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.08, 0.07, 0.1, 0.78)
@@ -93,9 +95,36 @@ func _ready() -> void:
 	_items_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	vbox.add_child(_items_label)
 
+	# Coin wallet row: golden coin icon + amber count, right-aligned with the
+	# rest of the card. Updated only via set_coins (event-driven, never polled).
+	var coin_row := HBoxContainer.new()
+	coin_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin_row.add_theme_constant_override("separation", 8)
+	coin_row.alignment = BoxContainer.ALIGNMENT_END
+	vbox.add_child(coin_row)
+
+	var coin_icon := TextureRect.new()
+	coin_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin_icon.texture = COIN_ICON
+	coin_icon.custom_minimum_size = Vector2(24, 24)
+	coin_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	coin_row.add_child(coin_icon)
+
+	_coins_label = Label.new()
+	_coins_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_coins_label.add_theme_font_override("font", SUB_FONT)
+	_coins_label.add_theme_font_size_override("font_size", 24)
+	_coins_label.add_theme_color_override("font_color", AMBER_COLOR)
+	_coins_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+	_coins_label.add_theme_constant_override("shadow_offset_x", 2)
+	_coins_label.add_theme_constant_override("shadow_offset_y", 2)
+	coin_row.add_child(_coins_label)
+
 	set_score(0)
 	set_combo(1, 0)
 	set_items(0)
+	set_coins(0)
 
 
 func set_score(score: int) -> void:
@@ -118,6 +147,12 @@ func set_items(count: int) -> void:
 	_items_label.text = "ITEMS  %d" % count
 
 
+## Wallet readout. Wired to GameState.coins_changed, so it moves exactly when
+## a coin is collected - never per frame.
+func set_coins(count: int) -> void:
+	_coins_label.text = "COINS  %d" % count
+
+
 ## Theme font used by a readout ("score", "combo", or "items"), for the test suite.
 func label_font(part: String) -> Font:
 	match part:
@@ -127,6 +162,8 @@ func label_font(part: String) -> Font:
 			return _combo_label.get_theme_font("font")
 		"items":
 			return _items_label.get_theme_font("font")
+		"coins":
+			return _coins_label.get_theme_font("font")
 	return null
 
 
@@ -139,4 +176,6 @@ func label_text(part: String) -> String:
 			return _combo_label.text
 		"items":
 			return _items_label.text
+		"coins":
+			return _coins_label.text
 	return ""

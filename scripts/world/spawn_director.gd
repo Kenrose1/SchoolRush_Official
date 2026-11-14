@@ -19,6 +19,11 @@ var _rng := RandomNumberGenerator.new()
 var _distance_since_row: float = GameConfig.ROW_GAP_START
 var _distance_since_pickup: float = 0.0
 var _pickup_gap: float = 0.0
+## Coin-run clock: one trail of 3-5 coins in a single reserved lane.
+var _distance_since_coin_run: float = 0.0
+var _next_coin_run_gap: float = GameConfig.COIN_RUN_GAP_MIN
+var _coin_run_lane: int = -1
+var _coin_run_coins: Array = []
 var _next_dog_distance: float = GameConfig.DOG_FIRST_DISTANCE
 var _dog_reserved_lane: int = -1
 var _dog_warning: DogWarning = null
@@ -32,6 +37,11 @@ func setup(parent: Node2D, seed_value: int = 0) -> void:
 	hazards = parent
 	_rng.seed = seed_value
 	_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX)
+	_next_coin_run_gap = _rng.randf_range(
+		GameConfig.COIN_RUN_GAP_MIN, GameConfig.COIN_RUN_GAP_MAX)
+	_distance_since_coin_run = 0.0
+	_coin_run_lane = -1
+	_coin_run_coins = []
 	_next_dog_distance = GameConfig.DOG_FIRST_DISTANCE
 	_dog_reserved_lane = -1
 	_dog_warning = null
@@ -45,6 +55,7 @@ func tick(delta: float, speed: float, distance: float) -> void:
 	if hazards == null:
 		return
 	_refresh_dog_reservation()
+	_refresh_coin_reservation()
 	if distance >= _next_dog_distance and _dog_reserved_lane < 0:
 		_try_start_dog_encounter(distance, speed)
 
@@ -61,10 +72,18 @@ func tick(delta: float, speed: float, distance: float) -> void:
 		spawn_pickup(distance, speed)
 		_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX)
 
+	_distance_since_coin_run += speed * delta
+	if _distance_since_coin_run >= _next_coin_run_gap and _coin_run_lane < 0:
+		_distance_since_coin_run = 0.0
+		spawn_coin_run(distance, speed)
+		_next_coin_run_gap = _rng.randf_range(
+			GameConfig.COIN_RUN_GAP_MIN, GameConfig.COIN_RUN_GAP_MAX)
 
-## Spawn one row, leaving the active dog's lane out of the hazard pattern.
+
+## Spawn one row, leaving the active dog's lane and any live coin-run lane out
+## of the hazard pattern, so trails are never cut off by a row.
 func spawn_row(distance: float, speed: float = GameConfig.RUN_SPEED) -> Array[int]:
-	var lanes := generate_pattern(distance, _rng, _dog_reserved_lane)
+	var lanes := generate_pattern(distance, _rng, _dog_reserved_lane, _coin_run_lane)
 	for lane in lanes:
 		var hazard := HAZARD_SCENE.instantiate() as Hazard
 		hazards.add_child(hazard)
@@ -77,13 +96,7 @@ func spawn_row(distance: float, speed: float = GameConfig.RUN_SPEED) -> Array[in
 ## Spawn one School Item on a lane clear of nearby hazards.
 ## Returns the lane used, or -1 when the pickup was skipped.
 func spawn_pickup(distance: float, speed: float = GameConfig.RUN_SPEED) -> int:
-	var occupied: Array[int] = []
-	for child in hazards.get_children():
-		if child is Hazard:
-			var hazard_node := child as Hazard
-			if absf(hazard_node.position.x - GameConfig.SPAWN_X) < GameConfig.PICKUP_LANE_CLEARANCE:
-				if not occupied.has(hazard_node.lane):
-					occupied.append(hazard_node.lane)
+	var occupied := _occupied_pickup_lanes()
 
 	var lane := choose_pickup_lane(occupied, _rng)
 	if lane < 0:
@@ -100,6 +113,31 @@ func spawn_pickup(distance: float, speed: float = GameConfig.RUN_SPEED) -> int:
 	item.setup(kinds[_rng.randi() % kinds.size()], lane, speed)
 	item.position.x = GameConfig.SPAWN_X
 	item.missed.connect(_on_item_missed)
+	return lane
+
+
+## Spawn one coin run: COIN_RUN_MIN..COIN_RUN_MAX coins in a single clear lane,
+## all at once, spaced COIN_SPACING px apart so they scroll past as a trail.
+## The lane is reserved - hazard rows avoid it until every coin is gone.
+## Returns the lane used, or -1 when the run was skipped.
+func spawn_coin_run(distance: float, speed: float = GameConfig.RUN_SPEED) -> int:
+	if _coin_run_lane >= 0:
+		return -1
+	var occupied := _occupied_pickup_lanes()
+	if _dog_reserved_lane >= 0 and not occupied.has(_dog_reserved_lane):
+		occupied.append(_dog_reserved_lane)
+	var lane := choose_pickup_lane(occupied, _rng)
+	if lane < 0:
+		return -1
+
+	var count := _rng.randi_range(GameConfig.COIN_RUN_MIN, GameConfig.COIN_RUN_MAX)
+	for i in count:
+		var coin := COLLECTIBLE_SCENE.instantiate() as Collectible
+		hazards.add_child(coin)
+		coin.setup(GameConfig.ItemKind.COIN, lane, speed)
+		coin.position.x = GameConfig.SPAWN_X + float(i) * GameConfig.COIN_SPACING
+		_coin_run_coins.append(coin)
+	_coin_run_lane = lane
 	return lane
 
 
@@ -173,6 +211,29 @@ func _refresh_dog_reservation() -> void:
 	_dog_reserved_lane = -1
 
 
+## Release the coin-run lane once every coin of the trail is collected or
+## despawned (freed coins compare equal to null in Godot 4).
+func _refresh_coin_reservation() -> void:
+	for i in range(_coin_run_coins.size() - 1, -1, -1):
+		var coin = _coin_run_coins[i]
+		if not is_instance_valid(coin) or coin.is_queued_for_deletion():
+			_coin_run_coins.remove_at(i)
+	if _coin_run_coins.is_empty():
+		_coin_run_lane = -1
+
+
+## Lane indices with a hazard within PICKUP_LANE_CLEARANCE of the spawn point.
+func _occupied_pickup_lanes() -> Array[int]:
+	var occupied: Array[int] = []
+	for child in hazards.get_children():
+		if child is Hazard:
+			var hazard_node := child as Hazard
+			if absf(hazard_node.position.x - GameConfig.SPAWN_X) < GameConfig.PICKUP_LANE_CLEARANCE:
+				if not occupied.has(hazard_node.lane):
+					occupied.append(hazard_node.lane)
+	return occupied
+
+
 ## Pick a clear lane for the dog, or -1 if all lanes have an entry obstacle.
 static func choose_dog_lane(
 	occupied: Array[int],
@@ -206,10 +267,11 @@ static func generate_pattern(
 	distance: float,
 	rng: RandomNumberGenerator,
 	reserved_lane: int = -1,
+	also_reserved: int = -1,
 ) -> Array[int]:
 	var lanes: Array[int] = []
 	for lane in GameConfig.LANE_COUNT:
-		if lane != reserved_lane:
+		if lane != reserved_lane and lane != also_reserved:
 			lanes.append(lane)
 	if lanes.is_empty():
 		return []
