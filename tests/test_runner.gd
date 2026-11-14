@@ -62,6 +62,9 @@ func _ready() -> void:
 	_section("Shop")
 	_test_shop()
 
+	_section("Debug tools")
+	_test_debug_tools()
+
 	_section("Pursuer")
 	await _test_pursuer()
 
@@ -1960,6 +1963,58 @@ func _test_shop() -> void:
 	GameState.shop_levels = pre_levels
 	GameState.coins = pre_coins
 	GameState.save_path = pre_save_path
+
+
+func _test_debug_tools() -> void:
+	# The cheats live in one deletable autoload; verify its behavior on a
+	# scratch save so the player's real progress is never touched.
+	_check(DebugTools != null, "the debug autoload is present")
+	_check(DebugTools.can_process(), "the debug autoload listens in debug builds")
+
+	var scratch := "user://test_debug_scratch.cfg"
+	var pre_save_path := GameState.save_path
+	var pre_coins := GameState.coins
+	var pre_levels: Dictionary = GameState.shop_levels.duplicate()
+	GameState.save_path = scratch
+	GameState.coins = 99
+	GameState.shop_levels = { GameConfig.ShopUpgrade.SPEED: 2 }
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var stale := scratch + suffix
+		if FileAccess.file_exists(stale):
+			DirAccess.remove_absolute(stale)
+
+	var cheat_events: Array[int] = []
+	GameState.coins_changed.connect(func(count: int) -> void: cheat_events.append(count))
+
+	# F9: wallet zero, upgrades kept, write-through to disk.
+	DebugTools.zero_wallet()
+	_check_eq(GameState.coins, 0, "zero_wallet empties the wallet")
+	_check_eq(GameState.shop_level(GameConfig.ShopUpgrade.SPEED), 2,
+		"zero_wallet keeps bought upgrades")
+	_check_eq(cheat_events.size(), 1, "zero_wallet announces the new balance")
+	_check(FileAccess.file_exists(scratch), "zero_wallet writes through to disk")
+	var saved := ConfigFile.new()
+	_check_eq(saved.load(scratch), OK, "the cheat save parses")
+	_check_eq(int(saved.get_value(GameState.SAVE_SECTION_WALLET, GameState.SAVE_KEY_COINS, -1)),
+		0, "the reset balance persists on disk")
+
+	# Shift+F9: everything back to zero, levels persist as zero too.
+	DebugTools.wipe_progress()
+	_check_eq(GameState.coins, 0, "wipe_progress empties the wallet")
+	_check_eq(GameState.shop_level(GameConfig.ShopUpgrade.SPEED), 0,
+		"wipe_progress resets bought upgrades")
+	_check_eq(cheat_events.size(), 2, "wipe_progress announces the new balance")
+	_check_eq(saved.load(scratch), OK, "the wiped save parses")
+	_check_eq(int(saved.get_value(GameState.SAVE_SECTION_SHOP, str(GameConfig.ShopUpgrade.SPEED), -1)),
+		0, "the wiped upgrade level persists on disk")
+
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var stale := scratch + suffix
+		if FileAccess.file_exists(stale):
+			DirAccess.remove_absolute(stale)
+	GameState.save_path = pre_save_path
+	GameState.coins = pre_coins
+	GameState.shop_levels = pre_levels
 
 
 func _test_pursuer() -> void:
