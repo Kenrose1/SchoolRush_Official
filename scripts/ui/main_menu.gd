@@ -18,6 +18,8 @@ const BEST_FORMAT := "BEST  %06d"
 @onready var how_to_panel: PanelContainer = %HowToPanel
 @onready var back_button: Button = %BackButton
 @onready var settings_panel: SettingsPanel = %SettingsPanel
+@onready var shop_button: Button = %Shop
+@onready var shop_panel: ShopPanel = %ShopPanel
 @onready var elias_sprite: AnimatedSprite2D = %EliasVignette
 @onready var tanod_sprite: AnimatedSprite2D = %TanodVignette
 @onready var title_label: Label = %TitleLabel
@@ -43,9 +45,11 @@ func _ready() -> void:
 	back_button.pressed.connect(_on_how_to_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
 	settings_panel.closed.connect(_on_settings_closed)
+	shop_button.pressed.connect(_on_shop_pressed)
+	shop_panel.closed.connect(_on_shop_closed)
 	quit_button.pressed.connect(_on_quit_pressed)
 
-	_buttons = [campaign_button, endless_button, how_to_button, settings_button, quit_button]
+	_buttons = [campaign_button, endless_button, how_to_button, shop_button, settings_button, quit_button]
 	for btn in _buttons:
 		_setup_button_effects(btn)
 	
@@ -144,6 +148,19 @@ func _on_settings_pressed() -> void:
 ## Back out of settings and hand focus to the button that opened it.
 func _on_settings_closed() -> void:
 	settings_button.grab_focus()
+
+
+## Open the school store. The how-to overlay closes first so the two
+## overlays never stack.
+func _on_shop_pressed() -> void:
+	if how_to_panel.visible:
+		_on_how_to_pressed()
+	shop_panel.open()
+
+
+## Back out of the store and hand focus to the button that opened it.
+func _on_shop_closed() -> void:
+	shop_button.grab_focus()
 
 
 func _on_quit_pressed() -> void:

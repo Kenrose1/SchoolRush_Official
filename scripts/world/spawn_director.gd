@@ -19,6 +19,8 @@ var _rng := RandomNumberGenerator.new()
 var _distance_since_row: float = GameConfig.ROW_GAP_START
 var _distance_since_pickup: float = 0.0
 var _pickup_gap: float = 0.0
+## Luck upgrade: pickup and coin-run gaps shrink by this factor (<= 1.0).
+var _luck_gap_factor: float = 1.0
 ## Coin-run clock: one trail of 3-5 coins in a single reserved lane.
 var _distance_since_coin_run: float = 0.0
 var _next_coin_run_gap: float = GameConfig.COIN_RUN_GAP_MIN
@@ -36,9 +38,13 @@ var _dog_speed: float = GameConfig.RUN_SPEED
 func setup(parent: Node2D, seed_value: int = 0) -> void:
 	hazards = parent
 	_rng.seed = seed_value
-	_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX)
+	# Luck upgrade makes both item clocks denser.
+	_luck_gap_factor = GameConfig.shop_luck_gap_factor(
+		GameState.shop_level(GameConfig.ShopUpgrade.LUCK))
+	_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX) \
+		* _luck_gap_factor
 	_next_coin_run_gap = _rng.randf_range(
-		GameConfig.COIN_RUN_GAP_MIN, GameConfig.COIN_RUN_GAP_MAX)
+		GameConfig.COIN_RUN_GAP_MIN, GameConfig.COIN_RUN_GAP_MAX) * _luck_gap_factor
 	_distance_since_coin_run = 0.0
 	_coin_run_lane = -1
 	_coin_run_coins = []
@@ -70,14 +76,15 @@ func tick(delta: float, speed: float, distance: float) -> void:
 	while _distance_since_pickup >= _pickup_gap:
 		_distance_since_pickup -= _pickup_gap
 		spawn_pickup(distance, speed)
-		_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX)
+		_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX) \
+			* _luck_gap_factor
 
 	_distance_since_coin_run += speed * delta
 	if _distance_since_coin_run >= _next_coin_run_gap and _coin_run_lane < 0:
 		_distance_since_coin_run = 0.0
 		spawn_coin_run(distance, speed)
 		_next_coin_run_gap = _rng.randf_range(
-			GameConfig.COIN_RUN_GAP_MIN, GameConfig.COIN_RUN_GAP_MAX)
+			GameConfig.COIN_RUN_GAP_MIN, GameConfig.COIN_RUN_GAP_MAX) * _luck_gap_factor
 
 
 ## Spawn one row, leaving the active dog's lane and any live coin-run lane out

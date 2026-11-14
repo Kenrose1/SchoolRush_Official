@@ -13,6 +13,8 @@ signal slide_started
 signal slide_finished
 signal damaged(remaining_hearts: int)
 signal health_changed(current: int, maximum: int)
+signal shield_changed(charges: int)
+signal shield_used(charges: int)
 signal item_collected(kind: int)
 signal died
 signal caught
@@ -30,6 +32,12 @@ var is_sliding: bool = false
 var slide_time_left: float = 0.0
 
 var health: int = GameConfig.MAX_HEARTS
+## Effective heart cap: MAX_HEARTS plus the bought Heart upgrades.
+var max_health: int = GameConfig.MAX_HEARTS
+## Per-run shield charges (bought in the shop). A charge absorbs one hazard
+## hit with no heart loss and no combo break.
+var shield_charges: int = 0
+var shield_max: int = 0
 var invulnerable_time_left: float = 0.0
 ## Set by RunWorld each frame from the pursuer. While true, a hazard hit is an
 ## instant loss (hearts and i-frames are ignored).
@@ -49,6 +57,11 @@ var _box: RectangleShape2D
 
 func _ready() -> void:
 	lane_y = GameConfig.lane_y(lane)
+	# Shop upgrades: bigger heart pool and starting shield charges.
+	max_health = GameConfig.shop_max_hearts(GameState.shop_level(GameConfig.ShopUpgrade.HEARTS))
+	health = max_health
+	shield_max = GameConfig.shop_shield_charges(GameState.shop_level(GameConfig.ShopUpgrade.SHIELD))
+	shield_charges = shield_max
 	# Layers come from GameConfig so collision setup lives in one place.
 	hitbox.collision_layer = GameConfig.LAYER_PLAYER
 	hitbox.collision_mask = GameConfig.PLAYER_MASK
@@ -59,7 +72,8 @@ func _ready() -> void:
 	_update_hitbox()
 	_play(&"run")
 	_apply_pose()
-	health_changed.emit(health, GameConfig.MAX_HEARTS)
+	health_changed.emit(health, max_health)
+	shield_changed.emit(shield_charges)
 
 
 func _physics_process(delta: float) -> void:
@@ -109,7 +123,9 @@ func jump() -> bool:
 		_end_slide()
 	in_air = true
 	air_height = 0.0
-	vertical_speed = GameConfig.JUMP_SPEED
+	# Spring Shoes upgrade scales the launch speed (and so the apex).
+	vertical_speed = GameConfig.shop_jump_speed(
+		GameState.shop_level(GameConfig.ShopUpgrade.JUMP))
 	jumped.emit()
 	return true
 
@@ -129,26 +145,37 @@ func can_take_damage() -> bool:
 	return health > 0 and invulnerable_time_left <= 0.0
 
 
-## Apply damage unless invulnerable. Returns true when the hit landed.
+## Apply damage unless invulnerable. A shield charge absorbs the hit first:
+## no heart loss, no combo break, but the brief i-frame grace still applies.
+## Returns true only when the hit landed (a heart was lost).
 func take_damage(amount: int = 1) -> bool:
 	if not can_take_damage():
+		return false
+	if shield_charges > 0:
+		shield_charges = maxi(shield_charges - 1, 0)
+		invulnerable_time_left = GameConfig.I_FRAME_TIME
+		shield_changed.emit(shield_charges)
+		shield_used.emit(shield_charges)
 		return false
 	health = maxi(health - amount, 0)
 	invulnerable_time_left = GameConfig.I_FRAME_TIME
 	_hurt_time_left = GameConfig.HURT_ANIM_TIME
 	damaged.emit(health)
-	health_changed.emit(health, GameConfig.MAX_HEARTS)
+	health_changed.emit(health, max_health)
 	if health == 0:
 		died.emit()
 	return true
 
 
-## Restore full health and clear invulnerability (used by tests and retries).
+## Restore full health and shields and clear invulnerability (used by tests
+## and retries).
 func reset_health() -> void:
-	health = GameConfig.MAX_HEARTS
+	health = max_health
+	shield_charges = shield_max
 	invulnerable_time_left = 0.0
 	_hurt_time_left = 0.0
-	health_changed.emit(health, GameConfig.MAX_HEARTS)
+	health_changed.emit(health, max_health)
+	shield_changed.emit(shield_charges)
 
 
 # --- Movement ----------------------------------------------------------------

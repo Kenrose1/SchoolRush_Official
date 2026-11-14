@@ -59,6 +59,9 @@ func _ready() -> void:
 	_section("Coins")
 	_test_coins()
 
+	_section("Shop")
+	_test_shop()
+
 	_section("Pursuer")
 	await _test_pursuer()
 
@@ -1697,6 +1700,266 @@ func _test_coins() -> void:
 	# Restore the player's real save target and balance.
 	GameState.save_path = pre_save_path
 	GameState.coins = pre_coins
+
+
+func _test_shop() -> void:
+	# --- Config contract: table, art, cost curve ------------------------------
+	for kind: int in GameConfig.SHOP_UPGRADES:
+		var data: Dictionary = GameConfig.SHOP_UPGRADES[kind]
+		_check(String(data["name"]).length() > 0, "upgrade %d has a name" % kind)
+		_check(int(data["max_level"]) >= 1, "upgrade %d has a level cap" % kind)
+		_check(float(data["cost_growth"]) > 1.0, "upgrade %d grows in cost" % kind)
+		_check_eq(GameConfig.shop_cost(kind, 0), int(data["base_cost"]),
+			"level 1 of upgrade %d costs the base" % kind)
+		var last := int(data["base_cost"])
+		for level in range(1, int(data["max_level"])):
+			var cost := GameConfig.shop_cost(kind, level)
+			_check(cost > last, "upgrade %d cost rises with level" % kind)
+			last = cost
+	for path: String in [
+		"res://assets/icon/upgrades/speed.png",
+		"res://assets/icon/upgrades/luck.png",
+		"res://assets/icon/upgrades/jump.png",
+		"res://assets/icon/upgrades/heart.png",
+		"res://assets/icon/upgrades/shield.png",
+	]:
+		_check(ResourceLoader.exists(path), "shop icon exists: %s" % path)
+
+	# --- Effect math: all five upgrades ---------------------------------------
+	_check_near(GameConfig.shop_speed_multiplier(0), 1.0, 0.0001, "speed level 0 is stock")
+	_check_near(GameConfig.shop_speed_multiplier(5), 1.15, 0.0001, "speed level 5 is +15%")
+	_check_near(GameConfig.shop_luck_gap_factor(0), 1.0, 0.0001, "luck level 0 is stock")
+	_check(GameConfig.shop_luck_gap_factor(5) < GameConfig.shop_luck_gap_factor(1),
+		"luck densifies with level")
+	_check_near(GameConfig.shop_jump_speed(2),
+		GameConfig.JUMP_SPEED * sqrt(1.16), 0.0001, "jump launch speed scales with level")
+	_check(GameConfig.shop_jump_speed(5) > GameConfig.JUMP_SPEED, "jump level 5 jumps higher")
+	_check_eq(GameConfig.shop_max_hearts(0), GameConfig.MAX_HEARTS, "hearts level 0 is stock")
+	_check_eq(GameConfig.shop_max_hearts(3), GameConfig.MAX_HEARTS + 3, "hearts add one each")
+	_check_eq(GameConfig.shop_shield_charges(2), 2, "shield level 2 grants two charges")
+	_check(GameConfig.shop_jump_speed(2) > GameConfig.shop_jump_speed(0),
+		"jump upgrades exceed the base launch")
+
+	# --- Buying: deduction, persistence, caps, rejections ---------------------
+	var scratch := "user://test_shop_scratch.cfg"
+	var pre_save_path := GameState.save_path
+	var pre_coins := GameState.coins
+	var pre_levels: Dictionary = GameState.shop_levels.duplicate()
+	GameState.save_path = scratch
+	GameState.coins = 1000
+	GameState.shop_levels = {}
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var stale := scratch + suffix
+		if FileAccess.file_exists(stale):
+			DirAccess.remove_absolute(stale)
+
+	var shop_events: Array[int] = []
+	GameState.coins_changed.connect(func(count: int) -> void: shop_events.append(count))
+
+	_check_eq(GameState.shop_level(GameConfig.ShopUpgrade.SPEED), 0,
+		"an unbought upgrade reads level 0")
+	_check(GameState.buy_upgrade(GameConfig.ShopUpgrade.SPEED), "an affordable buy succeeds")
+	_check_eq(GameState.shop_level(GameConfig.ShopUpgrade.SPEED), 1, "the buy raises the level")
+	_check_eq(GameState.coins, 1000 - GameConfig.SHOP_UPGRADES[GameConfig.ShopUpgrade.SPEED]["base_cost"],
+		"the buy deducts the price from the wallet")
+	_check_eq(shop_events.size(), 1, "the wallet signal fires on a purchase")
+	_check(FileAccess.file_exists(scratch), "the purchase writes through to disk")
+
+	GameState.coins = 0
+	_check(not GameState.buy_upgrade(GameConfig.ShopUpgrade.JUMP),
+		"an unaffordable buy is rejected")
+	_check_eq(GameState.shop_level(GameConfig.ShopUpgrade.JUMP), 0,
+		"a rejected buy leaves the level untouched")
+	_check_eq(GameState.coins, 0, "a rejected buy never charges the wallet")
+
+	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = 2
+	_check(not GameState.buy_upgrade(GameConfig.ShopUpgrade.SHIELD),
+		"a maxed upgrade cannot be bought again")
+	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = 0
+	_check(not GameState.buy_upgrade(999), "an unknown upgrade is rejected")
+
+	# Round trip: levels survive a reload, and the save carries a version.
+	GameState.coins = 500
+	GameState.shop_levels[GameConfig.ShopUpgrade.HEARTS] = 2
+	GameState._save_wallet()
+	GameState.coins = 0
+	GameState.shop_levels = {}
+	GameState._load_wallet()
+	_check_eq(GameState.coins, 500, "a restart reloads the wallet")
+	_check_eq(GameState.shop_level(GameConfig.ShopUpgrade.HEARTS), 2,
+		"bought levels survive a restart")
+	var saved := ConfigFile.new()
+	_check_eq(saved.load(scratch), OK, "the scratch save parses")
+	_check_eq(int(saved.get_value(GameState.SAVE_SECTION_META, GameState.SAVE_KEY_VERSION, 0)),
+		GameState.SAVE_VERSION, "the save file carries its version")
+
+	# Out-of-range stored levels clamp on load.
+	GameState.shop_levels = {}
+	GameState._save_wallet()
+	GameState.coins = 0
+	var tampered := FileAccess.open(scratch + ".tmp", FileAccess.WRITE)
+	tampered.close()
+	var hacked := ConfigFile.new()
+	hacked.load(scratch)
+	hacked.set_value(GameState.SAVE_SECTION_SHOP, str(GameConfig.ShopUpgrade.HEARTS), 9)
+	hacked.save(scratch)
+	GameState.shop_levels = {}
+	GameState._load_wallet()
+	_check_eq(GameState.shop_level(GameConfig.ShopUpgrade.HEARTS),
+		int(GameConfig.SHOP_UPGRADES[GameConfig.ShopUpgrade.HEARTS]["max_level"]),
+		"an over leveled save clamps to the cap")
+
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var stale := scratch + suffix
+		if FileAccess.file_exists(stale):
+			DirAccess.remove_absolute(stale)
+
+	# --- Player: shield absorbs, hearts pool, jump upgrade --------------------
+	GameState.coins = 0
+	GameState.shop_levels = {
+		GameConfig.ShopUpgrade.SHIELD: 2,
+	}
+	var shield_scene := load("res://scenes/player.tscn") as PackedScene
+	var shielded := shield_scene.instantiate() as Player
+	add_child(shielded)
+	shielded.set_physics_process(false)
+	var shield_events: Array[int] = []
+	shielded.shield_changed.connect(func(charges: int) -> void: shield_events.append(charges))
+	var shield_hits: Array[int] = []
+	shielded.damaged.connect(func(remaining: int) -> void: shield_hits.append(remaining))
+
+	_check_eq(shielded.shield_max, 2, "the shield level grants two charges")
+	_check_eq(shielded.shield_charges, 2, "a fresh run starts with full charges")
+	_check(not shielded.take_damage(), "the first hit is absorbed")
+	_check_eq(shielded.shield_charges, 1, "one charge is spent")
+	_check_eq(shielded.health, GameConfig.MAX_HEARTS, "an absorbed hit costs no heart")
+	_check_eq(shield_hits.size(), 0, "an absorbed hit never emits damaged")
+	_check_eq(shield_events.size(), 1, "the shield signal fires per absorb")
+	_check_near(shielded.invulnerable_time_left, GameConfig.I_FRAME_TIME, 0.001,
+		"an absorb still grants i-frames")
+	_check(not shielded.take_damage(), "a hit inside the post-absorb i-frames is ignored")
+	for i in int(ceil(GameConfig.I_FRAME_TIME * 60.0)) + 2:
+		shielded._physics_process(1.0 / 60.0)
+	_check(not shielded.take_damage(), "the second hit is absorbed")
+	_check_eq(shielded.shield_charges, 0, "both charges are spent")
+	for i in int(ceil(GameConfig.I_FRAME_TIME * 60.0)) + 2:
+		shielded._physics_process(1.0 / 60.0)
+	_check(shielded.take_damage(), "a hit with no charges lands")
+	_check_eq(shielded.health, GameConfig.MAX_HEARTS - 1, "a landed hit costs a heart")
+	shielded.reset_health()
+	_check_eq(shielded.shield_charges, 2, "reset refills the shields")
+	shielded.queue_free()
+
+	GameState.shop_levels = { GameConfig.ShopUpgrade.HEARTS: 2 }
+	var tank := shield_scene.instantiate() as Player
+	add_child(tank)
+	tank.set_physics_process(false)
+	_check_eq(tank.max_health, GameConfig.MAX_HEARTS + 2, "the hearts level extends the pool")
+	_check_eq(tank.health, GameConfig.MAX_HEARTS + 2, "a fresh run starts with the full pool")
+	tank.queue_free()
+
+	GameState.shop_levels = { GameConfig.ShopUpgrade.JUMP: 2 }
+	var jumper := shield_scene.instantiate() as Player
+	add_child(jumper)
+	jumper.set_physics_process(false)
+	jumper.jump()
+	_check_near(jumper.vertical_speed, GameConfig.shop_jump_speed(2), 0.0001,
+		"the jump upgrade scales the launch speed")
+	jumper.queue_free()
+
+	# Restore defaults before any later tests instantiate players again.
+	GameState.shop_levels = pre_levels
+	GameState.coins = pre_coins
+	GameState.save_path = pre_save_path
+	GameState.coins_changed.emit(GameState.coins)
+
+	# --- Spawn director: luck densifies both item clocks ----------------------
+	GameState.shop_levels = { GameConfig.ShopUpgrade.LUCK: 3 }
+	var container := Node2D.new()
+	add_child(container)
+	var director := SpawnDirector.new()
+	add_child(director)
+	director.setup(container, 11)
+	_check_near(director._luck_gap_factor, pow(0.92, 3), 0.0001,
+		"the director reads the luck factor")
+	_check(director._pickup_gap <= GameConfig.PICKUP_GAP_MAX * director._luck_gap_factor,
+		"the pickup gap shrinks with luck")
+	_check(director._next_coin_run_gap
+		<= GameConfig.COIN_RUN_GAP_MAX * director._luck_gap_factor,
+		"the coin-run gap shrinks with luck")
+	director.queue_free()
+	container.queue_free()
+	GameState.shop_levels = pre_levels
+	GameState.coins = pre_coins
+	GameState.save_path = pre_save_path
+
+	# --- Run world: speed multiplies the base, not the ramp -------------------
+	GameState.shop_levels = { GameConfig.ShopUpgrade.SPEED: 2 }
+	var speed_root := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	add_child(speed_root)
+	var speed_world := speed_root.get_node("RunWorld") as RunWorld
+	speed_world.set_physics_process(false)
+	_check_near(speed_world._base_speed(),
+		GameConfig.RUN_SPEED * GameConfig.shop_speed_multiplier(2), 0.0001,
+		"the speed upgrade multiplies the campaign base speed")
+	speed_world.queue_free()
+	GameState.shop_levels = pre_levels
+	GameState.coins = pre_coins
+	GameState.save_path = pre_save_path
+
+	# --- HUD: shield pips ride the hearts card --------------------------------
+	var hud_scene := load("res://scenes/hud.tscn") as PackedScene
+	var hud_root := hud_scene.instantiate()
+	add_child(hud_root)
+	var hud := hud_root.get_node("HudRoot/Hearts") as HeartsHud
+	hud.set_shields(2, 2)
+	_check_eq(hud.shield_count(), 2, "two bought charges show two pips")
+	hud.set_shields(1, 2)
+	_check_eq(hud.shield_count(), 2, "a spent pip stays visible but dimmed")
+	var pips: Array = hud.get_node("Panel/Row").get_children().filter(
+		func(child: Node) -> bool: return child is TextureRect and child.texture == hud.SHIELD_TEXTURE)
+	if pips.size() == 2:
+		_check_near((pips[0] as TextureRect).modulate.a, 1.0, 0.01, "a charged pip is bright")
+		_check_near((pips[1] as TextureRect).modulate.a, 0.25, 0.01, "a spent pip is dim")
+	else:
+		_check(false, "the shield pips render in the hearts row")
+	hud.set_shields(0, 0)
+	_check_eq(hud.shield_count(), 0, "no shield level shows no pips")
+	hud_root.queue_free()
+
+	# --- Panel: cards, disabled states, focus, close --------------------------
+	GameState.coins = 500
+	var panel_scene := load("res://scenes/shop_panel.tscn") as PackedScene
+	var panel := panel_scene.instantiate() as ShopPanel
+	add_child(panel)
+	_check(panel != null, "the shop panel instantiates")
+	_check_eq((panel.grid as GridContainer).get_child_count(), 5,
+		"the store lists one card per upgrade")
+	_check(not panel.visible, "the store starts hidden")
+	panel.open()
+	_check(panel.visible, "open() shows the store")
+	_check_eq(panel.wallet_label.text, "500", "the wallet chip shows the balance")
+	var buy_button: Button = panel._cards[GameConfig.ShopUpgrade.HEARTS]["buy"]
+	_check(not buy_button.disabled, "an affordable card's buy button is enabled")
+	_check_eq(buy_button.text, "BUY  %d" % GameConfig.shop_cost(
+		GameConfig.ShopUpgrade.HEARTS, 0), "the buy button shows the next price")
+	panel.close()
+	_check(not panel.visible, "close() hides the store")
+
+	GameState.coins = 0
+	GameState.shop_levels = { GameConfig.ShopUpgrade.SHIELD: 2 }
+	panel._refresh()
+	var maxed: Button = panel._cards[GameConfig.ShopUpgrade.SHIELD]["buy"]
+	_check(maxed.disabled and maxed.text == "MAX", "a maxed card reads MAX and is disabled")
+	var broke: Button = panel._cards[GameConfig.ShopUpgrade.SPEED]["buy"]
+	_check(broke.disabled, "an unaffordable card's buy button is disabled")
+	panel._focus_first_buy()
+	_check_eq(panel.close_button, get_viewport().gui_get_focus_owner(),
+		"a broke player's focus lands on CLOSE")
+	panel.queue_free()
+	GameState.shop_levels = pre_levels
+	GameState.coins = pre_coins
+	GameState.save_path = pre_save_path
 
 
 func _test_pursuer() -> void:

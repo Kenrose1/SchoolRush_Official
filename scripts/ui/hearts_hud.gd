@@ -4,11 +4,14 @@ extends Control
 
 const FULL_TEXTURE := preload("res://assets/heart/heart.png")
 const EMPTY_TEXTURE := preload("res://assets/heart/heart_empty.png")
+const SHIELD_TEXTURE := preload("res://assets/icon/upgrades/shield.png")
 
 @onready var _panel: PanelContainer = $Panel
 @onready var _row: HBoxContainer = $Panel/Row
 var _hearts: Array[TextureRect] = []
+var _shields: Array[TextureRect] = []
 var _last_current: int = -1
+var _last_shields: int = -1
 
 
 func _ready() -> void:
@@ -49,6 +52,57 @@ func set_hearts(current: int, maximum: int) -> void:
 		shake.tween_property(_panel, "position:x", 32.0, 0.05)
 		
 	_last_current = current
+
+
+## Shield charges bought in the shop, shown as pips after the hearts. A spent
+## charge dims in place with a pop, so the block reads clearly mid-run.
+func set_shields(current: int, maximum: int) -> void:
+	if maximum > 0 and _shields.is_empty():
+		# Build the pip set once, sized for the bought level.
+		var spacer := Control.new()
+		spacer.custom_minimum_size = Vector2(10, 0)
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_row.add_child(spacer)
+		for i in maximum:
+			var icon := _make_shield_icon()
+			_row.add_child(icon)
+			_shields.append(icon)
+	for index in _shields.size():
+		var icon := _shields[index]
+		icon.visible = index < maximum
+		if index >= maximum:
+			continue
+		var charged := index < current
+		icon.modulate = Color(1.0, 1.0, 1.0, 1.0) if charged else Color(1.0, 1.0, 1.0, 0.25)
+		if not charged and _last_shields > current and _last_shields != -1:
+			_play_shield_pop(icon)
+	_last_shields = current
+
+
+## Number of visible shield pips, for the test suite.
+func shield_count() -> int:
+	var visible := 0
+	for icon in _shields:
+		if icon.visible:
+			visible += 1
+	return visible
+
+
+func _play_shield_pop(icon: TextureRect) -> void:
+	var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(icon, "scale", Vector2(1.5, 1.5), 0.1)
+	tw.tween_property(icon, "scale", Vector2.ONE, 0.18)
+
+
+func _make_shield_icon() -> TextureRect:
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(36.0, 36.0)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.pivot_offset = Vector2(18.0, 18.0)
+	icon.texture = SHIELD_TEXTURE
+	return icon
 
 
 func _play_heart_anim(heart: TextureRect, was_healed: bool) -> void:

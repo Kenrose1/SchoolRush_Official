@@ -149,10 +149,13 @@ func _ready() -> void:
 	player.caught.connect(_on_player_caught)
 	player.item_collected.connect(_on_item_collected)
 	player.damaged.connect(_on_player_damaged)
+	# Shield pips ride the hearts card; pushed on every charge change.
+	player.shield_changed.connect(hud.set_shields)
 	pursuer.caught.connect(_on_pursuer_caught)
 	pursuer.lunge_finished.connect(_on_lunge_finished)
 	arrest.animation_finished.connect(_on_arrest_finished)
-	hud.set_hearts(player.health, GameConfig.MAX_HEARTS)
+	hud.set_hearts(player.health, player.max_health)
+	hud.set_shields(player.shield_charges, player.shield_max)
 	pause_menu.setup(self)
 
 	score_system.score_changed.connect(score_hud.set_score)
@@ -184,11 +187,14 @@ func set_run_mode(new_mode: int) -> void:
 
 
 ## Speed the run should settle at outside a momentum dip: campaign stays at
-## RUN_SPEED; endless ramps with distance so late runs get faster.
+## RUN_SPEED; endless ramps with distance so late runs get faster. The Speed
+## shop upgrade multiplies both.
 func _base_speed() -> float:
+	var upgraded := GameConfig.shop_speed_multiplier(
+		GameState.shop_level(GameConfig.ShopUpgrade.SPEED))
 	if mode == GameConfig.RunMode.ENDLESS:
-		return GameConfig.RUN_SPEED * GameConfig.endless_speed_multiplier(distance)
-	return GameConfig.RUN_SPEED
+		return GameConfig.RUN_SPEED * GameConfig.endless_speed_multiplier(distance) * upgraded
+	return GameConfig.RUN_SPEED * upgraded
 
 
 func _physics_process(delta: float) -> void:

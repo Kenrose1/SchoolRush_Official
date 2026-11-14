@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://cbainy4o7nwae" path="res://assets/props/item_pencil.png" id="8_pencil"]
 [ext_resource type="Texture2D" uid="uid://bpg6acgu2we0s" path="res://assets/props/item_bag.png" id="9_bag"]
 [ext_resource type="PackedScene" uid="uid://de7y84lnoxl7t" path="res://scenes/settings_panel.tscn" id="10_settings"]
+[ext_resource type="PackedScene" path="res://scenes/shop_panel.tscn" id="11_shop"]
 
 [sub_resource type="StyleBoxFlat" id="sb_pill"]
 content_margin_left = 10.0
@@ -376,6 +377,7 @@ text = "HOW TO PLAY"
 alignment = 0
 
 [node name="Shop" type="Button" parent="ContentMargin/LeftColumn/MenuPanel/ButtonStack" unique_id=1989543669]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 68)
 layout_mode = 2
 focus_neighbor_top = NodePath("../Campaign")
@@ -600,5 +602,18 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="SettingsPanel" parent="SettingsCenter" unique_id=1640987929 instance=ExtResource("10_settings")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ShopCenter" type="CenterContainer" parent="." unique_id=331349540]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ShopPanel" parent="ShopCenter" unique_id=1378818798 instance=ExtResource("11_shop")]
 unique_name_in_owner = true
 layout_mode = 2

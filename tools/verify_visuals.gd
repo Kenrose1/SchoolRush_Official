@@ -225,6 +225,25 @@ func _ready() -> void:
 	GameState.save_path = saved_wallet_path
 	GameState.coins = saved_coins
 
+	# School Store: open the shop panel over the run backdrop. The wallet chip
+	# shows a display balance only - no purchases happen, so no save is written.
+	var saved_shop_coins := GameState.coins
+	var saved_shop_levels: Dictionary = GameState.shop_levels.duplicate()
+	GameState.coins = 500
+	GameState.shop_levels = {
+		GameConfig.ShopUpgrade.SPEED: 1,
+		GameConfig.ShopUpgrade.HEARTS: 1,
+		GameConfig.ShopUpgrade.SHIELD: 2,
+	}
+	var shop_panel := (load("res://scenes/shop_panel.tscn") as PackedScene).instantiate() as ShopPanel
+	add_child(shop_panel)
+	shop_panel.open()
+	await _wait(2)
+	await _shot("m6_01_shop")
+	shop_panel.queue_free()
+	GameState.coins = saved_shop_coins
+	GameState.shop_levels = saved_shop_levels
+
 	# Campaign: cross the finish line for the MADE IT! victory. Stage a best
 	# below the run's score so the capture shows the gold badge.
 	world.set_run_mode(GameConfig.RunMode.CAMPAIGN)

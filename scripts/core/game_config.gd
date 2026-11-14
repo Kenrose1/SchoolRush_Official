@@ -262,6 +262,69 @@ const COIN_SPACING := 160.0
 ## Currency added to the persistent wallet per coin collected.
 const COIN_VALUE := 1
 
+# --- Shop upgrades -----------------------------------------------------------
+
+## Purchasable upgrades. DASH is reserved (its icon exists on the sheet) and
+## stays out of SHOP_UPGRADES until the dash mechanic ships.
+enum ShopUpgrade { SPEED, LUCK, JUMP, HEARTS, SHIELD }
+
+## Per-upgrade tuning: display name, per-level effect blurb, level cap, and the
+## cost curve (level 1 costs base_cost; level N costs base_cost * growth^(N-1)).
+const SHOP_UPGRADES := {
+	ShopUpgrade.SPEED: {
+		"name": "RUN SPEED", "desc": "+3% world speed per level",
+		"max_level": 5, "base_cost": 40, "cost_growth": 1.65,
+	},
+	ShopUpgrade.LUCK: {
+		"name": "LUCKY CHARM", "desc": "Pickups and coins appear more often",
+		"max_level": 5, "base_cost": 50, "cost_growth": 1.70,
+	},
+	ShopUpgrade.JUMP: {
+		"name": "SPRING SHOES", "desc": "+8% jump height per level",
+		"max_level": 5, "base_cost": 40, "cost_growth": 1.65,
+	},
+	ShopUpgrade.HEARTS: {
+		"name": "EXTRA HEART", "desc": "+1 max heart per level",
+		"max_level": 3, "base_cost": 80, "cost_growth": 1.80,
+	},
+	ShopUpgrade.SHIELD: {
+		"name": "GUARDIAN SHIELD", "desc": "Blocks one hit per run, per level",
+		"max_level": 2, "base_cost": 120, "cost_growth": 1.90,
+	},
+}
+
+## Where to buy effects apply. Speed multiplies _base_speed, Luck multiplies
+## the pickup and coin-run spawn gaps, Jump scales JUMP_SPEED, Hearts extends
+## MAX_HEARTS, Shield grants per-run charges that absorb hazard hits.
+
+## World speed multiplier for a speed level (level 0 = untouched).
+static func shop_speed_multiplier(level: int) -> float:
+	return 1.0 + 0.03 * clampi(level, 0, 5)
+
+## Spawn-gap multiplier for a luck level (level 0 = 1.0; higher = denser).
+static func shop_luck_gap_factor(level: int) -> float:
+	return pow(0.92, clampi(level, 0, 5))
+
+## Jump launch speed for a jump level, so the apex grows ~8% per level
+## (apex scales with the square of launch speed).
+static func shop_jump_speed(level: int) -> float:
+	return JUMP_SPEED * sqrt(1.0 + 0.08 * clampi(level, 0, 5))
+
+## Max hearts for a hearts level (base MAX_HEARTS plus the bought extras).
+static func shop_max_hearts(level: int) -> int:
+	return MAX_HEARTS + clampi(level, 0, 3)
+
+## Per-run shield charges for a shield level.
+static func shop_shield_charges(level: int) -> int:
+	return clampi(level, 0, 2)
+
+## Coin cost of raising an upgrade from its current [param level].
+static func shop_cost(kind: int, level: int) -> int:
+	var data: Dictionary = SHOP_UPGRADES[kind]
+	var current := clampi(level, 0, int(data["max_level"]))
+	return int(round(
+		float(data["base_cost"]) * pow(float(data["cost_growth"]), current)))
+
 # --- Score -------------------------------------------------------------------
 
 const SCORE_DISTANCE_DIVISOR := 10.0
