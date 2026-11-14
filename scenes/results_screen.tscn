@@ -302,6 +302,24 @@ theme_override_fonts/font = ExtResource("2_xbold")
 theme_override_font_sizes/font_size = 30
 text = "0"
 
+[node name="CoinsCaption" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.7)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "COINS EARNED"
+
+[node name="CoinsValue" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.65)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 30
+text = "0"
+
 [node name="NewBest" type="Label" parent="Center/Panel/VBox"]
 visible = false
 layout_mode = 2

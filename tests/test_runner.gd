@@ -1627,17 +1627,23 @@ func _test_coins() -> void:
 			DirAccess.remove_absolute(stale)
 
 	# --- Currency routing: coins bypass the score system ----------------------
-	GameState.coins = 0
+	# A wallet that already holds coins (the bug: 55 saved coins leaking into
+	# a fresh run's HUD) must not touch the run's counter.
+	GameState.coins = 55
 	var wallet_root := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(wallet_root)
 	var world := wallet_root.get_node("RunWorld") as RunWorld
 	world.set_physics_process(false)
+	_check_eq(world.score_hud.label_text("coins"), "COINS  0",
+		"a new run starts the coin counter at zero even with a full wallet")
 	var score_before := world.score_system.score
 	var items_before := world.score_system.item_count
 	var chain_before := world.score_system.chain
 	world._on_item_collected(GameConfig.ItemKind.COIN)
-	_check_eq(GameState.coins, GameConfig.COIN_VALUE,
+	_check_eq(GameState.coins, 55 + GameConfig.COIN_VALUE,
 		"a collected coin credits the wallet")
+	_check_eq(world.score_hud.label_text("coins"), "COINS  1",
+		"the HUD counter follows the run tally, not the wallet")
 	_check_eq(world.score_system.score, score_before, "coins never touch the score")
 	_check_eq(world.score_system.item_count, items_before, "coins never touch the item count")
 	_check_eq(world.score_system.chain, chain_before, "coins never build the combo")
@@ -1648,23 +1654,44 @@ func _test_coins() -> void:
 	world._on_item_collected(GameConfig.ItemKind.COIN)
 	_check_eq(world.score_system.chain, chain_after_item,
 		"coins do not extend a live combo")
-	_check_eq(GameState.coins, 2 * GameConfig.COIN_VALUE,
+	_check_eq(GameState.coins, 55 + 2 * GameConfig.COIN_VALUE,
 		"every collected coin reaches the wallet")
+	_check_eq(world.coins_collected, 2, "the run tallies its own coins")
+	_check_eq(world.score_hud.label_text("coins"), "COINS  2",
+		"the HUD counter tracks every coin of the run")
+
+	# The results card reports the run's coin tally.
+	world.results.show_results(
+		ResultsScreen.Outcome.CAUGHT, 100, 10, "HOME", 2,
+		GameConfig.Medal.BLACK, world.coins_collected)
+	_check_eq(world.results.stat_text("coins"), "2",
+		"the results card shows the coins earned this run")
+	_check(world.results.stat_text("items") == "2",
+		"the items stat is unaffected by coins")
+	world.results.visible = false
 	wallet_root.queue_free()
 
-	# --- HUD readout follows the wallet signal --------------------------------
+	# A run with no coins reports zero on the card.
+	var empty_root := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	add_child(empty_root)
+	var empty_world := empty_root.get_node("RunWorld") as RunWorld
+	empty_world.results.show_results(
+		ResultsScreen.Outcome.CAUGHT, 50, 5, "HOME", 0, GameConfig.Medal.BLACK, 0)
+	_check_eq(empty_world.results.stat_text("coins"), "0",
+		"a coinless run shows zero coins earned")
+	empty_root.queue_free()
+
+	# --- HUD coin readout renders whatever the run pushes ---------------------
 	var hud_scene := load("res://scenes/hud.tscn") as PackedScene
 	var hud_root := hud_scene.instantiate()
 	add_child(hud_root)
 	var hud_score := hud_root.get_node("HudRoot/Score") as ScoreHud
-	GameState.coins_changed.connect(hud_score.set_coins)
-	hud_score.set_coins(GameState.coins)
-	_check_eq(hud_score.label_text("coins"), "COINS  %d" % GameState.coins,
-		"the coin readout shows the wallet balance")
-	GameState.add_coins(5)
-	_check_eq(hud_score.label_text("coins"), "COINS  %d" % GameState.coins,
-		"the coin readout updates from the wallet signal")
-	GameState.coins_changed.disconnect(hud_score.set_coins)
+	hud_score.set_coins(5)
+	_check_eq(hud_score.label_text("coins"), "COINS  5",
+		"the coin readout renders the pushed run tally")
+	_check_eq(hud_score.label_font("coins").resource_path,
+		"res://assets/fonts/static/InterTight-SemiBold.ttf",
+		"the coin readout uses the shared HUD font")
 	hud_root.queue_free()
 
 	# Restore the player's real save target and balance.

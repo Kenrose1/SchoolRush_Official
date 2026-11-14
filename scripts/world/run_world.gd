@@ -115,6 +115,9 @@ var mode: int = GameConfig.RunMode.CAMPAIGN
 var campaign_finish_distance: float = GameConfig.campaign_finish_distance()
 ## True once the campaign finish line has been crossed (victory shown once).
 var _finished: bool = false
+## Coins collected during this run, shown on the results screen. Currency
+## rides the wallet (GameState); this is just the per-run tally.
+var coins_collected: int = 0
 
 
 func _ready() -> void:
@@ -155,12 +158,12 @@ func _ready() -> void:
 	score_system.score_changed.connect(score_hud.set_score)
 	score_system.combo_changed.connect(score_hud.set_combo)
 	score_system.item_count_changed.connect(score_hud.set_items)
-	# Coins ride their own event: wallet signal -> HUD, one subscription.
-	GameState.coins_changed.connect(score_hud.set_coins)
+	# The HUD shows coins earned THIS RUN, not the persistent wallet - a run
+	# always starts from zero. The wallet signal stays reserved for the shop.
 	score_hud.set_score(score_system.score)
 	score_hud.set_combo(1, 0)
 	score_hud.set_items(0)
-	score_hud.set_coins(GameState.coins)
+	score_hud.set_coins(0)
 	_update_progress()
 
 	director.hazard_passed.connect(score_system.add_hazard_passed)
@@ -306,9 +309,12 @@ func _on_health_changed(current: int, maximum: int) -> void:
 
 
 func _on_item_collected(kind: int) -> void:
-	# Currency is not score: coins go straight to the persistent wallet and
-	# touch neither the score, the item count, nor the combo.
+	# Currency is not score: coins tally per run for the HUD/results card and
+	# go to the persistent wallet, touching neither the score, the item count,
+	# nor the combo.
 	if kind == GameConfig.ItemKind.COIN:
+		coins_collected += 1
+		score_hud.set_coins(coins_collected)
 		GameState.add_coins(GameConfig.COIN_VALUE)
 		return
 	score_system.add_item_pickup()
@@ -411,6 +417,7 @@ func _show_game_over(outcome: int) -> void:
 		["HOME", "STREET", "SCHOOL"][current_zone],
 		score_system.item_count,
 		medal,
+		coins_collected,
 	)
 	_update_debug()
 

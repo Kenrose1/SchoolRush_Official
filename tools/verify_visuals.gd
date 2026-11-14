@@ -197,9 +197,9 @@ func _ready() -> void:
 	await _wait(2)
 	await _shot("m5_05_school")
 
-	# Coin run: clear the hallway, stage a trail of coins in one lane, and
-	# credit a scratch wallet so the HUD counter shows a real balance without
-	# touching the player's save.
+	# Coin run: clear the hallway, stage a trail of coins in one lane, and push
+	# the run tally so the HUD counter shows it (the wallet no longer drives
+	# the HUD, and the scratch wallet keeps the player's save untouched).
 	for child in world.hazards.get_children():
 		child.queue_free()
 	await _wait(2)
@@ -211,7 +211,8 @@ func _ready() -> void:
 		_spawn_item(
 			world, GameConfig.ItemKind.COIN, GameConfig.LANE_MIDDLE,
 			900.0 + float(i) * GameConfig.COIN_SPACING)
-	GameState.add_coins(23)
+	world.coins_collected = 23
+	world.score_hud.set_coins(23)
 	world._update_progress()
 	world._update_debug()
 	world.queue_redraw()
@@ -229,6 +230,7 @@ func _ready() -> void:
 	world.set_run_mode(GameConfig.RunMode.CAMPAIGN)
 	GameState.best_campaign = 500
 	world._finished = false
+	world.coins_collected = 12
 	world.distance = world.campaign_finish_distance
 	world._finish_campaign()
 	await _wait(90)

@@ -1,7 +1,7 @@
 class_name ResultsScreen
 extends Control
 ## Run results: medal, outcome title, final score, session best, distance,
-## zone, items, retry, menu.
+## zone, items, coins earned, retry, menu.
 ##
 ## Upgraded with "The Morning Report Card / Clearance Slip" styling, dynamic
 ## outcome stamps, stamped medal pedestal animation, and spring micro-interactions.
@@ -74,7 +74,7 @@ func _animate_button_hover(btn: Button, is_hovered: bool) -> void:
 ## reveal. The best shown is the current mode's record AFTER this run lands.
 func show_results(
 	outcome: int, score: int, distance_m: int, zone_name: String, items: int,
-	medal: int,
+	medal: int, coins: int = 0,
 ) -> void:
 	var previous_best := GameState.best_for_mode()
 	var is_new_best := session_runs > 0 and score > previous_best
@@ -96,6 +96,7 @@ func show_results(
 	_set_stat("distance", "FINISH" if outcome == Outcome.VICTORY else "%d m" % distance_m)
 	_set_stat("zone", zone_name)
 	_set_stat("items", "%d" % items)
+	_set_stat("coins", "%d" % coins)
 	new_best_label.visible = is_new_best
 	set_medal(medal)
 
