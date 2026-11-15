@@ -43,6 +43,11 @@ var invulnerable_time_left: float = 0.0
 var hurt_play_count: int = 0
 ## Counted for the test suite; pitch is re-rolled per launch (see below).
 var jump_play_count: int = 0
+## Test counters: how many times each pickup sound actually fired. A coin
+## trail can fire several times a second, so the split (coin vs item) is
+## asserted rather than assumed.
+var coin_play_count: int = 0
+var item_play_count: int = 0
 ## Set by RunWorld each frame from the pursuer. While true, a hazard hit is an
 ## instant loss (hearts and i-frames are ignored).
 var pursuer_active: bool = false
@@ -50,6 +55,11 @@ var pursuer_active: bool = false
 ## Pitch spread for the jump sound: each launch re-rolls playback pitch in
 ## 1.0 ± this value, so consecutive jumps never sound identical.
 const JUMP_PITCH_VARIATION := 0.05
+
+## Pitch spread for the coin pickup, same trick. A coin trail lands every
+## ~0.14 s (60 px spacing at RUN_SPEED), so without it the trail machine-guns.
+## Items stay at pitch 1.0: they are the rarer reward and get one stable voice.
+const PICKUP_PITCH_VARIATION := 0.06
 
 var _lean: float = 0.0
 var _hurt_time_left: float = 0.0
@@ -63,6 +73,8 @@ var _sfx_rng := RandomNumberGenerator.new()
 @onready var hitbox_shape: CollisionShape2D = $Hitbox/Shape
 @onready var hurt_sfx: AudioStreamPlayer = %HurtSfx
 @onready var jump_sfx: AudioStreamPlayer = %JumpSfx
+@onready var coin_sfx: AudioStreamPlayer = %CoinSfx
+@onready var item_sfx: AudioStreamPlayer = %ItemSfx
 
 ## Per-instance copy so sliding cannot resize shapes shared between players.
 var _box: RectangleShape2D
@@ -199,6 +211,22 @@ func _play_jump_sound() -> void:
 	jump_sfx.play()
 
 
+## Pickup audio, split by reward channel: COIN gets the short jingle with a
+## re-rolled pitch (a trail fires every ~0.14 s), every School Item gets the
+## heavier item jingle at one stable pitch. Called from _collect_item, right
+## after the collect signal, so audio and scoring never disagree.
+func _play_pickup_sound(kind: int) -> void:
+	if kind == GameConfig.ItemKind.COIN:
+		coin_play_count += 1
+		coin_sfx.pitch_scale = 1.0 + _sfx_rng.randf_range(
+			-PICKUP_PITCH_VARIATION, PICKUP_PITCH_VARIATION)
+		coin_sfx.play()
+	else:
+		item_play_count += 1
+		item_sfx.pitch_scale = 1.0
+		item_sfx.play()
+
+
 ## Restore full health and shields and clear invulnerability (used by tests
 ## and retries).
 func reset_health() -> void:
@@ -285,6 +313,7 @@ func _collect_item(item: Collectible) -> void:
 		return
 	if item.collect():
 		item_collected.emit(item.get_kind())
+		_play_pickup_sound(item.get_kind())
 
 
 ## Re-check boxes already touching the hitbox after a logical lane change, so

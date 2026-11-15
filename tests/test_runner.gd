@@ -549,6 +549,55 @@ func _test_health() -> void:
 	player.in_air = false
 	player.air_height = 0.0
 
+	# Pickup audio: coins and items are different reward channels, so they play
+	# different clips on the SFX bus - coins with re-rolled pitch, items stable.
+	_check(player.coin_sfx != null, "the player carries a coin sound player")
+	_check(player.item_sfx != null, "the player carries an item sound player")
+	_check_eq((player.coin_sfx as AudioStreamPlayer).bus, "SFX", "the coin sound routes to the SFX bus")
+	_check_eq((player.item_sfx as AudioStreamPlayer).bus, "SFX", "the item sound routes to the SFX bus")
+	_check(player.coin_sfx.stream != null, "the coin sound has a stream")
+	_check(player.item_sfx.stream != null, "the item sound has a stream")
+	_check(player.coin_sfx.stream != player.item_sfx.stream, "coins and items play different clips")
+	var coin_clip := player.coin_sfx.stream as AudioStream
+	_check(
+		coin_clip != null and coin_clip.get_length() < 0.6,
+		"the coin clip is the trimmed short take, not the long original",
+	)
+	_check(
+		player.coin_play_count == 0 and player.item_play_count == 0,
+		"the pickup sounds are silent before any pickup",
+	)
+	player._play_pickup_sound(GameConfig.ItemKind.COIN)
+	_check_eq(player.coin_play_count, 1, "a coin plays the coin sound")
+	_check_eq(player.item_play_count, 0, "a coin does not play the item sound")
+	var coin_pitch_first: float = player.coin_sfx.pitch_scale
+	player._play_pickup_sound(GameConfig.ItemKind.PENCIL)
+	_check_eq(player.item_play_count, 1, "a school item plays the item sound")
+	_check_eq(player.coin_play_count, 1, "a school item does not play the coin sound")
+	_check_near(player.item_sfx.pitch_scale, 1.0, 0.0001, "the item sound keeps one stable pitch")
+
+	# Two hundred seeded coin rolls: every pitch inside the +-6% band, and the
+	# band actually used (variation exists, it is not a constant).
+	var pickup_rng := RandomNumberGenerator.new()
+	pickup_rng.seed = 11
+	player._sfx_rng = pickup_rng
+	var coin_pitch_lo := 2.0
+	var coin_pitch_hi := 0.0
+	var coin_pitch_set := {}
+	for i in 200:
+		player._play_pickup_sound(GameConfig.ItemKind.COIN)
+		var rolled: float = player.coin_sfx.pitch_scale
+		coin_pitch_lo = minf(coin_pitch_lo, rolled)
+		coin_pitch_hi = maxf(coin_pitch_hi, rolled)
+		coin_pitch_set[rolled] = true
+	_check(
+		coin_pitch_lo >= 1.0 - player.PICKUP_PITCH_VARIATION
+		and coin_pitch_hi <= 1.0 + player.PICKUP_PITCH_VARIATION,
+		"the coin pitch stays within the +-6% variation",
+	)
+	_check(coin_pitch_set.size() > 1, "the coin pitch actually varies between pickups")
+	player._sfx_rng.randomize()
+
 	_check(player.take_damage(), "the first hit lands")
 	_check_eq(player.hurt_play_count, 1, "a landed hit plays the hurt sound")
 	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "the first hit removes one heart")

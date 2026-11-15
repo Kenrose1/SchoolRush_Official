@@ -49,7 +49,7 @@ const ZONE_ORDER := [Zone.HOME, Zone.STREET, Zone.SCHOOL]
 
 ## How long the home zone lasts, in seconds. Extend this to keep Elias indoors
 ## longer; HOME and STREET are timed, SCHOOL runs forever.
-const ZONE_HOME_DURATION_SECONDS := 14.0
+const ZONE_HOME_DURATION_SECONDS := 20.0
 
 ## Floor for the home duration, so the boundary can never collapse.
 const ZONE_HOME_MIN_SECONDS := 5.0
