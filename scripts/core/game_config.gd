@@ -167,6 +167,15 @@ const DOG_WARNING_X := DESIGN_WIDTH - 120.0
 const DOG_WARNING_Y_OFFSET := 92.0
 const DOG_LANE_ENTRY_CLEARANCE := 520.0
 
+## Screen x where the dog barks on its way in. The last is the player's own x,
+## so the "move now" bark lands the frame it reaches you, and a RUN_SPEED or
+## upgrade change shifts the barks with the picture instead of against it.
+const DOG_BARK_X: Array[float] = [1160.0, PLAYER_X]
+## Per-variant bark pitch: dog2 is the yappier one.
+const DOG_BARK_PITCH: Array[float] = [1.0, 1.06]
+## Extra per-bark pitch jitter so repeated barks never sound like one sample.
+const DOG_BARK_PITCH_JITTER := 0.04
+
 ## Street-only car. The sheets use different cell sizes and car heights, so each
 ## variant carries its own scale; both read ~105 px tall on the road (with
 ## CAR_SCALE_MULT applied) and share one hitbox. Art faces right, so it is

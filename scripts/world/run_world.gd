@@ -75,6 +75,8 @@ var _school_background_texture: Texture2D
 @onready var director: SpawnDirector = $SpawnDirector
 @onready var car_honk_sfx: AudioStreamPlayer = $CarHonkSfx
 @onready var car_engine_sfx: AudioStreamPlayer = $CarEngineSfx
+@onready var dog_bark_warn_sfx: AudioStreamPlayer = $DogBarkWarnSfx
+@onready var dog_bark_run_sfx: AudioStreamPlayer = $DogBarkRunSfx
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
 @onready var progress_hud: ProgressBarHud = $Hud/HudRoot/Progress
@@ -125,6 +127,13 @@ var coins_collected: int = 0
 var car_honk_play_count: int = 0
 ## Test counter: how many times the engine pass-by actually fired.
 var car_engine_play_count: int = 0
+## Test counters: how many times each dog bark take actually fired - the
+## double-bark telegraph (warn) and the single-bark chase cues (run).
+var dog_bark_warn_play_count: int = 0
+var dog_bark_run_play_count: int = 0
+## Per-bark jitter source, so three barks in one encounter never sound like
+## the same sample three times.
+var _bark_rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -180,6 +189,9 @@ func _ready() -> void:
 	director.item_missed.connect(_on_item_missed)
 	director.car_warning_started.connect(_on_car_warning_started)
 	director.car_entered.connect(_on_car_entered)
+	director.dog_warning_started.connect(_on_dog_warning_started)
+	director.dog_barked.connect(_on_dog_barked)
+	_bark_rng.randomize()
 	director.setup(hazards, randi())
 
 
@@ -204,6 +216,29 @@ func _on_car_entered(lane: int, variant: int) -> void:
 	car_engine_sfx.pitch_scale = GameConfig.CAR_ENGINE_PITCH[
 		variant % GameConfig.CAR_ENGINE_PITCH.size()]
 	car_engine_sfx.play()
+
+
+## Dog bark cue 1: the double-bark telegraph, with the exclamation.
+func _on_dog_warning_started(lane: int, variant: int) -> void:
+	_play_dog_bark(dog_bark_warn_sfx, variant)
+	dog_bark_warn_play_count += 1
+
+
+## Dog bark cues 2-3: the single-bark chase take as the dog crosses its
+## screen-position thresholds (the index is reserved for future per-cue takes).
+func _on_dog_barked(_index: int, variant: int) -> void:
+	_play_dog_bark(dog_bark_run_sfx, variant)
+	dog_bark_run_play_count += 1
+
+
+## Shared bark player: base pitch is per dog variant, plus a small jitter so
+## consecutive barks never sound like one sample repeated.
+func _play_dog_bark(player: AudioStreamPlayer, variant: int) -> void:
+	var base: float = GameConfig.DOG_BARK_PITCH[
+		variant % GameConfig.DOG_BARK_PITCH.size()]
+	player.pitch_scale = base + _bark_rng.randf_range(
+		-GameConfig.DOG_BARK_PITCH_JITTER, GameConfig.DOG_BARK_PITCH_JITTER)
+	player.play()
 
 
 ## Hand the run its rules. Called by _ready with GameState.mode and by the

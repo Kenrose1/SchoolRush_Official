@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" path="res://scenes/results_screen.tscn" id="8_results"]
 [ext_resource type="AudioStream" path="res://assets/sounds/Carhonk.mp3" id="9_honk"]
 [ext_resource type="AudioStream" path="res://assets/sounds/car_pass.wav" id="10_engine"]
+[ext_resource type="AudioStream" path="res://assets/sounds/dog_bark_warn.wav" id="11_bark_warn"]
+[ext_resource type="AudioStream" path="res://assets/sounds/dog_bark_run.wav" id="12_bark_run"]
 
 [node name="RunWorld" type="Node2D" unique_id=894551756]
 script = ExtResource("1_world")
@@ -39,6 +41,18 @@ bus = &"SFX"
 unique_name_in_owner = true
 stream = ExtResource("10_engine")
 volume_db = -6.0
+bus = &"SFX"
+
+[node name="DogBarkWarnSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("11_bark_warn")
+volume_db = -4.0
+bus = &"SFX"
+
+[node name="DogBarkRunSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("12_bark_run")
+volume_db = -4.0
 bus = &"SFX"
 
 [node name="Hud" parent="." unique_id=156043162 instance=ExtResource("4_hud")]

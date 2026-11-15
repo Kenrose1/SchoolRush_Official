@@ -405,6 +405,61 @@ func _test_zones() -> void:
 		_check_eq(world.car_engine_play_count, 2, "each spawned car runs its own pass-by")
 		world.car_engine_play_count = 0
 
+		# Dog barks: the warn take is the double-bark telegraph, the run take is
+		# the single-bark chase cue. Both route to SFX and keep their trim.
+		var warn_bark := world.dog_bark_warn_sfx as AudioStreamPlayer
+		var run_bark := world.dog_bark_run_sfx as AudioStreamPlayer
+		_check(
+			warn_bark != null and run_bark != null,
+			"the world owns both dog bark players",
+		)
+		if warn_bark != null and run_bark != null:
+			_check_eq(warn_bark.bus, "SFX", "the warn bark routes to the SFX bus")
+			_check_eq(run_bark.bus, "SFX", "the run bark routes to the SFX bus")
+			var warn_stream := warn_bark.stream as AudioStream
+			var run_stream := run_bark.stream as AudioStream
+			_check(
+				warn_stream != null and warn_stream.get_length() > 0.6
+				and warn_stream.get_length() < 0.8,
+				"the warn bark is the double-bark take",
+			)
+			_check(
+				run_stream != null and run_stream.get_length() > 0.3
+				and run_stream.get_length() < 0.45,
+				"the run bark is the single-bark take",
+			)
+		_check(
+			world.dog_bark_warn_play_count == 0 and world.dog_bark_run_play_count == 0,
+			"the dog barks are silent before any dog",
+		)
+		world._bark_rng.seed = 5
+		world._on_dog_warning_started(1, 0)
+		_check_eq(
+			world.dog_bark_warn_play_count, 1,
+			"the warning fires the double-bark telegraph",
+		)
+		_check(
+			world.dog_bark_warn_sfx.pitch_scale >= 1.0 - GameConfig.DOG_BARK_PITCH_JITTER
+			and world.dog_bark_warn_sfx.pitch_scale <= 1.0 + GameConfig.DOG_BARK_PITCH_JITTER,
+			"dog1's telegraph bark sits in its jitter band",
+		)
+		world._on_dog_barked(0, 1)
+		var bark_pitch_a: float = world.dog_bark_run_sfx.pitch_scale
+		world._on_dog_barked(1, 1)
+		var bark_pitch_b: float = world.dog_bark_run_sfx.pitch_scale
+		_check_eq(world.dog_bark_run_play_count, 2, "both chase cues fire the run take")
+		_check(
+			bark_pitch_a >= GameConfig.DOG_BARK_PITCH[1] - GameConfig.DOG_BARK_PITCH_JITTER
+			and bark_pitch_a <= GameConfig.DOG_BARK_PITCH[1] + GameConfig.DOG_BARK_PITCH_JITTER,
+			"dog2's chase bark sits in its jitter band",
+		)
+		_check(
+			bark_pitch_a != bark_pitch_b,
+			"the bark jitter varies between consecutive barks",
+		)
+		world.dog_bark_warn_play_count = 0
+		world.dog_bark_run_play_count = 0
+
 		var fade: ColorRect = world._zone_fade
 		_check(fade != null, "the world owns a zone fade rect")
 		if fade != null:
@@ -1453,6 +1508,94 @@ func _test_spawn_director() -> void:
 	await get_tree().process_frame
 	cool_director.queue_free()
 	cool_container.queue_free()
+	await get_tree().process_frame
+
+	# --- Dog barks: telegraph + position-locked chase cues ----------------------
+	var bark_container := Node2D.new()
+	add_child(bark_container)
+	var bark_director := SpawnDirector.new()
+	add_child(bark_director)
+	bark_director.setup(bark_container, 406)
+	var bark_warn_events: Array = []
+	var bark_chase_events: Array = []
+	bark_director.dog_warning_started.connect(
+		func(bark_lane: int, bark_variant: int) -> void:
+			bark_warn_events.append([bark_lane, bark_variant])
+	)
+	bark_director.dog_barked.connect(
+		func(bark_index: int, bark_variant: int) -> void:
+			bark_chase_events.append([bark_index, bark_variant])
+	)
+	_check(
+		bark_director._try_start_dog_encounter(
+			GameConfig.DOG_FIRST_DISTANCE, GameConfig.RUN_SPEED),
+		"a dog encounter can start in an empty lane",
+	)
+	var warn_variant := int(bark_director._next_dog_variant)
+	_check_eq(
+		bark_warn_events.size(), 1,
+		"the dog warning fires its double-bark telegraph once",
+	)
+	if bark_warn_events.size() == 1:
+		_check_eq(
+			int(bark_warn_events[0][0]),
+			bark_director._dog_reserved_lane,
+			"the telegraph bark fires for the warned lane",
+		)
+		_check_eq(
+			int(bark_warn_events[0][1]),
+			warn_variant,
+			"the telegraph bark fires with the dog's variant",
+		)
+	_check_eq(bark_director._dog_barks_fired, 0, "no chase bark before the dog exists")
+
+	# Let the warning finish so the real dog spawns.
+	await _physics_frames(int(GameConfig.DOG_WARNING_DURATION * 60.0) + 10)
+	var bark_dog := bark_director._active_dog as Hazard
+	_check(bark_dog != null, "the dog exists for its chase barks")
+	if bark_dog != null:
+		_check_eq(
+			bark_chase_events.size(), 0,
+			"the chase stays silent while the dog is still far right",
+		)
+		bark_dog.position.x = GameConfig.DOG_BARK_X[0] - 1.0
+		bark_director.tick(
+			0.0, GameConfig.RUN_SPEED, GameConfig.DOG_FIRST_DISTANCE + 100.0)
+		_check_eq(bark_chase_events.size(), 1, "the dog barks once crossing mid-screen")
+		if bark_chase_events.size() == 1:
+			_check_eq(int(bark_chase_events[0][0]), 0, "the first chase cue is index 0")
+		_check_eq(bark_director._dog_barks_fired, 1, "the first chase bark is consumed")
+
+		bark_dog.position.x = GameConfig.DOG_BARK_X[1] + 1.0
+		bark_director.tick(
+			0.0, GameConfig.RUN_SPEED, GameConfig.DOG_FIRST_DISTANCE + 200.0)
+		_check_eq(
+			bark_chase_events.size(), 1,
+			"the move-now bark waits for the player's lane",
+		)
+
+		bark_dog.position.x = GameConfig.DOG_BARK_X[1] - 1.0
+		bark_director.tick(
+			0.0, GameConfig.RUN_SPEED, GameConfig.DOG_FIRST_DISTANCE + 300.0)
+		_check_eq(
+			bark_chase_events.size(), 2,
+			"the move-now bark fires at the player's lane",
+		)
+		if bark_chase_events.size() == 2:
+			_check_eq(int(bark_chase_events[1][0]), 1, "the second chase cue is index 1")
+		_check_eq(bark_director._dog_barks_fired, 2, "both chase barks are consumed")
+
+		for extra_bark_i in 300:
+			bark_director.tick(
+				1.0 / 60.0, GameConfig.RUN_SPEED, GameConfig.DOG_FIRST_DISTANCE + 400.0)
+		_check_eq(bark_chase_events.size(), 2, "no further barks after both cues fired")
+		bark_dog.queue_free()
+
+	for bark_child in bark_container.get_children():
+		bark_child.queue_free()
+	await get_tree().process_frame
+	bark_director.queue_free()
+	bark_container.queue_free()
 	await get_tree().process_frame
 
 	for child in event_container.get_children():

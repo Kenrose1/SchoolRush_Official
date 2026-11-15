@@ -16,6 +16,10 @@ signal car_warning_started(lane: int, variant: int)
 ## Fired once when the car actually spawns (warning finished), so the world
 ## can start the engine pass-by exactly as the car enters the world.
 signal car_entered(lane: int, variant: int)
+## Fired when a dog warning starts: cue 1, the double-bark telegraph.
+signal dog_warning_started(lane: int, variant: int)
+## Fired as the dog crosses a DOG_BARK_X screen position: cues 2-3.
+signal dog_barked(index: int, variant: int)
 
 const HAZARD_SCENE := preload("res://scenes/hazard.tscn")
 const COLLECTIBLE_SCENE := preload("res://scenes/collectible.tscn")
@@ -41,6 +45,11 @@ var _next_dog_distance: float = GameConfig.DOG_FIRST_DISTANCE
 var _dog_reserved_lane: int = -1
 var _dog_warning: HazardWarning = null
 var _active_dog: Hazard = null
+## Variant of the dog currently running (fixed at its spawn), used for the
+## chase-bark pitch.
+var _active_dog_variant: int = 0
+## How many chase barks (DOG_BARK_X cues) have fired for the active dog.
+var _dog_barks_fired: int = 0
 var _next_dog_variant: int = 0
 var _dog_speed: float = GameConfig.RUN_SPEED
 ## Cars warn first: one pending entry per warned lane
@@ -93,6 +102,7 @@ func tick(
 	if hazards == null:
 		return
 	_refresh_dog_reservation()
+	_update_dog_barks()
 	_refresh_coin_reservation()
 	if distance >= _next_dog_distance and _dog_reserved_lane < 0:
 		_try_start_dog_encounter(distance, speed)
@@ -295,6 +305,8 @@ func _try_start_dog_encounter(distance: float, speed: float) -> bool:
 	_dog_warning = warning
 	warning.finished.connect(_on_dog_warning_finished, CONNECT_ONE_SHOT)
 	warning.play()
+	# Cue 1: the double-bark telegraph, right as the exclamation appears.
+	dog_warning_started.emit(_dog_reserved_lane, _next_dog_variant)
 	return true
 
 
@@ -332,7 +344,23 @@ func _on_dog_warning_finished() -> void:
 	dog.position.x = GameConfig.SPAWN_X
 	dog.passed_player.connect(_on_hazard_passed)
 	_active_dog = dog
+	_active_dog_variant = _next_dog_variant
+	_dog_barks_fired = 0
 	_next_dog_variant = (_next_dog_variant + 1) % GameConfig.DOG_TEXTURES.size()
+
+
+## Fire the chase barks (cues 2-3) as the dog crosses its DOG_BARK_X screen
+## positions, each once per encounter. Tied to screen position, not time, so
+## the final bark lands the frame the dog reaches the player's lane and stays
+## in sync if RUN_SPEED or upgrades change.
+func _update_dog_barks() -> void:
+	while _dog_barks_fired < GameConfig.DOG_BARK_X.size():
+		if not is_instance_valid(_active_dog) or _active_dog.is_queued_for_deletion():
+			return
+		if _active_dog.position.x > float(GameConfig.DOG_BARK_X[_dog_barks_fired]):
+			return
+		dog_barked.emit(_dog_barks_fired, _active_dog_variant)
+		_dog_barks_fired += 1
 
 
 func _refresh_dog_reservation() -> void:
