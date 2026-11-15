@@ -192,6 +192,10 @@ const CAR_FIRST_DISTANCE := 1500.0
 const CAR_GAP_MIN := 3000.0
 const CAR_GAP_MAX := 4800.0
 
+## Per-variant honk pitch, indexed by CAR_VARIANTS: Ride1 at 1.0, Ride2 a
+## slightly bigger, lower-sounding vehicle at 0.93.
+const CAR_HONK_PITCH: Array[float] = [1.0, 0.93]
+
 ## Per-kind art and hitbox data.
 ##   clearance    bottom edge sits this far above the lane baseline (overhead)
 ##   overhead     must be slid under; otherwise it is jumped or dodged

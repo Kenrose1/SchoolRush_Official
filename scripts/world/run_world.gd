@@ -73,6 +73,7 @@ var _school_background_texture: Texture2D
 @onready var arrest: AnimatedSprite2D = $Arrest
 @onready var hazards: Node2D = $Hazards
 @onready var director: SpawnDirector = $SpawnDirector
+@onready var car_honk_sfx: AudioStreamPlayer = $CarHonkSfx
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
 @onready var progress_hud: ProgressBarHud = $Hud/HudRoot/Progress
@@ -118,6 +119,9 @@ var _finished: bool = false
 ## Coins collected during this run, shown on the results screen. Currency
 ## rides the wallet (GameState); this is just the per-run tally.
 var coins_collected: int = 0
+## Test counter: how many times the car honk actually fired. Guaranteed at
+## most once per car by the director's single-pending-warning rule.
+var car_honk_play_count: int = 0
 
 
 func _ready() -> void:
@@ -171,7 +175,19 @@ func _ready() -> void:
 
 	director.hazard_passed.connect(score_system.add_hazard_passed)
 	director.item_missed.connect(_on_item_missed)
+	director.car_warning_started.connect(_on_car_warning_started)
 	director.setup(hazards, randi())
+
+
+## Honk when the car's exclamation appears, not when the car spawns: the horn
+## blast is exactly CAR_WARNING_DURATION long, so it ends as the car enters the
+## world and its tail decays as the car slides into view. Pitch is per variant,
+## so the two car types sound like different vehicles.
+func _on_car_warning_started(lane: int, variant: int) -> void:
+	car_honk_play_count += 1
+	car_honk_sfx.pitch_scale = GameConfig.CAR_HONK_PITCH[
+		variant % GameConfig.CAR_HONK_PITCH.size()]
+	car_honk_sfx.play()
 
 
 ## Hand the run its rules. Called by _ready with GameState.mode and by the

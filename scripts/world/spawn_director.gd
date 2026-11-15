@@ -9,6 +9,10 @@ extends Node
 
 signal hazard_passed
 signal item_missed
+## Fired once when a car warning starts, so the world can honk while the
+## exclamation is still on screen (the warning node frees itself at the end
+## of the hold, which would cut a honk owned by it).
+signal car_warning_started(lane: int, variant: int)
 
 const HAZARD_SCENE := preload("res://scenes/hazard.tscn")
 const COLLECTIBLE_SCENE := preload("res://scenes/collectible.tscn")
@@ -233,6 +237,9 @@ func _start_car_warning(lane: int, speed: float) -> void:
 	hazards.add_child(warning)
 	warning.play()
 	warning.finished.connect(_on_car_warning_finished.bind(lane))
+	# One honk per car: _car_allowed refuses to start a second warning while
+	# this one is pending, so honks can never overlap.
+	car_warning_started.emit(lane, variant)
 	_car_warnings.append({
 		"lane": lane, "speed": speed, "variant": variant, "warning": warning,
 	})

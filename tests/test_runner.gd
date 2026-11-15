@@ -335,6 +335,36 @@ func _test_zones() -> void:
 			"home wall and floor scroll in lockstep",
 		)
 
+		# Car honk: the world owns the player (not the warning node, which frees
+		# itself and would cut the horn's tail) and honks once per car warning.
+		var honk_player := world.car_honk_sfx as AudioStreamPlayer
+		_check(honk_player != null, "the world owns a car honk player")
+		if honk_player != null:
+			_check_eq(honk_player.bus, "SFX", "the car honk routes to the SFX bus")
+			var honk_stream := honk_player.stream as AudioStream
+			_check(
+				honk_stream != null and honk_stream.get_length() > 1.0,
+				"the car honk clip is the long blast on disk",
+			)
+		_check_eq(world.car_honk_play_count, 0, "the car honk is silent before any car")
+		world._on_car_warning_started(0, 0)
+		_check_eq(world.car_honk_play_count, 1, "a started car warning honks once")
+		_check_near(
+			world.car_honk_sfx.pitch_scale,
+			GameConfig.CAR_HONK_PITCH[0],
+			0.0001,
+			"variant 0 honks at its configured pitch",
+		)
+		world._on_car_warning_started(2, 1)
+		_check_near(
+			world.car_honk_sfx.pitch_scale,
+			GameConfig.CAR_HONK_PITCH[1],
+			0.0001,
+			"variant 1 honks a step lower",
+		)
+		_check_eq(world.car_honk_play_count, 2, "each car warning honks separately")
+		world.car_honk_play_count = 0
+
 		var fade: ColorRect = world._zone_fade
 		_check(fade != null, "the world owns a zone fade rect")
 		if fade != null:
@@ -1148,6 +1178,12 @@ func _test_spawn_director() -> void:
 	var event_director := SpawnDirector.new()
 	add_child(event_director)
 	event_director.setup(event_container, 2026)
+	# The dog shares HazardWarning with the car; its warnings must never honk.
+	var dog_honk_events: Array = []
+	event_director.car_warning_started.connect(
+		func(honk_lane: int, honk_variant: int) -> void:
+			dog_honk_events.append([honk_lane, honk_variant])
+	)
 	event_director._distance_since_row = 0.0
 	event_director._distance_since_pickup = 0.0
 	event_director.tick(0.0, GameConfig.RUN_SPEED, GameConfig.DOG_FIRST_DISTANCE - 1.0)
@@ -1220,6 +1256,7 @@ func _test_spawn_director() -> void:
 			lane_resumed = true
 			break
 	_check(lane_resumed, "normal hazard spawning resumes in the dog lane after despawn")
+	_check(dog_honk_events.is_empty(), "a dog encounter never triggers a car honk")
 
 	# --- Street cars warn like the dog, then enter from the right edge ---------
 	var car_container := Node2D.new()
@@ -1227,6 +1264,11 @@ func _test_spawn_director() -> void:
 	var car_director := SpawnDirector.new()
 	add_child(car_director)
 	car_director.setup(car_container, 404)
+	var honk_events: Array = []
+	car_director.car_warning_started.connect(
+		func(honk_lane: int, honk_variant: int) -> void:
+			honk_events.append([honk_lane, honk_variant])
+	)
 	car_director._start_car_warning(GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
 	_check_eq(car_director._car_warnings.size(), 1, "a warned car waits for its warning")
 	var car_warning := car_container.get_children().back() as HazardWarning
@@ -1236,6 +1278,14 @@ func _test_spawn_director() -> void:
 			"the car warning uses the second exclamation art")
 	var car_lane := int(car_director._car_warnings[0]["lane"])
 	_check_eq(car_lane, GameConfig.LANE_MIDDLE, "the car warning records its lane")
+	_check_eq(honk_events.size(), 1, "starting a car warning honks exactly once")
+	if honk_events.size() == 1:
+		_check_eq(int(honk_events[0][0]), car_lane, "the honk fires for the warned lane")
+		_check_eq(
+			int(honk_events[0][1]),
+			int(car_director._car_warnings[0]["variant"]),
+			"the honk fires with the car's variant",
+		)
 
 	# Pickups, coin runs, and rows keep out of the warned lane.
 	var warned_pickup := car_director.spawn_pickup(0.0, 0.0)
@@ -1263,6 +1313,7 @@ func _test_spawn_director() -> void:
 			"the car enters from the right edge")
 	_check_eq(car_director._car_warnings.size(), 0,
 		"the pending car is consumed after spawn")
+	_check_eq(honk_events.size(), 1, "the honk does not repeat when the car spawns")
 
 	for child in car_container.get_children():
 		child.queue_free()
