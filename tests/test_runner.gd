@@ -2836,6 +2836,44 @@ func _test_settings() -> void:
 		_check(not pause.settings_panel.visible, "re-pausing closes a left-open panel")
 		_check(pause.center.visible, "re-pausing restores the button column")
 		pause.set_paused(false)
+
+		# Clicking the corner pause button must behave exactly like Esc.
+		_check(
+			pause.button.pressed.is_connected(pause.toggle_pause),
+			"the pause button is wired to toggle_pause",
+		)
+		pause.button.pressed.emit()
+		_check(pause.is_paused, "clicking pause opens the overlay")
+		_check(get_tree().paused, "clicking pause freezes the tree")
+		_check(not pause.button.visible, "clicking pause hides the button")
+		pause.toggle_pause()
+		_check(not pause.is_paused, "toggling off unpauses")
+		_check(not get_tree().paused, "toggling off unfreezes the tree")
+		_check(pause.button.visible, "toggling off restores the button")
+
+		# A real synthetic mouse click must land on the button, proving no
+		# ancestor or sibling control blocks the pick. Local coords are used
+		# because push_input() would otherwise remap through the stretch
+		# transform, which headless windows do not match.
+		var vp := pause.get_viewport()
+		var hover := InputEventMouseMotion.new()
+		hover.position = pause.button.get_global_rect().get_center()
+		hover.global_position = hover.position
+		vp.push_input(hover, true)
+		_check(pause.button.is_hovered(), "hovering the button's rect reaches the button")
+		var press := InputEventMouseButton.new()
+		press.button_index = MOUSE_BUTTON_LEFT
+		press.pressed = true
+		press.position = pause.button.get_global_rect().get_center()
+		press.global_position = press.position
+		vp.push_input(press, true)
+		var release := press.duplicate() as InputEventMouseButton
+		release.pressed = false
+		vp.push_input(release, true)
+		_check(pause.is_paused, "a real click on the pause button opens the overlay")
+		_check(get_tree().paused, "a real click freezes the tree")
+		pause.set_paused(false)
+		_check(not get_tree().paused, "cleanup leaves the tree unpaused")
 	hud.queue_free()
 
 

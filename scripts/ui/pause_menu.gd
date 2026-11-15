@@ -50,6 +50,7 @@ func _ready() -> void:
 	_style_menu_button(quit_button)
 	_style_title()
 	
+	button.pressed.connect(toggle_pause)
 	resume_button.pressed.connect(_on_resume_pressed)
 	restart_button.pressed.connect(_on_restart_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
