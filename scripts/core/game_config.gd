@@ -256,19 +256,20 @@ const HAZARD_DATA := {
 		"clearance": 0.0, "overhead": false, "frames": 8, "extra_speed": 700.0,
 		"flip_h": true, "zones": [Zone.STREET],
 	},
-	## Living-room furniture: HOME-only hazards, unlocked as fractions of the
-	## home zone's length so an extended house stretches their introduction.
-	## All stand on the floor (clearance 0, jumped like the debris), and read
-	## ~80 px tall so they sit inside the 118 px jump apex with margin.
+	## Living-room furniture: HOME-only hazards, available from the house's
+	## first pixel (the unlock fractions all sit at 0.00). All stand on the
+	## floor (clearance 0, jumped like the debris) and the art is scaled to
+	## read ~97-107 px tall, visibly under the 118 px jump apex. The hitboxes
+	## stay 64 px tall so the bigger art changes nothing about jump timing.
 	HazardKind.NIGHTSTAND: {
 		"texture": "res://assets/hazards/haz_nightstand.png",
-		"scale": 0.34, "hitbox_w": 48.0, "hitbox_h": 64.0,
+		"scale": 0.39, "hitbox_w": 48.0, "hitbox_h": 64.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.HOME],
 	},
 	HazardKind.ARMCHAIR: {
 		"texture": "res://assets/hazards/haz_armchair.png",
-		"scale": 0.34, "hitbox_w": 62.0, "hitbox_h": 64.0,
+		"scale": 0.39, "hitbox_w": 62.0, "hitbox_h": 64.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.HOME],
 	},
@@ -280,19 +281,19 @@ const HAZARD_DATA := {
 	},
 	HazardKind.CUSHION: {
 		"texture": "res://assets/hazards/haz_cushion.png",
-		"scale": 0.37, "hitbox_w": 48.0, "hitbox_h": 64.0,
+		"scale": 0.42, "hitbox_w": 48.0, "hitbox_h": 64.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.HOME],
 	},
 	HazardKind.BOOKSHELF: {
 		"texture": "res://assets/hazards/haz_bookshelf.png",
-		"scale": 0.33, "hitbox_w": 54.0, "hitbox_h": 64.0,
+		"scale": 0.45, "hitbox_w": 54.0, "hitbox_h": 64.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.HOME],
 	},
 	HazardKind.BOXES: {
 		"texture": "res://assets/hazards/haz_boxes.png",
-		"scale": 0.40, "hitbox_w": 70.0, "hitbox_h": 64.0,
+		"scale": 0.45, "hitbox_w": 70.0, "hitbox_h": 64.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.HOME],
 	},

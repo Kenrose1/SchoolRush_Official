@@ -1812,6 +1812,13 @@ func _test_home_hazards() -> void:
 			ResourceLoader.exists(String(prop_data["texture"])),
 			"%s art exists on disk" % kind_name.call(kind),
 		)
+		var prop_art := load(String(prop_data["texture"])) as Texture2D
+		_check(
+			prop_art != null
+			and prop_art.get_height() * float(prop_data["scale"])
+				< GameConfig.JUMP_APEX - 10.0,
+			"%s art stays visibly under the jump apex" % kind_name.call(kind),
+		)
 		_check(
 			float(prop_data["scale"]) > 0.0 and float(prop_data["hitbox_w"]) > 0.0
 			and float(prop_data["hitbox_h"]) > 0.0,
