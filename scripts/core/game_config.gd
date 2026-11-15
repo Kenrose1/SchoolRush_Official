@@ -153,7 +153,10 @@ const SLIDE_HITBOX_HEIGHT_FACTOR := 0.5
 
 # --- Hazards -----------------------------------------------------------------
 
-enum HazardKind { MANHOLE, DEBRIS, SIGN, GANTRY, DOG, CAR }
+enum HazardKind {
+	MANHOLE, DEBRIS, SIGN, GANTRY, DOG, CAR,
+	NIGHTSTAND, ARMCHAIR, COFFEE_TABLE, CUSHION, BOOKSHELF, BOXES,
+}
 
 const DOG_TEXTURES: Array[String] = [
 	"res://assets/characters/dog1/Walk.png",
@@ -241,7 +244,7 @@ const HAZARD_DATA := {
 		"texture": DOG_TEXTURES[0],
 		"scale": 3.0, "hitbox_w": 40.0, "hitbox_h": 40.0,
 		"clearance": 0.0, "overhead": false, "frames": 6, "extra_speed": 200.0,
-		"flip_h": true, "zone": Zone.STREET,
+		"flip_h": true, "zones": [Zone.STREET],
 	},
 	## Dodge-only until SPRING SHOES 3: at extra_speed 700 the car sweeps past
 	## in (280 + player hitbox) / 1120 ≈ 0.31 s, which fits inside the
@@ -251,7 +254,47 @@ const HAZARD_DATA := {
 		"texture": CAR_TEXTURES[0],
 		"scale": 1.20, "hitbox_w": 280.0, "hitbox_h": 100.0,
 		"clearance": 0.0, "overhead": false, "frames": 8, "extra_speed": 700.0,
-		"flip_h": true, "zone": Zone.STREET,
+		"flip_h": true, "zones": [Zone.STREET],
+	},
+	## Living-room furniture: HOME-only hazards, unlocked as fractions of the
+	## home zone's length so an extended house stretches their introduction.
+	## All stand on the floor (clearance 0, jumped like the debris), and read
+	## ~80 px tall so they sit inside the 118 px jump apex with margin.
+	HazardKind.NIGHTSTAND: {
+		"texture": "res://assets/hazards/haz_nightstand.png",
+		"scale": 0.34, "hitbox_w": 48.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.HOME],
+	},
+	HazardKind.ARMCHAIR: {
+		"texture": "res://assets/hazards/haz_armchair.png",
+		"scale": 0.34, "hitbox_w": 62.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.HOME],
+	},
+	HazardKind.COFFEE_TABLE: {
+		"texture": "res://assets/hazards/haz_coffee_table.png",
+		"scale": 0.49, "hitbox_w": 84.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.HOME],
+	},
+	HazardKind.CUSHION: {
+		"texture": "res://assets/hazards/haz_cushion.png",
+		"scale": 0.37, "hitbox_w": 48.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.HOME],
+	},
+	HazardKind.BOOKSHELF: {
+		"texture": "res://assets/hazards/haz_bookshelf.png",
+		"scale": 0.33, "hitbox_w": 54.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.HOME],
+	},
+	HazardKind.BOXES: {
+		"texture": "res://assets/hazards/haz_boxes.png",
+		"scale": 0.40, "hitbox_w": 70.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.HOME],
 	},
 }
 
@@ -276,7 +319,62 @@ const HAZARD_WEIGHT := {
 	## Cars warn first (like the dog), so their row weight is meaningful only
 	## in the street zone where the kind is allowed at all.
 	HazardKind.CAR: 2.0,
+	## Living-room furniture. HOME-only, flat weights: every prop is equally
+	## likely on a home row, and no outdoor kind competes with them.
+	HazardKind.NIGHTSTAND: 2.0,
+	HazardKind.ARMCHAIR: 2.0,
+	HazardKind.COFFEE_TABLE: 2.0,
+	HazardKind.CUSHION: 2.0,
+	HazardKind.BOOKSHELF: 2.0,
+	HazardKind.BOXES: 2.0,
 }
+
+## Home props unlock as a fraction of the home zone's length. All zero means
+## the whole living room is available from the house's first pixel; raise a
+## value to stagger that prop again (scaled to the house length), while every
+## kind stays active until the home zone ends.
+const HOME_HAZARD_UNLOCK_FRACTION := {
+	HazardKind.NIGHTSTAND: 0.00,
+	HazardKind.ARMCHAIR: 0.00,
+	HazardKind.CUSHION: 0.00,
+	HazardKind.COFFEE_TABLE: 0.00,
+	HazardKind.BOXES: 0.00,
+	HazardKind.BOOKSHELF: 0.00,
+}
+
+## Distance (px) after which [param kind] starts appearing. Home kinds are
+## available from the start of the house (fractions 0.00 by default, scaled to
+## the home zone's length - pass the run's real value; -1 falls back to the
+## configured default); every other kind keeps its fixed pixel value.
+static func hazard_unlock(kind: int, home_length: float = -1.0) -> float:
+	if HOME_HAZARD_UNLOCK_FRACTION.has(kind):
+		var home_len := home_length if home_length > 0.0 else zone_home_length()
+		return float(HOME_HAZARD_UNLOCK_FRACTION[kind]) * home_len
+	return float(HAZARD_UNLOCK.get(kind, 0.0))
+
+
+## True when [param kind] may appear in [param zone]. Kinds with an explicit
+## "zones" list are restricted to it; kinds without one are outdoor/agnostic
+## and never appear in the house, which is furniture-only. zone == -1 (tests
+## and pattern rolls) matches the pre-zones behavior exactly: ungated kinds
+## only.
+static func hazard_allows_zone(kind: int, zone: int) -> bool:
+	var data: Dictionary = HAZARD_DATA[kind]
+	if data.has("zones"):
+		return (data["zones"] as Array).has(zone)
+	return zone != Zone.HOME
+
+
+## First kind by declaration order that [param zone] allows, used as the
+## zone-legal fallback when no kind qualifies at a distance. HOME yields the
+## nightstand (unlocked at 0), so indoor rows can never fall back to street
+## art; STREET and SCHOOL resolve to the manhole, the same value the old
+## hardcoded fallback returned there.
+static func first_zone_kind(zone: int) -> int:
+	for kind: int in HAZARD_DATA:
+		if hazard_allows_zone(kind, zone):
+			return kind
+	return HazardKind.MANHOLE
 
 # --- School Items ------------------------------------------------------------
 

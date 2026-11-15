@@ -54,6 +54,9 @@ func _ready() -> void:
 	_section("Spawn director")
 	await _test_spawn_director()
 
+	_section("Home hazards")
+	await _test_home_hazards()
+
 	_section("Score system")
 	_test_score_system()
 
@@ -277,6 +280,16 @@ func _test_zones() -> void:
 			0.01,
 			"the world derives its home boundary",
 		)
+		# A live edit of the house duration re-derives the boundary at once.
+		var saved_seconds: float = world.home_zone_seconds
+		world.home_zone_seconds = 40.0
+		_check_near(
+			world.home_zone_length,
+			GameConfig.zone_home_length(40.0),
+			0.01,
+			"editing home_zone_seconds live re-derives the home boundary",
+		)
+		world.home_zone_seconds = saved_seconds
 		_check_eq(
 			world.street_zone_seconds,
 			GameConfig.ZONE_STREET_DURATION_SECONDS,
@@ -1242,10 +1255,15 @@ func _test_spawn_director() -> void:
 	var late_kinds := {}
 	for i in 2000:
 		late_kinds[SpawnDirector.pick_kind(60000.0, rng_late)] = true
-	# Dog is parked for M4 (weight 0) and the car is street-locked, so 4 kinds
-	# spawn outside the street.
-	_check_eq(late_kinds.size(), GameConfig.HAZARD_DATA.size() - 2,
-		"four kinds spawn once unlocked outside the street")
+	# Ungated pattern rolls (zone -1) see every kind that is not zone-restricted:
+	# the dog and car are street-locked, the furniture is home-locked, and the
+	# rest spawn freely once unlocked.
+	var ungated_kinds := 0
+	for kind: int in GameConfig.HAZARD_DATA:
+		if GameConfig.hazard_allows_zone(kind, -1):
+			ungated_kinds += 1
+	_check_eq(late_kinds.size(), ungated_kinds,
+		"every ungated kind spawns once unlocked in pattern rolls")
 
 	# The car only rolls in the street zone.
 	var rng_car := RandomNumberGenerator.new()
@@ -1615,6 +1633,227 @@ func _test_spawn_director() -> void:
 		second_dog.queue_free()
 	event_director.queue_free()
 	event_container.queue_free()
+	await get_tree().process_frame
+
+
+func _test_home_hazards() -> void:
+	var home_only: Array[int] = [
+		GameConfig.HazardKind.NIGHTSTAND, GameConfig.HazardKind.ARMCHAIR,
+		GameConfig.HazardKind.COFFEE_TABLE, GameConfig.HazardKind.CUSHION,
+		GameConfig.HazardKind.BOOKSHELF, GameConfig.HazardKind.BOXES,
+	]
+	var outdoor: Array[int] = [
+		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
+		GameConfig.HazardKind.SIGN, GameConfig.HazardKind.GANTRY,
+		GameConfig.HazardKind.DOG, GameConfig.HazardKind.CAR,
+	]
+	var school_only: Array[int] = [
+		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
+		GameConfig.HazardKind.SIGN, GameConfig.HazardKind.GANTRY,
+	]
+	var kind_name := func(kind: int) -> String:
+		return String(GameConfig.HazardKind.find_key(kind))
+
+	# HOME is furniture-only: every prop appears, nothing else does.
+	for kind: int in home_only:
+		_check(
+			GameConfig.hazard_allows_zone(kind, GameConfig.Zone.HOME),
+			"%s appears in the home zone" % kind_name.call(kind),
+		)
+	for kind: int in outdoor:
+		_check(
+			not GameConfig.hazard_allows_zone(kind, GameConfig.Zone.HOME),
+			"%s never appears in the home zone" % kind_name.call(kind),
+		)
+
+	# STREET and SCHOOL keep their pre-home behavior exactly (the freeze guard).
+	for kind: int in outdoor:
+		_check(
+			GameConfig.hazard_allows_zone(kind, GameConfig.Zone.STREET),
+			"%s still appears in the street zone" % kind_name.call(kind),
+		)
+	for kind: int in school_only:
+		_check(
+			GameConfig.hazard_allows_zone(kind, GameConfig.Zone.SCHOOL),
+			"%s still appears in the school zone" % kind_name.call(kind),
+		)
+	_check(
+		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.DOG, GameConfig.Zone.SCHOOL),
+		"the dog still skips the school zone",
+	)
+	_check(
+		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.CAR, GameConfig.Zone.SCHOOL),
+		"the car still skips the school zone",
+	)
+	for kind: int in home_only:
+		_check(
+			not GameConfig.hazard_allows_zone(kind, -1),
+			"%s never rolls in ungated pattern tests" % kind_name.call(kind),
+		)
+
+	# --- Unlocks: the whole room is available from the first pixel ---------------
+	var default_len := GameConfig.zone_home_length()
+	for kind: int in home_only:
+		_check_near(
+			GameConfig.hazard_unlock(kind, default_len),
+			GameConfig.hazard_unlock(kind),
+			0.001,
+			"%s unlocks at the configured home length by default" % kind_name.call(kind),
+		)
+	for seconds: float in [5.0, 20.0, 60.0, 300.0]:
+		var scaled_len := GameConfig.zone_home_length(seconds)
+		for kind: int in home_only:
+			_check_near(
+				GameConfig.hazard_unlock(kind, scaled_len),
+				0.0, 0.001,
+				"%s is available from the start of any %0.0f s house"
+					% [kind_name.call(kind), seconds],
+			)
+	_check(
+		GameConfig.hazard_unlock(GameConfig.HazardKind.MANHOLE, 8000.0) == 0.0,
+		"street unlocks ignore the home length",
+	)
+	_check(
+		GameConfig.hazard_unlock(GameConfig.HazardKind.GANTRY)
+			== float(GameConfig.HAZARD_UNLOCK[GameConfig.HazardKind.GANTRY]),
+		"the gantry keeps its fixed unlock distance",
+	)
+	for seconds: float in [5.0, 20.0, 60.0, 300.0]:
+		var tail_len := GameConfig.zone_home_length(seconds)
+		for kind: int in home_only:
+			var fraction: float = GameConfig.hazard_unlock(kind, tail_len) / tail_len
+			_check(
+				fraction >= 0.0 and fraction < 1.0,
+				"%s unlocks inside the %0.0f s house" % [kind_name.call(kind), seconds],
+			)
+
+	# --- HOME rolls are furniture-only, from distance zero on --------------------
+	var home_rng := RandomNumberGenerator.new()
+	home_rng.seed = 88
+	var home_len := GameConfig.zone_home_length()
+	var start_seen := {}
+	for i in 3000:
+		start_seen[SpawnDirector.pick_kind(
+			0.0, home_rng, GameConfig.Zone.HOME, true, home_len)] = true
+	_check_eq(start_seen.size(), 6, "home rolls at distance zero use all six props")
+	for kind: int in home_only:
+		_check(
+			start_seen.has(kind),
+			"%s is available in the first frame of home" % kind_name.call(kind),
+		)
+	for kind: int in outdoor:
+		_check(
+			not start_seen.has(kind),
+			"%s never rolls inside the house" % kind_name.call(kind),
+		)
+	var late_seen := {}
+	for i in 4000:
+		late_seen[SpawnDirector.pick_kind(
+			home_len * 0.8, home_rng, GameConfig.Zone.HOME, true, home_len)] = true
+	_check_eq(late_seen.size(), 6, "late home rolls use all six props")
+	for kind: int in outdoor:
+		_check(
+			not late_seen.has(kind),
+			"%s never rolls late in the house" % kind_name.call(kind),
+		)
+
+	# STREET and SCHOOL never roll a home prop (the inverse freeze guard).
+	var street_rng := RandomNumberGenerator.new()
+	street_rng.seed = 89
+	var street_seen := {}
+	for i in 2000:
+		street_seen[SpawnDirector.pick_kind(
+			60000.0, street_rng, GameConfig.Zone.STREET)] = true
+	for kind: int in home_only:
+		_check(
+			not street_seen.has(kind),
+			"%s never rolls in the street" % kind_name.call(kind),
+		)
+	_check(street_seen.has(GameConfig.HazardKind.CAR), "the car still rolls in the street")
+	var school_rng := RandomNumberGenerator.new()
+	school_rng.seed = 90
+	var school_seen := {}
+	for i in 2000:
+		school_seen[SpawnDirector.pick_kind(
+			60000.0, school_rng, GameConfig.Zone.SCHOOL)] = true
+	_check(school_seen.has(GameConfig.HazardKind.DEBRIS), "debris still rolls in the school")
+	for kind: int in home_only:
+		_check(
+			not school_seen.has(kind),
+			"%s never rolls in the school" % kind_name.call(kind),
+		)
+	_check(
+		not school_seen.has(GameConfig.HazardKind.DOG)
+		and not school_seen.has(GameConfig.HazardKind.CAR),
+		"dog and car still skip the school",
+	)
+
+	# --- The fallback is zone-legal ---------------------------------------------
+	_check_eq(
+		GameConfig.first_zone_kind(GameConfig.Zone.HOME),
+		GameConfig.HazardKind.NIGHTSTAND,
+		"the home fallback is the nightstand, not street art",
+	)
+	_check_eq(
+		GameConfig.first_zone_kind(GameConfig.Zone.STREET),
+		GameConfig.HazardKind.MANHOLE,
+		"the street fallback is the manhole, as before",
+	)
+	_check_eq(
+		GameConfig.first_zone_kind(GameConfig.Zone.SCHOOL),
+		GameConfig.HazardKind.MANHOLE,
+		"the school fallback is the manhole, as before",
+	)
+
+	# --- Prop data sanity: art on disk, static single-image hazards -------------
+	for kind: int in home_only:
+		var prop_data: Dictionary = GameConfig.HAZARD_DATA[kind]
+		_check(
+			ResourceLoader.exists(String(prop_data["texture"])),
+			"%s art exists on disk" % kind_name.call(kind),
+		)
+		_check(
+			float(prop_data["scale"]) > 0.0 and float(prop_data["hitbox_w"]) > 0.0
+			and float(prop_data["hitbox_h"]) > 0.0,
+			"%s has a positive scale and hitbox" % kind_name.call(kind),
+		)
+		_check(
+			int(prop_data["frames"]) == 0 and float(prop_data["extra_speed"]) == 0.0,
+			"%s is a static single-image hazard" % kind_name.call(kind),
+		)
+		_check(
+			float(prop_data["clearance"]) == 0.0 and not bool(prop_data["overhead"]),
+			"%s stands on the floor and is jumped" % kind_name.call(kind),
+		)
+
+	# --- The dog waits while Elias is indoors ------------------------------------
+	var dog_container := Node2D.new()
+	add_child(dog_container)
+	var dog_director := SpawnDirector.new()
+	add_child(dog_director)
+	dog_director.setup(dog_container, 407)
+	_check(
+		not dog_director._try_start_dog_encounter(
+			GameConfig.DOG_FIRST_DISTANCE, GameConfig.RUN_SPEED, GameConfig.Zone.HOME),
+		"the dog encounter never starts in the home zone",
+	)
+	_check_eq(
+		dog_director._dog_reserved_lane, -1,
+		"the home dog refusal reserves no lane",
+	)
+	_check(
+		dog_director._try_start_dog_encounter(
+			GameConfig.DOG_FIRST_DISTANCE, GameConfig.RUN_SPEED, GameConfig.Zone.STREET),
+		"the dog encounter still starts in the street",
+	)
+	_check(
+		dog_director._dog_reserved_lane >= 0,
+		"the street dog reserves its lane",
+	)
+	for child in dog_container.get_children():
+		child.queue_free()
+	dog_director.queue_free()
+	dog_container.queue_free()
 	await get_tree().process_frame
 
 

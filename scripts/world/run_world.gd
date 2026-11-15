@@ -102,7 +102,12 @@ var _caught: bool = false
 ## Seconds the home zone lasts. Editable in the Inspector so the house run can
 ## be extended without touching GameConfig; HOME and STREET are timed, SCHOOL
 ## has no duration.
-@export_range(5.0, 300.0, 1.0) var home_zone_seconds: float = GameConfig.ZONE_HOME_DURATION_SECONDS
+@export_range(5.0, 300.0, 1.0) var home_zone_seconds: float = GameConfig.ZONE_HOME_DURATION_SECONDS:
+	set(value):
+		home_zone_seconds = value
+		# Re-derive immediately so a live Inspector edit moves the home
+		# boundary (and the scaled hazard unlocks) without restarting the run.
+		home_zone_length = GameConfig.zone_home_length(home_zone_seconds)
 ## Distance (px) at which home ends, derived from [member home_zone_seconds].
 var home_zone_length: float = GameConfig.zone_home_length()
 ## Seconds the street zone lasts, editable in the Inspector the same way.
@@ -301,9 +306,9 @@ func _physics_process(delta: float) -> void:
 			_finish_campaign()
 			return
 		if distance < campaign_finish_distance - GameConfig.CAMPAIGN_SPAWN_CUTOFF_PX:
-			director.tick(delta, speed, distance, current_zone)
+			director.tick(delta, speed, distance, current_zone, home_zone_length)
 	else:
-		director.tick(delta, speed, distance, current_zone)
+		director.tick(delta, speed, distance, current_zone, home_zone_length)
 	score_system.add_distance(distance)
 	pursuer.set_world_speed(speed)
 	pursuer.track(player.lane_y)

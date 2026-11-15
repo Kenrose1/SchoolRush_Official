@@ -92,12 +92,15 @@ func setup(parent: Node2D, seed_value: int = 0) -> void:
 
 
 ## Advance the spawn clock. Call once per physics frame with the world speed.
-## [param zone] gates street-only kinds (the car) to Zone.STREET.
+## [param zone] gates zone-restricted kinds (HOME furniture, street-only
+## dog/car). [param home_length] is the run's home length in px, scaling the
+## home kinds' fractional unlock distances; -1 falls back to the default.
 func tick(
 	delta: float,
 	speed: float,
 	distance: float,
 	zone: int = -1,
+	home_length: float = -1.0,
 ) -> void:
 	if hazards == null:
 		return
@@ -105,13 +108,13 @@ func tick(
 	_update_dog_barks()
 	_refresh_coin_reservation()
 	if distance >= _next_dog_distance and _dog_reserved_lane < 0:
-		_try_start_dog_encounter(distance, speed)
+		_try_start_dog_encounter(distance, speed, zone)
 
 	_distance_since_row += speed * delta
 	var gap := GameConfig.row_gap(distance)
 	while _distance_since_row >= gap:
 		_distance_since_row -= gap
-		spawn_row(distance, speed, zone)
+		spawn_row(distance, speed, zone, home_length)
 		gap = GameConfig.row_gap(distance)
 
 	_distance_since_pickup += speed * delta
@@ -132,19 +135,21 @@ func tick(
 ## Spawn one row, leaving the active dog's lane, any live coin-run lane, and
 ## any pending car-warning lane out of the hazard pattern, so special hazards
 ## never share their lane with a row hazard.
-## [param zone] gates street-only kinds (the car) to Zone.STREET.
+## [param zone] gates zone-restricted kinds (HOME furniture, street-only
+## dog/car).
 ## Returns the blocked lanes.
 func spawn_row(
 	distance: float,
 	speed: float = GameConfig.RUN_SPEED,
 	zone: int = -1,
+	home_length: float = -1.0,
 ) -> Array[int]:
 	var lanes := generate_pattern(
 		distance, _rng, _dog_reserved_lane, _coin_run_lane, _car_reserved_lanes())
 	# At most one car per row, and only when the cooldown allows one.
 	var allow_car := _car_allowed(distance, zone)
 	for lane in lanes:
-		var kind := pick_kind(distance, _rng, zone, allow_car)
+		var kind := pick_kind(distance, _rng, zone, allow_car, home_length)
 		if kind == GameConfig.HazardKind.CAR:
 			_start_car_warning(lane, speed)
 			allow_car = false
@@ -282,7 +287,12 @@ func _on_car_warning_finished(lane: int) -> void:
 	car_entered.emit(lane, int(entry.get("variant", 0)))
 
 
-func _try_start_dog_encounter(distance: float, speed: float) -> bool:
+func _try_start_dog_encounter(distance: float, speed: float, zone: int = -1) -> bool:
+	# The dog encounter clock bypasses pick_kind, so the house gate lives here:
+	# the dog waits while Elias is indoors and starts on the first outdoor
+	# frame. Only HOME is excluded - the house is furniture-only.
+	if zone == GameConfig.Zone.HOME:
+		return false
 	var occupied := _occupied_dog_entry_lanes()
 	var dog_lane := choose_dog_lane(occupied, _rng)
 	if dog_lane < 0:
@@ -466,43 +476,45 @@ static func generate_pattern(
 
 
 ## Weighted kind choice among the kinds unlocked at [param distance].
-## [param zone] gates street-only kinds (the car): -1 or a non-street zone
-## never rolls a car; Zone.STREET does.
+## [param zone] gates zone-restricted kinds: a kind's "zones" list decides
+## where it may appear (HOME furniture, street-only dog/car); -1 matches the
+## pre-zones behavior: ungated kinds only.
 ## [param allow_car] is the director's cooldown gate: when false the car is
 ## skipped even in the street zone.
+## [param home_length] is the run's home length in px, scaling the home kinds'
+## fractional unlock distances; -1 falls back to the configured default.
 static func pick_kind(
 	distance: float,
 	rng: RandomNumberGenerator,
 	zone: int = -1,
 	allow_car: bool = true,
+	home_length: float = -1.0,
 ) -> GameConfig.HazardKind:
 	var total := 0.0
 	for kind: int in GameConfig.HAZARD_DATA:
-		if distance < float(GameConfig.HAZARD_UNLOCK[kind]):
+		if distance < GameConfig.hazard_unlock(kind, home_length):
 			continue
 		if kind == GameConfig.HazardKind.CAR and not allow_car:
 			continue
-		var kind_zone := int(GameConfig.HAZARD_DATA[kind].get("zone", -99))
-		if kind_zone != -99 and kind_zone != zone:
+		if not GameConfig.hazard_allows_zone(kind, zone):
 			continue
 		total += float(GameConfig.HAZARD_WEIGHT[kind])
 
 	if total <= 0.0:
-		return GameConfig.HazardKind.MANHOLE
+		return GameConfig.first_zone_kind(zone)
 
 	var roll := rng.randf() * total
 	for kind: int in GameConfig.HAZARD_DATA:
-		if distance < float(GameConfig.HAZARD_UNLOCK[kind]):
+		if distance < GameConfig.hazard_unlock(kind, home_length):
 			continue
 		if kind == GameConfig.HazardKind.CAR and not allow_car:
 			continue
-		var kind_zone := int(GameConfig.HAZARD_DATA[kind].get("zone", -99))
-		if kind_zone != -99 and kind_zone != zone:
+		if not GameConfig.hazard_allows_zone(kind, zone):
 			continue
 		roll -= float(GameConfig.HAZARD_WEIGHT[kind])
 		if roll <= 0.0:
 			return kind
-	return GameConfig.HazardKind.MANHOLE
+	return GameConfig.first_zone_kind(zone)
 
 
 func _on_hazard_passed() -> void:
