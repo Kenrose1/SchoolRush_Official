@@ -13,6 +13,9 @@ signal item_missed
 ## exclamation is still on screen (the warning node frees itself at the end
 ## of the hold, which would cut a honk owned by it).
 signal car_warning_started(lane: int, variant: int)
+## Fired once when the car actually spawns (warning finished), so the world
+## can start the engine pass-by exactly as the car enters the world.
+signal car_entered(lane: int, variant: int)
 
 const HAZARD_SCENE := preload("res://scenes/hazard.tscn")
 const COLLECTIBLE_SCENE := preload("res://scenes/collectible.tscn")
@@ -266,6 +269,7 @@ func _on_car_warning_finished(lane: int) -> void:
 	)
 	car.position.x = GameConfig.SPAWN_X
 	car.passed_player.connect(_on_hazard_passed)
+	car_entered.emit(lane, int(entry.get("variant", 0)))
 
 
 func _try_start_dog_encounter(distance: float, speed: float) -> bool:

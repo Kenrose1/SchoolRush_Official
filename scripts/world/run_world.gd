@@ -74,6 +74,7 @@ var _school_background_texture: Texture2D
 @onready var hazards: Node2D = $Hazards
 @onready var director: SpawnDirector = $SpawnDirector
 @onready var car_honk_sfx: AudioStreamPlayer = $CarHonkSfx
+@onready var car_engine_sfx: AudioStreamPlayer = $CarEngineSfx
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
 @onready var progress_hud: ProgressBarHud = $Hud/HudRoot/Progress
@@ -122,6 +123,8 @@ var coins_collected: int = 0
 ## Test counter: how many times the car honk actually fired. Guaranteed at
 ## most once per car by the director's single-pending-warning rule.
 var car_honk_play_count: int = 0
+## Test counter: how many times the engine pass-by actually fired.
+var car_engine_play_count: int = 0
 
 
 func _ready() -> void:
@@ -176,6 +179,7 @@ func _ready() -> void:
 	director.hazard_passed.connect(score_system.add_hazard_passed)
 	director.item_missed.connect(_on_item_missed)
 	director.car_warning_started.connect(_on_car_warning_started)
+	director.car_entered.connect(_on_car_entered)
 	director.setup(hazards, randi())
 
 
@@ -188,6 +192,18 @@ func _on_car_warning_started(lane: int, variant: int) -> void:
 	car_honk_sfx.pitch_scale = GameConfig.CAR_HONK_PITCH[
 		variant % GameConfig.CAR_HONK_PITCH.size()]
 	car_honk_sfx.play()
+
+
+## Engine pass-by, started when the car spawns (not at the warning). The clip
+## is a recorded approach-pass-recede trimmed to the car's 2.27 s lifetime: it
+## swells as the car crosses the screen edge, peaks just before it reaches the
+## player's lane and fades out as it despawns. Non-positional on purpose - the
+## lanes are vertical, so the clip's own envelope does the "passing by" work.
+func _on_car_entered(lane: int, variant: int) -> void:
+	car_engine_play_count += 1
+	car_engine_sfx.pitch_scale = GameConfig.CAR_ENGINE_PITCH[
+		variant % GameConfig.CAR_ENGINE_PITCH.size()]
+	car_engine_sfx.play()
 
 
 ## Hand the run its rules. Called by _ready with GameState.mode and by the

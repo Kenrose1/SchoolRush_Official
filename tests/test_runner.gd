@@ -365,6 +365,46 @@ func _test_zones() -> void:
 		_check_eq(world.car_honk_play_count, 2, "each car warning honks separately")
 		world.car_honk_play_count = 0
 
+		# Engine pass-by: starts at spawn, trimmed to end with the car's
+		# despawn so no engine hum outlives its car.
+		var engine_player := world.car_engine_sfx as AudioStreamPlayer
+		_check(engine_player != null, "the world owns a car engine player")
+		if engine_player != null:
+			_check_eq(engine_player.bus, "SFX", "the car engine routes to the SFX bus")
+			var engine_stream := engine_player.stream as AudioStream
+			_check(
+				engine_stream != null
+				and engine_stream.get_length() > 2.0
+				and engine_stream.get_length() < 2.5,
+				"the engine clip is the trimmed pass-by, not the long original",
+			)
+			var car_lifetime: float = (GameConfig.SPAWN_X - GameConfig.DESPAWN_X) / (
+				GameConfig.RUN_SPEED + float(
+					GameConfig.HAZARD_DATA[GameConfig.HazardKind.CAR]["extra_speed"])
+			)
+			_check(
+				engine_player.stream.get_length() <= car_lifetime + 0.02,
+				"the engine clip is no longer than the car's lifetime",
+			)
+		_check_eq(world.car_engine_play_count, 0, "the engine is silent before any car")
+		world._on_car_entered(1, 0)
+		_check_eq(world.car_engine_play_count, 1, "a spawned car starts the engine")
+		_check_near(
+			world.car_engine_sfx.pitch_scale,
+			GameConfig.CAR_ENGINE_PITCH[0],
+			0.0001,
+			"variant 0 idles at its configured pitch",
+		)
+		world._on_car_entered(2, 1)
+		_check_near(
+			world.car_engine_sfx.pitch_scale,
+			GameConfig.CAR_ENGINE_PITCH[1],
+			0.0001,
+			"variant 1 idles a step lower",
+		)
+		_check_eq(world.car_engine_play_count, 2, "each spawned car runs its own pass-by")
+		world.car_engine_play_count = 0
+
 		var fade: ColorRect = world._zone_fade
 		_check(fade != null, "the world owns a zone fade rect")
 		if fade != null:
@@ -1178,11 +1218,17 @@ func _test_spawn_director() -> void:
 	var event_director := SpawnDirector.new()
 	add_child(event_director)
 	event_director.setup(event_container, 2026)
-	# The dog shares HazardWarning with the car; its warnings must never honk.
+	# The dog shares HazardWarning with the car; its warnings must never honk
+	# and never fire the engine pass-by.
 	var dog_honk_events: Array = []
+	var dog_engine_events: Array = []
 	event_director.car_warning_started.connect(
 		func(honk_lane: int, honk_variant: int) -> void:
 			dog_honk_events.append([honk_lane, honk_variant])
+	)
+	event_director.car_entered.connect(
+		func(entry_lane: int, entry_variant: int) -> void:
+			dog_engine_events.append([entry_lane, entry_variant])
 	)
 	event_director._distance_since_row = 0.0
 	event_director._distance_since_pickup = 0.0
@@ -1257,6 +1303,7 @@ func _test_spawn_director() -> void:
 			break
 	_check(lane_resumed, "normal hazard spawning resumes in the dog lane after despawn")
 	_check(dog_honk_events.is_empty(), "a dog encounter never triggers a car honk")
+	_check(dog_engine_events.is_empty(), "a dog encounter never triggers the engine pass-by")
 
 	# --- Street cars warn like the dog, then enter from the right edge ---------
 	var car_container := Node2D.new()
@@ -1269,6 +1316,11 @@ func _test_spawn_director() -> void:
 		func(honk_lane: int, honk_variant: int) -> void:
 			honk_events.append([honk_lane, honk_variant])
 	)
+	var engine_events: Array = []
+	car_director.car_entered.connect(
+		func(entry_lane: int, entry_variant: int) -> void:
+			engine_events.append([entry_lane, entry_variant])
+	)
 	car_director._start_car_warning(GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
 	_check_eq(car_director._car_warnings.size(), 1, "a warned car waits for its warning")
 	var car_warning := car_container.get_children().back() as HazardWarning
@@ -1277,6 +1329,7 @@ func _test_spawn_director() -> void:
 		_check_eq(car_warning.sprite.texture.resource_path, GameConfig.CAR_WARNING_TEXTURE,
 			"the car warning uses the second exclamation art")
 	var car_lane := int(car_director._car_warnings[0]["lane"])
+	var car_variant := int(car_director._car_warnings[0]["variant"])
 	_check_eq(car_lane, GameConfig.LANE_MIDDLE, "the car warning records its lane")
 	_check_eq(honk_events.size(), 1, "starting a car warning honks exactly once")
 	if honk_events.size() == 1:
@@ -1286,6 +1339,7 @@ func _test_spawn_director() -> void:
 			int(car_director._car_warnings[0]["variant"]),
 			"the honk fires with the car's variant",
 		)
+	_check(engine_events.is_empty(), "the engine pass-by waits for the car to spawn")
 
 	# Pickups, coin runs, and rows keep out of the warned lane.
 	var warned_pickup := car_director.spawn_pickup(0.0, 0.0)
@@ -1314,6 +1368,10 @@ func _test_spawn_director() -> void:
 	_check_eq(car_director._car_warnings.size(), 0,
 		"the pending car is consumed after spawn")
 	_check_eq(honk_events.size(), 1, "the honk does not repeat when the car spawns")
+	_check_eq(engine_events.size(), 1, "the engine pass-by fires exactly once at spawn")
+	if engine_events.size() == 1:
+		_check_eq(int(engine_events[0][0]), car_lane, "the engine fires for the warned lane")
+		_check_eq(int(engine_events[0][1]), car_variant, "the engine fires with the car's variant")
 
 	for child in car_container.get_children():
 		child.queue_free()

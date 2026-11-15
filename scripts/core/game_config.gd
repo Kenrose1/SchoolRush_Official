@@ -196,6 +196,10 @@ const CAR_GAP_MAX := 4800.0
 ## slightly bigger, lower-sounding vehicle at 0.93.
 const CAR_HONK_PITCH: Array[float] = [1.0, 0.93]
 
+## Per-variant engine pitch for the pass-by one-shot: the bigger Ride2 idles
+## lower. Same variant order as CAR_VARIANTS.
+const CAR_ENGINE_PITCH: Array[float] = [1.0, 0.9]
+
 ## Per-kind art and hitbox data.
 ##   clearance    bottom edge sits this far above the lane baseline (overhead)
 ##   overhead     must be slid under; otherwise it is jumped or dodged
