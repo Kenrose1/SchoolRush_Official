@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bmr5snf3a13ov"
-path="res://.godot/imported/Designer (10).png-252bb0fe33c4bec8ff0788f652f3fe2f.ctex"
+uid="uid://b86g7xdj02q60"
+path="res://.godot/imported/haz_bookshelf.png-5de3c17ca10baec56f49ea2e488d96a1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/hazards/Designer (10).png"
-dest_files=["res://.godot/imported/Designer (10).png-252bb0fe33c4bec8ff0788f652f3fe2f.ctex"]
+source_file="res://assets/hazards/haz_bookshelf.png"
+dest_files=["res://.godot/imported/haz_bookshelf.png-5de3c17ca10baec56f49ea2e488d96a1.ctex"]
 
 [params]
 
