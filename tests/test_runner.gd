@@ -102,6 +102,9 @@ func _ready() -> void:
 	_section("Settings")
 	_test_settings()
 
+	_section("UI click")
+	_test_ui_sfx()
+
 	_section("Scenes")
 	_test_scenes()
 
@@ -3539,6 +3542,72 @@ func _test_settings() -> void:
 		pause.set_paused(false)
 		_check(not get_tree().paused, "cleanup leaves the tree unpaused")
 	hud.queue_free()
+
+
+func _test_ui_sfx() -> void:
+	_check(UiSfx != null, "the UiSfx autoload is registered")
+	if UiSfx == null:
+		return
+	var click := UiSfx.click_player as AudioStreamPlayer
+	_check(click != null, "the ui click autoload owns a player")
+	if click == null:
+		return
+	_check_eq(click.bus, &"SFX", "the ui click routes to the SFX bus")
+	_check(click.stream != null, "the ui click player carries a stream")
+	_check_eq(click.max_polyphony, 1, "a second click retriggers instead of stacking")
+
+	# The hook is what makes the shop's runtime-built cards click without any
+	# wiring in shop_panel.gd, so a button added after boot must be caught.
+	var before := UiSfx.click_play_count
+	var btn := Button.new()
+	add_child(btn)
+	btn.pressed.emit()
+	_check_eq(UiSfx.click_play_count, before + 1, "a runtime-added button clicks")
+
+	# Escape hatch: a tagged button stays silent.
+	var quiet := Button.new()
+	quiet.set_meta(UiSfx.SILENT_META, true)
+	add_child(quiet)
+	quiet.pressed.emit()
+	_check_eq(UiSfx.click_play_count, before + 1, "a tagged button stays silent")
+
+	# Re-adding must not connect the signal twice and double up the tick.
+	remove_child(btn)
+	add_child(btn)
+	btn.pressed.emit()
+	_check_eq(UiSfx.click_play_count, before + 2, "a re-added button still clicks once")
+
+	btn.queue_free()
+	quiet.queue_free()
+
+	# Cold boot: the main menu is already in the tree before this autoload
+	# turns ready, so the startup sweep - not node_added - has to hook it.
+	# Sweeping twice must still leave exactly one connection per button.
+	var menu := (load("res://scenes/main_menu.tscn") as PackedScene).instantiate()
+	UiSfx.hook_tree(menu)
+	UiSfx.hook_tree(menu)
+	add_child(menu)
+	var how_to := menu.find_child("HowTo", true, false) as Button
+	_check(how_to != null, "the main menu exposes its HOW TO button")
+	if how_to != null:
+		var swept := UiSfx.click_play_count
+		how_to.pressed.emit()
+		_check_eq(UiSfx.click_play_count, swept + 1,
+			"a swept menu button clicks exactly once")
+
+	# A whole subtree arriving later (change_scene_to_file, a dialog) is
+	# caught too, not just a bare button added on its own.
+	var late := Control.new()
+	var late_btn := Button.new()
+	late.add_child(late_btn)
+	add_child(late)
+	var late_before := UiSfx.click_play_count
+	late_btn.pressed.emit()
+	_check_eq(UiSfx.click_play_count, late_before + 1,
+		"a button inside a later-added subtree clicks")
+
+	menu.queue_free()
+	late.queue_free()
 
 
 func _test_scenes() -> void:
