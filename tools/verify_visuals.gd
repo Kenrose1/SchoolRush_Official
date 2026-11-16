@@ -120,7 +120,7 @@ func _ready() -> void:
 	world.set_run_mode(GameConfig.RunMode.CAMPAIGN)
 	world.distance = 5880.0
 
-	# M5: hold the zone fade mid-way, then reveal the street zone.
+	# M5: cross into the street zone (instant swap, no transition art).
 	world.results.visible = false
 	world.arrest.visible = false
 	world.player.sprite.visible = true
@@ -128,16 +128,6 @@ func _ready() -> void:
 	world.set_process(false)
 	world.distance = world.home_zone_length + 1.0
 	world._update_zone()
-	world._update_progress()
-	world._zone_fade_time_left = GameConfig.ZONE_FADE_TIME * 0.5
-	world._zone_fade.color.a = 0.5
-	world._update_debug()
-	world.queue_redraw()
-	await _wait(2)
-	await _shot("m5_02_zone_fade")
-
-	world._zone_fade_time_left = 0.0
-	world._zone_fade.color.a = 0.0
 	world._update_progress()
 	world._update_debug()
 	world.queue_redraw()
@@ -170,20 +160,15 @@ func _ready() -> void:
 	world.player.sprite.visible = true
 	world.progress_hud.visible = true
 
-	# Street -> School: hold the second fade mid-way, then stage a hazard run
-	# in the hallway and reveal the terminal school zone.
+	# Street -> School: cross into the terminal school zone and stage a hazard
+	# run in the hallway.
 	world.distance = world.home_zone_length + world.street_zone_length + 1.0
 	world._update_zone()
 	world._update_progress()
-	world._zone_fade_time_left = GameConfig.ZONE_FADE_TIME * 0.5
-	world._zone_fade.color.a = 0.5
 	world._update_debug()
 	world.queue_redraw()
 	await _wait(2)
-	await _shot("m5_04_school_fade")
 
-	world._zone_fade_time_left = 0.0
-	world._zone_fade.color.a = 0.0
 	for child in world.hazards.get_children():
 		child.queue_free()
 	await _wait(2)

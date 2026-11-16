@@ -68,8 +68,10 @@ const CAMPAIGN_SCHOOL_SECONDS := 6.0
 ## last stretch is a clean sprint instead of a hazard wall.
 const CAMPAIGN_SPAWN_CUTOFF_PX := 400.0
 
-## Cross-fade length when the zone changes (seconds).
-const ZONE_FADE_TIME := 0.25
+## Zone swaps are instant: the art changes on the crossing frame. Only hazards
+## this close ahead of the player are cleared with it, so nothing lands on him
+## during the frame the world changes underneath.
+const ZONE_SWAP_CLEAR_PX := 80.0
 
 ## Y (in the original house source) where the wall ends and the floor begins.
 const HOUSE_FLOOR_SPLIT_Y := 1125.0
@@ -287,7 +289,7 @@ const HAZARD_DATA := {
 	},
 	HazardKind.BOOKSHELF: {
 		"texture": "res://assets/hazards/haz_bookshelf.png",
-		"scale": 0.45, "hitbox_w": 54.0, "hitbox_h": 64.0,
+		"scale": 0.38, "hitbox_w": 54.0, "hitbox_h": 64.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.HOME],
 	},

@@ -83,7 +83,6 @@ var _school_background_texture: Texture2D
 @onready var pause_menu: PauseMenu = $Hud/HudRoot/Pause
 @onready var results: ResultsScreen = $GameOver/Results
 @onready var _debug_label: Label = $Hud/HudRoot/Debug
-@onready var _zone_fade: ColorRect = $ZoneFade/Rect
 
 ## Base forward speed. The momentum dip lowers it temporarily after a hit.
 var speed: float = GameConfig.RUN_SPEED
@@ -116,8 +115,6 @@ var home_zone_length: float = GameConfig.zone_home_length()
 var street_zone_length: float = GameConfig.zone_street_length()
 ## Zone currently being drawn and scored.
 var current_zone: GameConfig.Zone = GameConfig.Zone.HOME
-## Seconds of zone cross-fade remaining.
-var _zone_fade_time_left: float = 0.0
 ## Which rules this run plays by (GameConfig.RunMode), read from GameState.
 var mode: int = GameConfig.RunMode.CAMPAIGN
 ## Distance (px) at which a campaign run finishes. 0 means endless.
@@ -146,8 +143,6 @@ func _ready() -> void:
 	street_zone_length = GameConfig.zone_street_length(street_zone_seconds)
 	current_zone = GameConfig.zone_for_distance(
 		distance, home_zone_length, street_zone_length, GameConfig.RunMode.CAMPAIGN)
-	if _zone_fade != null:
-		_zone_fade.color.a = 0.0
 	# Editor preview: load art + draw once, skip runtime wiring.
 	if Engine.is_editor_hint():
 		_sky_texture = load(SKY_TEXTURE) as Texture2D
@@ -336,25 +331,34 @@ func _update_progress() -> void:
 
 ## Step the zone clock. HOME and STREET are timed; the mode decides what comes
 ## after the street - SCHOOL for campaign, street forever for endless.
+## The swap is instant - there is no transition art - and leftover hazards are
+## cleared in the same frame, so nothing from the old zone lingers on screen.
 func _update_zone() -> void:
 	var next := GameConfig.zone_for_distance(
 		distance, home_zone_length, street_zone_length, mode)
 	if next == current_zone:
 		return
 	current_zone = next
-	_zone_fade_time_left = GameConfig.ZONE_FADE_TIME
-	_zone_fade.color.a = 1.0
+	_purge_zone_leftovers()
 	zone_changed.emit(current_zone)
 	queue_redraw()
 
 
-func _process(delta: float) -> void:
-	if Engine.is_editor_hint():
-		return
-	if _zone_fade_time_left <= 0.0:
-		return
-	_zone_fade_time_left = maxf(_zone_fade_time_left - delta, 0.0)
-	_zone_fade.color.a = clampf(_zone_fade_time_left / GameConfig.ZONE_FADE_TIME, 0.0, 1.0)
+## Free hazards that cannot exist in the freshly entered zone, plus anything
+## already on top of Elias, so the swap frame never lands a hit he could not
+## see coming. Kinds legal in both zones ride across untouched, and pickups
+## are zone-agnostic so they always stay.
+func _purge_zone_leftovers() -> void:
+	for child in hazards.get_children():
+		if child is not Hazard:
+			continue
+		var hazard := child as Hazard
+		if not GameConfig.hazard_allows_zone(hazard.kind, current_zone):
+			hazard.queue_free()
+			continue
+		if hazard.position.x > GameConfig.PLAYER_X \
+				and hazard.position.x < GameConfig.PLAYER_X + GameConfig.ZONE_SWAP_CLEAR_PX:
+			hazard.queue_free()
 
 
 func _unhandled_input(event: InputEvent) -> void:

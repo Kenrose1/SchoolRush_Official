@@ -31,11 +31,14 @@ const SUB_FONT: FontFile = preload(
 @onready var wallet_chip: HBoxContainer = %WalletChip
 @onready var grid: GridContainer = %UpgradeGrid
 @onready var close_button: Button = %CloseButton
+@onready var upgrade_sfx: AudioStreamPlayer = %UpgradeSfx
 
 ## Per-kind card widgets, filled in _ready.
 var _cards: Dictionary = {}
 ## Wallet balance shown in the chip (kept for change detection in _refresh).
 var _last_wallet: int = -1
+## Completed purchases - the confirmation chime is counted for the test suite.
+var upgrade_play_count: int = 0
 
 
 func _ready() -> void:
@@ -223,6 +226,9 @@ func _refresh() -> void:
 func _on_buy_pressed(kind: int) -> void:
 	if not GameState.buy_upgrade(kind):
 		return
+	# Only a completed purchase chimes; unaffordable and maxed cards stay silent.
+	upgrade_play_count += 1
+	upgrade_sfx.play()
 	_refresh()
 	# Pop the bought card so the purchase reads as an event, not a text swap.
 	var card: Dictionary = _cards[kind]

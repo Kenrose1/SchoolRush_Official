@@ -1,7 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://c6tofu2gcnhba"]
 
-[ext_resource type="Script" path="res://scripts/ui/shop_panel.gd" id="1_shop"]
-[ext_resource type="FontFile" path="res://assets/fonts/static/InterTight-ExtraBold.ttf" id="2_xbold"]
+[ext_resource type="Script" uid="uid://drem1oiqfxv7p" path="res://scripts/ui/shop_panel.gd" id="1_shop"]
+[ext_resource type="FontFile" uid="uid://cll8r0y660eqw" path="res://assets/fonts/static/InterTight-ExtraBold.ttf" id="2_xbold"]
+[ext_resource type="AudioStream" uid="uid://bgmckdtuggibm" path="res://assets/sounds/upgradesound.mp3" id="3_upgrade"]
 
 [sub_resource type="StyleBoxFlat" id="sb_panel"]
 content_margin_left = 44.0
@@ -53,7 +54,7 @@ corner_radius_top_right = 14
 corner_radius_bottom_right = 14
 corner_radius_bottom_left = 14
 
-[node name="ShopPanel" type="PanelContainer"]
+[node name="ShopPanel" type="PanelContainer" unique_id=1734480668]
 custom_minimum_size = Vector2(780, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -63,15 +64,15 @@ grow_vertical = 2
 theme_override_styles/panel = SubResource("sb_panel")
 script = ExtResource("1_shop")
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="VBox" type="VBoxContainer" parent="." unique_id=1005096001]
 layout_mode = 2
 theme_override_constants/separation = 18
 
-[node name="HeaderRow" type="HBoxContainer" parent="VBox"]
+[node name="HeaderRow" type="HBoxContainer" parent="VBox" unique_id=1638061376]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="Title" type="Label" parent="VBox/HeaderRow"]
+[node name="Title" type="Label" parent="VBox/HeaderRow" unique_id=448499330]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
@@ -82,17 +83,17 @@ theme_override_font_sizes/font_size = 40
 text = "SCHOOL STORE"
 vertical_alignment = 1
 
-[node name="Spacer" type="Control" parent="VBox/HeaderRow"]
+[node name="Spacer" type="Control" parent="VBox/HeaderRow" unique_id=1421545699]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="WalletChip" type="HBoxContainer" parent="VBox/HeaderRow"]
+[node name="WalletChip" type="HBoxContainer" parent="VBox/HeaderRow" unique_id=1037062298]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="WalletLabel" type="Label" parent="VBox/HeaderRow/WalletChip"]
+[node name="WalletLabel" type="Label" parent="VBox/HeaderRow/WalletChip" unique_id=557411998]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
@@ -101,7 +102,7 @@ theme_override_font_sizes/font_size = 30
 text = "0"
 vertical_alignment = 1
 
-[node name="UpgradeGrid" type="GridContainer" parent="VBox"]
+[node name="UpgradeGrid" type="GridContainer" parent="VBox" unique_id=1913857722]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
@@ -109,7 +110,7 @@ theme_override_constants/h_separation = 20
 theme_override_constants/v_separation = 20
 columns = 2
 
-[node name="CloseButton" type="Button" parent="VBox"]
+[node name="CloseButton" type="Button" parent="VBox" unique_id=1234328724]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(260, 56)
 layout_mode = 2
@@ -121,3 +122,9 @@ theme_override_styles/normal = SubResource("sb_btn_normal")
 theme_override_styles/hover = SubResource("sb_btn_hover")
 theme_override_styles/focus = SubResource("sb_btn_hover")
 text = "CLOSE"
+
+[node name="UpgradeSfx" type="AudioStreamPlayer" parent="." unique_id=40848052]
+unique_name_in_owner = true
+stream = ExtResource("3_upgrade")
+volume_db = -2.0
+bus = &"SFX"

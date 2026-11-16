@@ -39,6 +39,9 @@ func _ready() -> void:
 	_section("Zones")
 	_test_zones()
 
+	_section("Zone purge")
+	await _test_zone_purge()
+
 	_section("Input map")
 	_test_input()
 
@@ -178,7 +181,11 @@ func _test_zones() -> void:
 		GameConfig.ZONE_STREET_DURATION_SECONDS >= GameConfig.ZONE_STREET_MIN_SECONDS,
 		"default street duration clears the minimum",
 	)
-	_check(GameConfig.ZONE_FADE_TIME > 0.0, "zone fade has a length")
+	_check(
+		GameConfig.ZONE_SWAP_CLEAR_PX > 0.0
+		and GameConfig.ZONE_SWAP_CLEAR_PX < GameConfig.PLAYER_X,
+		"the zone swap clears a tight margin ahead of the player",
+	)
 	_check_near(
 		GameConfig.zone_home_length(),
 		GameConfig.ZONE_HOME_DURATION_SECONDS * GameConfig.RUN_SPEED,
@@ -473,60 +480,120 @@ func _test_zones() -> void:
 		world.dog_bark_warn_play_count = 0
 		world.dog_bark_run_play_count = 0
 
-		var fade: ColorRect = world._zone_fade
-		_check(fade != null, "the world owns a zone fade rect")
-		if fade != null:
-			_check_eq(fade.mouse_filter, Control.MOUSE_FILTER_IGNORE, "the zone fade ignores the mouse")
-			var fade_layer := fade.get_parent() as CanvasLayer
-			_check(fade_layer != null, "the zone fade lives in a CanvasLayer")
-			if fade_layer != null:
-				_check(fade_layer.layer > 0, "the fade layer draws above the world")
-			_check_near(fade.anchor_right, 1.0, 0.001, "the zone fade spans the viewport width")
-			_check_near(fade.anchor_bottom, 1.0, 0.001, "the zone fade spans the viewport height")
-			_check_near(fade.color.a, 0.0, 0.001, "the zone fade starts transparent")
+		# Zone swaps are instant: no transition node ships, and the swap lands
+		# on the crossing frame.
+		_check(
+			world.get_node_or_null("ZoneFade") == null,
+			"the run world ships no zone transition layer",
+		)
 
-			# Force the boundary and hold the clock; no frames pass here.
-			var seen: Array = []
-			world.zone_changed.connect(func(zone: GameConfig.Zone) -> void: seen.append(zone))
-			world.distance = world.home_zone_length + 1.0
-			world._update_zone()
-			_check_eq(world.current_zone, GameConfig.Zone.STREET, "crossing the boundary switches to street")
-			_check_eq(seen.size(), 1, "the zone change emits exactly once")
-			if seen.size() == 1:
-				_check_eq(seen[0], GameConfig.Zone.STREET, "the signal reports the street")
-			_check_near(fade.color.a, 1.0, 0.001, "the fade covers the screen at the swap")
-			_check_near(
-				world._zone_fade_time_left,
-				GameConfig.ZONE_FADE_TIME,
-				0.001,
-				"the fade clock starts at ZONE_FADE_TIME",
-			)
+		# Force the boundary; no frames pass here.
+		var seen: Array = []
+		world.zone_changed.connect(func(zone: GameConfig.Zone) -> void: seen.append(zone))
+		world.distance = world.home_zone_length + 1.0
+		world._update_zone()
+		_check_eq(world.current_zone, GameConfig.Zone.STREET,
+			"crossing the boundary swaps the zone on the same frame")
+		_check_eq(seen.size(), 1, "the zone change emits exactly once")
+		if seen.size() == 1:
+			_check_eq(seen[0], GameConfig.Zone.STREET, "the signal reports the street")
+		world._update_zone()
+		_check_eq(seen.size(), 1, "a second boundary check emits nothing")
 
-			world._process(GameConfig.ZONE_FADE_TIME * 0.5)
-			_check_near(fade.color.a, 0.5, 0.01, "the fade eases out over its duration")
-			world._process(GameConfig.ZONE_FADE_TIME)
-			_check_near(fade.color.a, 0.0, 0.001, "the fade clears when the clock runs out")
-			_check_near(world._zone_fade_time_left, 0.0, 0.001, "the fade clock stops at zero")
+		# Second boundary: street hands over to school the same way.
+		world.distance = world.home_zone_length + world.street_zone_length + 1.0
+		world._update_zone()
+		_check_eq(world.current_zone, GameConfig.Zone.SCHOOL,
+			"crossing the street boundary switches to school")
+		_check_eq(seen.size(), 2, "the second zone change emits exactly once more")
+		if seen.size() == 2:
+			_check_eq(seen[1], GameConfig.Zone.SCHOOL, "the signal reports the school")
 
-			# Second boundary: street hands over to school with its own fade.
-			world._update_zone()
-			_check_near(fade.color.a, 0.0, 0.001, "no fade fires inside a zone")
-			world.distance = world.home_zone_length + world.street_zone_length + 1.0
-			world._update_zone()
-			_check_eq(world.current_zone, GameConfig.Zone.SCHOOL, "crossing the street boundary switches to school")
-			_check_eq(seen.size(), 2, "the second zone change emits exactly once more")
-			if seen.size() == 2:
-				_check_eq(seen[1], GameConfig.Zone.SCHOOL, "the signal reports the school")
-			_check_near(fade.color.a, 1.0, 0.001, "the fade covers the screen at the school swap")
-
-			world._process(GameConfig.ZONE_FADE_TIME)
-			_check_near(fade.color.a, 0.0, 0.001, "the school fade clears when the clock runs out")
-
-			world.distance += 100000.0
-			world._update_zone()
-			_check_near(fade.color.a, 0.0, 0.001, "the school is terminal (no further fade)")
-			_check_eq(seen.size(), 2, "no signal fires after the terminal zone")
+		world.distance += 100000.0
+		world._update_zone()
+		_check_eq(seen.size(), 2, "no signal fires after the terminal zone")
 	main.queue_free()
+
+
+func _test_zone_purge() -> void:
+	var main_scene := load("res://scenes/main.tscn") as PackedScene
+	_check(main_scene != null, "main scene loads for the purge check")
+	if main_scene == null:
+		return
+	var main := main_scene.instantiate()
+	add_child(main)
+	var world := main.get_node_or_null("RunWorld") as RunWorld
+	_check(world != null, "run world exists for the purge check")
+	if world == null:
+		main.queue_free()
+		return
+	world.set_physics_process(false)
+	world.set_process(false)
+	var hazard_scene := load("res://scenes/hazard.tscn") as PackedScene
+	var collectible_scene := load("res://scenes/collectible.tscn") as PackedScene
+
+	# Seed one hazard per purge rule, then cross home -> street on a single
+	# frame: the furniture and anything on top of Elias go, a hazard just past
+	# the clear margin and the distant street hazard stay, so does the pickup.
+	world.distance = world.home_zone_length + 1.0
+	var nightstand := hazard_scene.instantiate() as Hazard
+	world.hazards.add_child(nightstand)
+	nightstand.setup(GameConfig.HazardKind.NIGHTSTAND, GameConfig.LANE_TOP, GameConfig.RUN_SPEED)
+	nightstand.position.x = 1600.0
+	var manhole_far := hazard_scene.instantiate() as Hazard
+	world.hazards.add_child(manhole_far)
+	manhole_far.setup(GameConfig.HazardKind.MANHOLE, GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
+	manhole_far.position.x = 3000.0
+	var manhole_near := hazard_scene.instantiate() as Hazard
+	world.hazards.add_child(manhole_near)
+	manhole_near.setup(GameConfig.HazardKind.MANHOLE, GameConfig.LANE_BOTTOM, GameConfig.RUN_SPEED)
+	manhole_near.position.x = GameConfig.PLAYER_X + GameConfig.ZONE_SWAP_CLEAR_PX * 0.5
+	var manhole_just_clear := hazard_scene.instantiate() as Hazard
+	world.hazards.add_child(manhole_just_clear)
+	manhole_just_clear.setup(
+		GameConfig.HazardKind.MANHOLE, GameConfig.LANE_TOP, GameConfig.RUN_SPEED)
+	manhole_just_clear.position.x = GameConfig.PLAYER_X + GameConfig.ZONE_SWAP_CLEAR_PX + 40.0
+	var coin := collectible_scene.instantiate() as Collectible
+	world.hazards.add_child(coin)
+	coin.setup(GameConfig.ItemKind.COIN, GameConfig.LANE_BOTTOM, GameConfig.RUN_SPEED)
+	coin.position.x = 2500.0
+
+	world._update_zone()
+	_check_eq(world.current_zone, GameConfig.Zone.STREET,
+		"the swap flips home to street on one frame")
+	_check(nightstand.is_queued_for_deletion(),
+		"the furniture never survives the swap into the street")
+	_check(manhole_near.is_queued_for_deletion(),
+		"a hazard on top of Elias is cleared at the swap")
+	_check(not manhole_just_clear.is_queued_for_deletion(),
+		"a hazard just past the clear margin rides through")
+	_check(not manhole_far.is_queued_for_deletion(),
+		"a far street hazard rides through the swap")
+	_check(not coin.is_queued_for_deletion(), "the coin survives the swap")
+	await get_tree().process_frame
+
+	# --- Street -> school: the dog and the car never follow Elias indoors -------
+	world.distance = world.home_zone_length + world.street_zone_length + 1.0
+	var dog := hazard_scene.instantiate() as Hazard
+	world.hazards.add_child(dog)
+	dog.setup(GameConfig.HazardKind.DOG, GameConfig.LANE_TOP, GameConfig.RUN_SPEED)
+	dog.position.x = 2000.0
+	var car := hazard_scene.instantiate() as Hazard
+	world.hazards.add_child(car)
+	car.setup(GameConfig.HazardKind.CAR, GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
+	car.position.x = 2200.0
+	world._update_zone()
+	_check_eq(world.current_zone, GameConfig.Zone.SCHOOL,
+		"the second swap flips street to school")
+	_check(dog.is_queued_for_deletion(), "the dog never chases into the school")
+	_check(car.is_queued_for_deletion(), "the car never follows into the school")
+	_check(not manhole_far.is_queued_for_deletion(),
+		"a distant manhole is legal in the school and survives")
+	await get_tree().process_frame
+
+	world.director.queue_free()
+	main.queue_free()
+	await get_tree().process_frame
 
 
 func _test_input() -> void:
@@ -1813,10 +1880,17 @@ func _test_home_hazards() -> void:
 			"%s art exists on disk" % kind_name.call(kind),
 		)
 		var prop_art := load(String(prop_data["texture"])) as Texture2D
+		var prop_height := 0.0
+		if prop_art != null:
+			# The painted content, not the padded texture: slices keep margins.
+			var prop_image := prop_art.get_image()
+			if prop_image != null:
+				prop_height = float(prop_image.get_used_rect().size.y)
+			else:
+				prop_height = float(prop_art.get_height())
 		_check(
-			prop_art != null
-			and prop_art.get_height() * float(prop_data["scale"])
-				< GameConfig.JUMP_APEX - 10.0,
+			prop_height > 0.0
+			and prop_height * float(prop_data["scale"]) < GameConfig.JUMP_APEX - 10.0,
 			"%s art stays visibly under the jump apex" % kind_name.call(kind),
 		)
 		_check(
@@ -2875,6 +2949,28 @@ func _test_shop() -> void:
 	_check(not buy_button.disabled, "an affordable card's buy button is enabled")
 	_check_eq(buy_button.text, "BUY  %d" % GameConfig.shop_cost(
 		GameConfig.ShopUpgrade.HEARTS, 0), "the buy button shows the next price")
+
+	# Purchase chime: one per completed buy, on the SFX bus, silent when the
+	# purchase is rejected (unaffordable or already maxed). This section owns
+	# the levels it touches: _test_shop restores a snapshot dict by reference,
+	# so a stray level here would follow every later section.
+	var hearts_before := GameState.shop_level(GameConfig.ShopUpgrade.HEARTS)
+	var shield_before := GameState.shop_level(GameConfig.ShopUpgrade.SHIELD)
+	_check(panel.upgrade_sfx != null, "the store carries an upgrade sound player")
+	_check_eq(panel.upgrade_sfx.bus, "SFX", "the upgrade sound routes to the SFX bus")
+	_check(panel.upgrade_sfx.stream != null, "the upgrade sound has a stream")
+	_check(
+		panel.upgrade_sfx.stream.resource_path.contains("upgradesound"),
+		"the store chimes with the upgrade sound",
+	)
+	_check_eq(panel.upgrade_play_count, 0, "the store is silent before any purchase")
+	panel._on_buy_pressed(GameConfig.ShopUpgrade.HEARTS)
+	_check_eq(panel.upgrade_play_count, 1, "a completed purchase plays the chime")
+	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = 2
+	panel._on_buy_pressed(GameConfig.ShopUpgrade.SHIELD)
+	_check_eq(panel.upgrade_play_count, 1, "a maxed card buys nothing and stays silent")
+	GameState.shop_levels[GameConfig.ShopUpgrade.HEARTS] = hearts_before
+	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = shield_before
 
 	# Card labels use the game's Inter Tight fonts, not the engine default.
 	var card: Dictionary = panel._cards[GameConfig.ShopUpgrade.HEARTS]
