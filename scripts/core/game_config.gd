@@ -619,11 +619,13 @@ const PURSUER_LUNGE_TIME := 0.4
 ## Tanod sprite scale (source 104x166, Elias is 0.6).
 const PURSUER_SCALE := 0.45
 const PURSUER_SPRITE_HEIGHT := 260.0
-## Arrest (combined grab) sprite scale + source height (380 px frames).
-const ARREST_SCALE := 0.50
-const ARREST_SPRITE_HEIGHT := 380.0
-## Time spent playing the arrest before the overlay (12f would be 1.2 s @ 10fps).
-const ARREST_TIME := 0.7
+## Arrest (combined grab) sprite scale + frame height (340x311 frames sliced
+## from NewArrest.png). 0.65 keeps the pair at the same ~190 px the old 380 px
+## frames read at 0.50, so the grab sits on Elias exactly as before.
+const ARREST_SCALE := 0.65
+const ARREST_SPRITE_HEIGHT := 311.0
+## Arrest playback length: 5 frames at 6.5 fps, the last held twice (~0.77 s).
+const ARREST_TIME := 0.77
 
 ## On damage, speed dips for this long (seconds).
 const MOMENTUM_DIP_TIME := 1.0

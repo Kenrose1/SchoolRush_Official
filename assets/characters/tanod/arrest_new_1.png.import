@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cl0bdlyxdopsp"
-path="res://.godot/imported/arrest_4.png-606dff8e2155d32805c3d04b6a7eb746.ctex"
+uid="uid://bomwkl5or2qwq"
+path="res://.godot/imported/arrest_new_1.png-b7862763607aa93e40805920b5d5bf3c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/characters/tanod/arrest_4.png"
-dest_files=["res://.godot/imported/arrest_4.png-606dff8e2155d32805c3d04b6a7eb746.ctex"]
+source_file="res://assets/characters/tanod/arrest_new_1.png"
+dest_files=["res://.godot/imported/arrest_new_1.png-b7862763607aa93e40805920b5d5bf3c.ctex"]
 
 [params]
 

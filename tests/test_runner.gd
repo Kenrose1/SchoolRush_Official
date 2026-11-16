@@ -3085,8 +3085,29 @@ func _test_pursuer() -> void:
 		_check_eq(frames.get_animation_names().size(), 3, "three tanod animations exist")
 		_check_eq(frames.get_frame_count("run"), 10, "tanod run has 10 frames")
 		_check_eq(frames.get_frame_count("idle"), 1, "tanod idle has 1 frame")
-		_check_eq(frames.get_frame_count("arrest"), 7, "arrest has 7 frames")
+		_check_eq(frames.get_frame_count("arrest"), 5, "arrest has 5 frames")
 		_check(not frames.get_animation_loop("arrest"), "arrest does not loop")
+		# Every arrest frame shares one cell size, and that height is the value
+		# `_play_arrest()` uses to sit the grab on the lane line. If new art
+		# ships at another size without updating the constant, the pair floats.
+		var arrest_size := Vector2.ZERO
+		var arrest_sizes_match := true
+		for i in frames.get_frame_count("arrest"):
+			var texture := frames.get_frame_texture("arrest", i)
+			if texture == null:
+				arrest_sizes_match = false
+				continue
+			if i == 0:
+				arrest_size = texture.get_size()
+			elif texture.get_size() != arrest_size:
+				arrest_sizes_match = false
+		_check(arrest_sizes_match, "every arrest frame is the same size")
+		_check_near(
+			arrest_size.y,
+			GameConfig.ARREST_SPRITE_HEIGHT,
+			0.01,
+			"the arrest anchor height matches the art",
+		)
 	_check_eq(pursuer.sprite.animation, &"idle", "tanod previews the idle animation")
 
 	# Wake.

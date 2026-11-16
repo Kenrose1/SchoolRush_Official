@@ -1,12 +1,10 @@
 [gd_resource type="SpriteFrames" format=3 uid="uid://cde02m0qw1a37"]
 
-[ext_resource type="Texture2D" uid="uid://c8kjjvcvukbu8" path="res://assets/characters/tanod/arrest_0.png" id="1_ggvth"]
-[ext_resource type="Texture2D" uid="uid://ktpymlx0on7w" path="res://assets/characters/tanod/arrest_1.png" id="2_gl07f"]
-[ext_resource type="Texture2D" uid="uid://o8ejno6q4tvd" path="res://assets/characters/tanod/arrest_2.png" id="3_d61vr"]
-[ext_resource type="Texture2D" uid="uid://dfluwo4c7tp32" path="res://assets/characters/tanod/arrest_3.png" id="4_pby2k"]
-[ext_resource type="Texture2D" uid="uid://cl0bdlyxdopsp" path="res://assets/characters/tanod/arrest_4.png" id="5_bfx30"]
-[ext_resource type="Texture2D" uid="uid://dcnjvn5cgdxn5" path="res://assets/characters/tanod/arrest_5.png" id="6_adgvr"]
-[ext_resource type="Texture2D" uid="uid://72xmrcjywg6q" path="res://assets/characters/tanod/arrest_6.png" id="7_oo1f1"]
+[ext_resource type="Texture2D" uid="uid://672lxb1cem32" path="res://assets/characters/tanod/arrest_new_0.png" id="1_an0"]
+[ext_resource type="Texture2D" uid="uid://bomwkl5or2qwq" path="res://assets/characters/tanod/arrest_new_1.png" id="2_an1"]
+[ext_resource type="Texture2D" uid="uid://cct3fh3lc3kho" path="res://assets/characters/tanod/arrest_new_2.png" id="3_an2"]
+[ext_resource type="Texture2D" uid="uid://camjhubcepb3c" path="res://assets/characters/tanod/arrest_new_3.png" id="4_an3"]
+[ext_resource type="Texture2D" uid="uid://dbm3cg8cgdhl6" path="res://assets/characters/tanod/arrest_new_4.png" id="5_an4"]
 [ext_resource type="Texture2D" uid="uid://chlvl6j1a4tou" path="res://assets/characters/tanod/run_0.png" id="8_tmiuy"]
 [ext_resource type="Texture2D" uid="uid://bv5n1jmcrfc5n" path="res://assets/characters/tanod/run_1.png" id="9_1rue3"]
 [ext_resource type="Texture2D" uid="uid://c4ipbsbibhnnt" path="res://assets/characters/tanod/run_2.png" id="10_jt3r5"]
@@ -22,29 +20,23 @@
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("1_ggvth")
+"texture": ExtResource("1_an0")
 }, {
 "duration": 1.0,
-"texture": ExtResource("2_gl07f")
+"texture": ExtResource("2_an1")
 }, {
 "duration": 1.0,
-"texture": ExtResource("3_d61vr")
+"texture": ExtResource("3_an2")
 }, {
 "duration": 1.0,
-"texture": ExtResource("4_pby2k")
+"texture": ExtResource("4_an3")
 }, {
-"duration": 1.0,
-"texture": ExtResource("5_bfx30")
-}, {
-"duration": 1.0,
-"texture": ExtResource("6_adgvr")
-}, {
-"duration": 1.0,
-"texture": ExtResource("7_oo1f1")
+"duration": 2.0,
+"texture": ExtResource("5_an4")
 }],
 "loop": 0,
 "name": &"arrest",
-"speed": 7.0
+"speed": 6.5
 }, {
 "frames": [{
 "duration": 1.0,
