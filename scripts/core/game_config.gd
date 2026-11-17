@@ -55,14 +55,14 @@ const ZONE_HOME_DURATION_SECONDS := 20.0
 const ZONE_HOME_MIN_SECONDS := 5.0
 
 ## How long the street zone lasts, in seconds. SCHOOL takes over when it ends.
-const ZONE_STREET_DURATION_SECONDS := 25.0
+const ZONE_STREET_DURATION_SECONDS := 90.0
 
 ## Floor for the street duration, so the boundary can never collapse.
 const ZONE_STREET_MIN_SECONDS := 5.0
 
 ## Campaign only: how long the school hallway runs before the finish line.
 ## Endless play ignores this - its school zone is terminal.
-const CAMPAIGN_SCHOOL_SECONDS := 6.0
+const CAMPAIGN_SCHOOL_SECONDS := 20.0
 
 ## Campaign only: stop spawning this many pixels before the finish line so the
 ## last stretch is a clean sprint instead of a hazard wall.
