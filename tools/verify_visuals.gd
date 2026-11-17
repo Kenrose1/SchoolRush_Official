@@ -10,13 +10,15 @@ extends Node
 
 const OUT_DIR := "user://captures"
 
-## Showcase placement: one of every active hazard kind, right of the player.
+## Showcase placement: one of every street hazard kind, right of the player.
 ## Dog is parked for M4 (re-adds in M6), so it is not staged.
 const SHOWCASE := [
 	[GameConfig.HazardKind.MANHOLE, GameConfig.LANE_BOTTOM, 760.0],
 	[GameConfig.HazardKind.DEBRIS, GameConfig.LANE_MIDDLE, 960.0],
-	[GameConfig.HazardKind.SIGN, GameConfig.LANE_TOP, 1160.0],
-	[GameConfig.HazardKind.GANTRY, GameConfig.LANE_MIDDLE, 1400.0],
+	[GameConfig.HazardKind.BARRICADE, GameConfig.LANE_TOP, 1160.0],
+	[GameConfig.HazardKind.BRICKS, GameConfig.LANE_MIDDLE, 1360.0],
+	[GameConfig.HazardKind.CONE, GameConfig.LANE_BOTTOM, 1560.0],
+	[GameConfig.HazardKind.DUMPSTER, GameConfig.LANE_TOP, 1760.0],
 ]
 
 ## Showcase for School Items: one of each kind across the lanes.

@@ -1715,14 +1715,32 @@ func _test_home_hazards() -> void:
 		GameConfig.HazardKind.COFFEE_TABLE, GameConfig.HazardKind.CUSHION,
 		GameConfig.HazardKind.BOOKSHELF, GameConfig.HazardKind.BOXES,
 	]
+	# Street: the six non-moving street props plus the two encounter kinds.
+	var street_props: Array[int] = [
+		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
+		GameConfig.HazardKind.BARRICADE, GameConfig.HazardKind.BRICKS,
+		GameConfig.HazardKind.CONE, GameConfig.HazardKind.DUMPSTER,
+	]
+	var street_kinds: Array[int] = street_props.duplicate()
+	street_kinds.append(GameConfig.HazardKind.DOG)
+	street_kinds.append(GameConfig.HazardKind.CAR)
+	# The dog never rolls through pick_kind (its own encounter clock spawns it),
+	# so the street's random roll set is the props plus the car.
+	var street_roll_kinds: Array[int] = street_props.duplicate()
+	street_roll_kinds.append(GameConfig.HazardKind.CAR)
+	# School: unchanged by the street swap. The gantry is still the one
+	# overhead hazard, so the slide still has a job there.
+	var school_kinds: Array[int] = [
+		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
+		GameConfig.HazardKind.SIGN, GameConfig.HazardKind.GANTRY,
+	]
+	# Everything that must never appear indoors.
 	var outdoor: Array[int] = [
 		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
 		GameConfig.HazardKind.SIGN, GameConfig.HazardKind.GANTRY,
 		GameConfig.HazardKind.DOG, GameConfig.HazardKind.CAR,
-	]
-	var school_only: Array[int] = [
-		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
-		GameConfig.HazardKind.SIGN, GameConfig.HazardKind.GANTRY,
+		GameConfig.HazardKind.BARRICADE, GameConfig.HazardKind.BRICKS,
+		GameConfig.HazardKind.CONE, GameConfig.HazardKind.DUMPSTER,
 	]
 	var kind_name := func(kind: int) -> String:
 		return String(GameConfig.HazardKind.find_key(kind))
@@ -1739,17 +1757,25 @@ func _test_home_hazards() -> void:
 			"%s never appears in the home zone" % kind_name.call(kind),
 		)
 
-	# STREET and SCHOOL keep their pre-home behavior exactly (the freeze guard).
-	for kind: int in outdoor:
+	# STREET and SCHOOL keep their per-zone pools.
+	for kind: int in street_kinds:
 		_check(
 			GameConfig.hazard_allows_zone(kind, GameConfig.Zone.STREET),
 			"%s still appears in the street zone" % kind_name.call(kind),
 		)
-	for kind: int in school_only:
+	for kind: int in school_kinds:
 		_check(
 			GameConfig.hazard_allows_zone(kind, GameConfig.Zone.SCHOOL),
 			"%s still appears in the school zone" % kind_name.call(kind),
 		)
+	_check(
+		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.GANTRY, GameConfig.Zone.STREET),
+		"the gantry no longer appears in the street",
+	)
+	_check(
+		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.SIGN, GameConfig.Zone.STREET),
+		"the sign no longer appears in the street",
+	)
 	_check(
 		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.DOG, GameConfig.Zone.SCHOOL),
 		"the dog still skips the school zone",
@@ -1830,26 +1856,42 @@ func _test_home_hazards() -> void:
 			"%s never rolls late in the house" % kind_name.call(kind),
 		)
 
-	# STREET and SCHOOL never roll a home prop (the inverse freeze guard).
+	# STREET and SCHOOL never roll a home prop (the inverse freeze guard), and
+	# each zone rolls exactly its own pool: the sign and gantry have moved from
+	# the street to the school, and the four new props are street-only.
 	var street_rng := RandomNumberGenerator.new()
 	street_rng.seed = 89
 	var street_seen := {}
 	for i in 2000:
 		street_seen[SpawnDirector.pick_kind(
 			60000.0, street_rng, GameConfig.Zone.STREET)] = true
+	_check_eq(street_seen.size(), street_roll_kinds.size(),
+		"the street rolls exactly its six props plus the car")
+	for kind: int in street_roll_kinds:
+		_check(street_seen.has(kind), "%s rolls in the street" % kind_name.call(kind))
+	_check(
+		not street_seen.has(GameConfig.HazardKind.SIGN)
+		and not street_seen.has(GameConfig.HazardKind.GANTRY),
+		"the sign and gantry have left the street",
+	)
 	for kind: int in home_only:
 		_check(
 			not street_seen.has(kind),
 			"%s never rolls in the street" % kind_name.call(kind),
 		)
-	_check(street_seen.has(GameConfig.HazardKind.CAR), "the car still rolls in the street")
 	var school_rng := RandomNumberGenerator.new()
 	school_rng.seed = 90
 	var school_seen := {}
 	for i in 2000:
 		school_seen[SpawnDirector.pick_kind(
 			60000.0, school_rng, GameConfig.Zone.SCHOOL)] = true
-	_check(school_seen.has(GameConfig.HazardKind.DEBRIS), "debris still rolls in the school")
+	_check_eq(school_seen.size(), school_kinds.size(),
+		"the school still rolls exactly its four kinds")
+	for kind: int in school_kinds:
+		_check(
+			school_seen.has(kind),
+			"%s still rolls in the school" % kind_name.call(kind),
+		)
 	for kind: int in home_only:
 		_check(
 			not school_seen.has(kind),
@@ -1860,6 +1902,13 @@ func _test_home_hazards() -> void:
 		and not school_seen.has(GameConfig.HazardKind.CAR),
 		"dog and car still skip the school",
 	)
+	for kind: int in street_props:
+		if kind == GameConfig.HazardKind.MANHOLE or kind == GameConfig.HazardKind.DEBRIS:
+			continue
+		_check(
+			not school_seen.has(kind),
+			"%s is street-only" % kind_name.call(kind),
+		)
 
 	# --- The fallback is zone-legal ---------------------------------------------
 	_check_eq(
@@ -1879,7 +1928,12 @@ func _test_home_hazards() -> void:
 	)
 
 	# --- Prop data sanity: art on disk, static single-image hazards -------------
-	for kind: int in home_only:
+	# The living-room props and the street props share one contract: art on
+	# disk, scaled under the jump apex, a static single image standing on the
+	# floor.
+	var static_props: Array[int] = home_only.duplicate()
+	static_props.append_array(street_props)
+	for kind: int in static_props:
 		var prop_data: Dictionary = GameConfig.HAZARD_DATA[kind]
 		_check(
 			ResourceLoader.exists(String(prop_data["texture"])),

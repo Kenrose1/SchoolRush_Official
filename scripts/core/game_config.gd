@@ -155,8 +155,13 @@ const SLIDE_HITBOX_HEIGHT_FACTOR := 0.5
 
 # --- Hazards -----------------------------------------------------------------
 
+## Declaration order matters: first_zone_kind() returns the first kind a zone
+## allows, so MANHOLE stays first to keep the street and school fallbacks
+## unchanged. The street props sit after the car; the living-room furniture
+## stays last.
 enum HazardKind {
 	MANHOLE, DEBRIS, SIGN, GANTRY, DOG, CAR,
+	BARRICADE, BRICKS, CONE, DUMPSTER,
 	NIGHTSTAND, ARMCHAIR, COFFEE_TABLE, CUSHION, BOOKSHELF, BOXES,
 }
 
@@ -224,23 +229,30 @@ const CAR_ENGINE_PITCH: Array[float] = [1.0, 0.9]
 const HAZARD_DATA := {
 	HazardKind.MANHOLE: {
 		"texture": "res://assets/hazards/haz_manhole.png",
-		"scale": 1.6, "hitbox_w": 70.0, "hitbox_h": 40.0,
+		"scale": 1.3, "hitbox_w": 70.0, "hitbox_h": 40.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 	},
+	## Debris is shared by the street and the school (no "zones" list). Its art
+	## is scaled to read in the same ~100 px band as the street props.
 	HazardKind.DEBRIS: {
 		"texture": "res://assets/hazards/haz_debris.png",
-		"scale": 1.0, "hitbox_w": 80.0, "hitbox_h": 52.0,
+		"scale": 1, "hitbox_w": 96.0, "hitbox_h": 67.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 	},
+	## SIGN and GANTRY are school-hallway props now: the street keeps its own
+	## six street props instead. GANTRY stays the one overhead hazard, so the
+	## slide still matters in the school.
 	HazardKind.SIGN: {
 		"texture": "res://assets/hazards/haz_sign.png",
 		"scale": 0.8, "hitbox_w": 38.0, "hitbox_h": 64.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.SCHOOL],
 	},
 	HazardKind.GANTRY: {
 		"texture": "res://assets/hazards/haz_gantry.png",
 		"scale": 0.8, "hitbox_w": 150.0, "hitbox_h": 56.0,
 		"clearance": 62.0, "overhead": true, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.SCHOOL],
 	},
 	HazardKind.DOG: {
 		"texture": DOG_TEXTURES[0],
@@ -257,6 +269,34 @@ const HAZARD_DATA := {
 		"scale": 1.20, "hitbox_w": 280.0, "hitbox_h": 100.0,
 		"clearance": 0.0, "overhead": false, "frames": 8, "extra_speed": 700.0,
 		"flip_h": true, "zones": [Zone.STREET],
+	},
+	## Street-only props: the street zone's non-moving hazards. All stand on the
+	## road (clearance 0, jumped like the debris), scaled to read ~96-105 px
+	## tall - the same band as the living-room props, visibly under the 118 px
+	## jump apex - with a uniform 64 px hitbox so one jump timing clears them.
+	HazardKind.BARRICADE: {
+		"texture": "res://assets/hazards/haz_barricade.png",
+		"scale": 0.40, "hitbox_w": 70.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.STREET],
+	},
+	HazardKind.BRICKS: {
+		"texture": "res://assets/hazards/haz_bricks.png",
+		"scale": 0.30, "hitbox_w": 100.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.STREET],
+	},
+	HazardKind.CONE: {
+		"texture": "res://assets/hazards/haz_cone.png",
+		"scale": 0.49, "hitbox_w": 50.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.STREET],
+	},
+	HazardKind.DUMPSTER: {
+		"texture": "res://assets/hazards/haz_dumpster.png",
+		"scale": 0.45, "hitbox_w": 90.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.STREET],
 	},
 	## Living-room furniture: HOME-only hazards, available from the house's
 	## first pixel (the unlock fractions all sit at 0.00). All stand on the
@@ -301,10 +341,17 @@ const HAZARD_DATA := {
 	},
 }
 
-## Distance (px) after which each kind starts appearing.
+## Distance (px) after which each kind starts appearing. The street props ramp
+## in across the street's first ~25 s rather than the run's: the street does
+## not begin until the house ends (~8 400 px at base speed), so a street 0 is
+## "street start", not "run start".
 const HAZARD_UNLOCK := {
 	HazardKind.MANHOLE: 0.0,
 	HazardKind.DEBRIS: 0.0,
+	HazardKind.BARRICADE: 0.0,
+	HazardKind.CONE: 10000.0,
+	HazardKind.BRICKS: 14000.0,
+	HazardKind.DUMPSTER: 18000.0,
 	HazardKind.GANTRY: 8000.0,
 	HazardKind.SIGN: 12000.0,
 	HazardKind.DOG: DOG_FIRST_DISTANCE,
@@ -315,6 +362,10 @@ const HAZARD_UNLOCK := {
 const HAZARD_WEIGHT := {
 	HazardKind.MANHOLE: 3.0,
 	HazardKind.DEBRIS: 3.0,
+	HazardKind.BARRICADE: 3.0,
+	HazardKind.CONE: 2.5,
+	HazardKind.BRICKS: 2.0,
+	HazardKind.DUMPSTER: 2.0,
 	HazardKind.GANTRY: 2.5,
 	HazardKind.SIGN: 1.5,
 	## Dogs use the dedicated warned encounter clock, not random hazard rows.
