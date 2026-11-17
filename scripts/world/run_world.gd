@@ -77,6 +77,7 @@ var _school_background_texture: Texture2D
 @onready var car_engine_sfx: AudioStreamPlayer = $CarEngineSfx
 @onready var dog_bark_warn_sfx: AudioStreamPlayer = $DogBarkWarnSfx
 @onready var dog_bark_run_sfx: AudioStreamPlayer = $DogBarkRunSfx
+@onready var music: AudioStreamPlayer = $Music
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
 @onready var progress_hud: ProgressBarHud = $Hud/HudRoot/Progress
@@ -136,6 +137,9 @@ var dog_bark_run_play_count: int = 0
 ## Per-bark jitter source, so three barks in one encounter never sound like
 ## the same sample three times.
 var _bark_rng := RandomNumberGenerator.new()
+## The one gain tween the music uses. The duck and the fade-out animate the same
+## property, so each new fade kills the previous one instead of fighting for it.
+var _music_tween: Tween
 
 
 func _ready() -> void:
@@ -193,6 +197,61 @@ func _ready() -> void:
 	director.dog_barked.connect(_on_dog_barked)
 	_bark_rng.randomize()
 	director.setup(hazards, randi())
+
+	# The bed comes up under the run, ducks while the tanod chases and falls
+	# silent the moment the world freezes (see _freeze_world).
+	pause_menu.pause_changed.connect(_on_pause_changed)
+	pursuer.chase_started.connect(_on_chase_started)
+	pursuer.chase_faded.connect(_on_chase_faded)
+	_start_music()
+
+
+## Fade the run bed in from silence so starting a run never slams to full.
+func _start_music() -> void:
+	# Loop in code rather than in the import params: a future reimport cannot
+	# silently switch the loop off.
+	if music.stream is AudioStreamMP3:
+		(music.stream as AudioStreamMP3).loop = true
+	elif music.stream is AudioStreamOggVorbis:
+		(music.stream as AudioStreamOggVorbis).loop = true
+	music.volume_db = GameConfig.MUSIC_SILENT_DB
+	music.play()
+	_fade_music_to(GameConfig.MUSIC_VOLUME_DB, GameConfig.MUSIC_FADE_IN_TIME)
+
+
+## Move the bed to `db` over `seconds`, cancelling any fade already running.
+func _fade_music_to(db: float, seconds: float) -> void:
+	if _music_tween != null and _music_tween.is_valid():
+		_music_tween.kill()
+	_music_tween = create_tween()
+	_music_tween.tween_property(music, "volume_db", db, seconds)
+
+
+## The tanod is closing in: drop the bed so the barks carry the warning.
+func _on_chase_started() -> void:
+	if is_running:
+		_fade_music_to(GameConfig.MUSIC_DUCK_DB, GameConfig.MUSIC_DUCK_TIME)
+
+
+## Chase over: bring the bed back at twice the duck time, so the recovery is
+## less twitchy than the duck.
+func _on_chase_faded() -> void:
+	if is_running:
+		_fade_music_to(GameConfig.MUSIC_VOLUME_DB, GameConfig.MUSIC_DUCK_TIME * 2.0)
+
+
+## Pausing the tree does not stop audio, so the bed has to be frozen by hand.
+func _on_pause_changed(paused: bool) -> void:
+	music.stream_paused = paused
+
+
+## Fade out and stop. A second call before the fade finishes simply restarts
+## it: the kill in _fade_music_to keeps one tween on the property.
+func _stop_music() -> void:
+	if not music.playing:
+		return
+	_fade_music_to(GameConfig.MUSIC_SILENT_DB, GameConfig.MUSIC_FADE_OUT_TIME)
+	_music_tween.tween_callback(music.stop)
 
 
 ## Honk when the car's exclamation appears, not when the car spawns: the horn
@@ -459,6 +518,7 @@ func _on_player_died() -> void:
 
 func _freeze_world() -> void:
 	is_running = false
+	_stop_music()
 	hazards.process_mode = Node.PROCESS_MODE_DISABLED
 	director.process_mode = Node.PROCESS_MODE_DISABLED
 	player.set_physics_process(false)

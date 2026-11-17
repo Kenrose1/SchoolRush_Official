@@ -634,6 +634,20 @@ const MOMENTUM_DIP_FACTOR := 0.75
 ## After the hold, speed eases back to full over this long (seconds).
 const MOMENTUM_RECOVER_TIME := 1.5
 
+# --- Audio --------------------------------------------------------------------
+
+## Run music bed. The track is mastered hot (-13.7 LUFS integrated), so -10 dB
+## lands it near the -24 LUFS game target and ~6 dB under the barks (-4) and
+## car engine (-6). The menu sits at -8 dB on an even hotter master.
+const MUSIC_VOLUME_DB := -10.0
+## Duck while the tanod chases, so the barks read over the bed.
+const MUSIC_DUCK_DB := -16.0
+## -inf would break the fade maths; -40 dB is inaudible.
+const MUSIC_SILENT_DB := -40.0
+const MUSIC_FADE_IN_TIME := 0.6
+const MUSIC_DUCK_TIME := 0.25
+const MUSIC_FADE_OUT_TIME := 0.7
+
 # --- HUD ---------------------------------------------------------------------
 
 const HEART_SIZE := 48.0

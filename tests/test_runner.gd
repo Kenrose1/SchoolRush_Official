@@ -99,6 +99,9 @@ func _ready() -> void:
 	_section("Menu music")
 	_test_menu_music()
 
+	_section("Run music")
+	await _test_run_music()
+
 	_section("Settings")
 	_test_settings()
 
@@ -3360,17 +3363,72 @@ func _test_menu_music() -> void:
 	menu.shop_panel.close()
 	menu.settings_panel.close()
 
-	# Menu-only guarantee: the run scene plays no MUSIC of its own (gameplay
-	# SFX like the player's hurt sound are allowed on the SFX bus).
+	# The run scene now carries its own bed (it used to be menu-only), so the
+	# guarantee is reversed: exactly one music player, on the Music bus.
 	var run_root := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(run_root)
-	var run_music := 0
+	var run_music: Array[AudioStreamPlayer] = []
 	for player_node: Node in run_root.find_children("*", "AudioStreamPlayer", true, false):
 		if (player_node as AudioStreamPlayer).bus == &"Music":
-			run_music += 1
-	_check_eq(run_music, 0, "the run scene carries no music (menu only)")
+			run_music.append(player_node as AudioStreamPlayer)
+	_check_eq(run_music.size(), 1, "the run scene carries exactly one music bed")
+	if run_music.size() == 1:
+		_check(run_music[0].stream != null, "the run bed has a stream")
 	run_root.queue_free()
 	menu.queue_free()
+
+
+## The run bed: routing, loop, fade-in, and the freeze-out. Runs on the shared
+## world scene, so it exercises the same path a real run takes.
+func _test_run_music() -> void:
+	var main := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	add_child(main)
+	var world := main.get_node("RunWorld") as RunWorld
+	world.set_physics_process(false)
+
+	var music := world.music
+	_check(music != null, "the run world carries a music bed")
+	if music == null:
+		main.queue_free()
+		return
+	_check_eq(music.bus, &"Music", "the run bed routes to the Music bus")
+	_check(music.playing, "the run bed starts with the run")
+	var stream := music.stream as AudioStreamMP3
+	_check(stream != null, "the run bed carries the track")
+	if stream != null:
+		_check(stream.loop, "the run bed loops")
+		_check_near(stream.get_length(), 140.47, 1.0, "the bed is the full 2:20 track")
+	_check_near(music.volume_db, GameConfig.MUSIC_SILENT_DB, 0.001,
+		"the bed starts silent before the fade-in tween steps")
+
+	# Fade in has to land on the mix level, not just move somewhere.
+	await get_tree().create_timer(GameConfig.MUSIC_FADE_IN_TIME + 0.15).timeout
+	_check_near(music.volume_db, GameConfig.MUSIC_VOLUME_DB, 0.01,
+		"the bed fades up to MUSIC_VOLUME_DB")
+
+	# Ducking is a state change, not a stop.
+	world._on_chase_started()
+	await get_tree().create_timer(GameConfig.MUSIC_DUCK_TIME + 0.15).timeout
+	_check_near(music.volume_db, GameConfig.MUSIC_DUCK_DB, 0.01,
+		"a chase ducks the bed")
+	_check(music.playing, "the ducked bed keeps playing")
+	world._on_chase_faded()
+	await get_tree().create_timer(GameConfig.MUSIC_DUCK_TIME * 2.0 + 0.15).timeout
+	_check_near(music.volume_db, GameConfig.MUSIC_VOLUME_DB, 0.01,
+		"the bed recovers after the chase")
+
+	# Pausing freezes the stream: the paused tree alone would keep it playing.
+	world._on_pause_changed(true)
+	_check(music.stream_paused, "pausing the run freezes the bed")
+	world._on_pause_changed(false)
+	_check(not music.stream_paused, "resuming restarts the bed")
+
+	# Every ending goes through _freeze_world, which owns the fade-out.
+	world._freeze_world()
+	_check(not world.is_running, "freezing stops the run")
+	await get_tree().create_timer(GameConfig.MUSIC_FADE_OUT_TIME + 0.2).timeout
+	_check(not music.playing, "the bed stops once the world freezes")
+	main.queue_free()
 
 
 func _test_settings() -> void:
