@@ -108,6 +108,9 @@ func _ready() -> void:
 	_section("UI click")
 	_test_ui_sfx()
 
+	_section("UI fonts")
+	_test_ui_fonts()
+
 	_section("Scenes")
 	_test_scenes()
 
@@ -2707,7 +2710,7 @@ func _test_coins() -> void:
 	_check_eq(hud_score.label_text("coins"), "COINS  5",
 		"the coin readout renders the pushed run tally")
 	_check_eq(hud_score.label_font("coins").resource_path,
-		"res://assets/fonts/static/InterTight-SemiBold.ttf",
+		ScoreHud.SUB_FONT_PATH,
 		"the coin readout uses the shared HUD font")
 	hud_root.queue_free()
 
@@ -3032,17 +3035,17 @@ func _test_shop() -> void:
 	GameState.shop_levels[GameConfig.ShopUpgrade.HEARTS] = hearts_before
 	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = shield_before
 
-	# Card labels use the game's Inter Tight fonts, not the engine default.
+	# Card labels use the game's Nunito fonts, not the engine default.
 	var card: Dictionary = panel._cards[GameConfig.ShopUpgrade.HEARTS]
 	_check_eq((card["name"] as Label).get_theme_font("font").resource_path,
-		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
-		"card names use Inter Tight ExtraBold")
+		"res://assets/fonts/Nunito-ExtraBold.ttf",
+		"card names use Nunito ExtraBold")
 	_check_eq((card["desc"] as Label).get_theme_font("font").resource_path,
-		"res://assets/fonts/static/InterTight-SemiBold.ttf",
-		"card descriptions use Inter Tight SemiBold")
+		"res://assets/fonts/Nunito-SemiBold.ttf",
+		"card descriptions use Nunito SemiBold")
 	_check_eq((card["buy"] as Button).get_theme_font("font").resource_path,
-		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
-		"buy buttons use Inter Tight ExtraBold")
+		"res://assets/fonts/Nunito-ExtraBold.ttf",
+		"buy buttons use Nunito ExtraBold")
 	panel.close()
 	_check(not panel.visible, "close() hides the store")
 
@@ -3325,13 +3328,13 @@ func _test_menu() -> void:
 	_check(not menu.campaign_button.disabled, "campaign is playable today")
 	_check_eq(
 		menu.campaign_button.get_theme_font("font").resource_path,
-		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
-		"menu buttons use Inter Tight ExtraBold",
+		"res://assets/fonts/Nunito-ExtraBold.ttf",
+		"menu buttons use Nunito ExtraBold",
 	)
 	_check_eq(
 		menu.best_label.get_theme_font("font").resource_path,
-		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
-		"the best readout uses Inter Tight ExtraBold",
+		"res://assets/fonts/Nunito-ExtraBold.ttf",
+		"the best readout uses Nunito ExtraBold",
 	)
 	_check_eq(
 		menu.best_label.text,
@@ -3363,7 +3366,7 @@ func _test_menu() -> void:
 	_check(menu.how_to_panel.visible, "HOW TO PLAY opens the overlay")
 	_check_eq(
 		menu.back_button.get_theme_font("font").resource_path,
-		"res://assets/fonts/static/InterTight-ExtraBold.ttf",
+		"res://assets/fonts/Nunito-ExtraBold.ttf",
 		"the overlay shares the menu button skin",
 	)
 	menu._on_how_to_pressed()
@@ -3722,6 +3725,66 @@ func _test_ui_sfx() -> void:
 	late.queue_free()
 
 
+func _test_ui_fonts() -> void:
+	const TITLE_SCENES := [
+		"res://scenes/hud.tscn",
+		"res://scenes/main_menu.tscn",
+		"res://scenes/results_screen.tscn",
+		"res://scenes/settings_panel.tscn",
+		"res://scenes/shop_panel.tscn",
+	]
+
+	# Every font path constant must resolve to a real font file. A missing
+	# FontFile does not error - Label silently falls back to the engine
+	# default - so the resource_path alone is not proof the font exists.
+	var paths := {
+		"score": ScoreHud.SCORE_FONT_PATH,
+		"HUD sub-label": ScoreHud.SUB_FONT_PATH,
+		"progress score": ProgressBarHud.SCORE_FONT_PATH,
+		"progress sub-label": ProgressBarHud.SUB_FONT_PATH,
+		"pause body": PauseMenu.UI_FONT_PATH,
+		"pause title": PauseMenu.TITLE_FONT_PATH,
+		"pause button": PauseMenu.BUTTON_FONT_PATH,
+		"store name": ShopPanel.NAME_FONT.resource_path,
+		"store description": ShopPanel.SUB_FONT.resource_path,
+	}
+	for label: String in paths:
+		var path: String = paths[label]
+		_check(ResourceLoader.exists(path), "the %s font file exists" % label)
+		var font := load(path) as FontFile
+		_check(font != null and not font.font_name.is_empty(),
+			"the %s font loads with a real family name" % label)
+
+	# Fredoka is the display face (one weight, wide uneven digits, so it must
+	# never drive a ticking number); Nunito carries every functional label.
+	_check_eq((load(PauseMenu.TITLE_FONT_PATH) as Font).font_name, "Fredoka One",
+		"pause titles use Fredoka")
+	_check((load(ScoreHud.SCORE_FONT_PATH) as Font).font_name.begins_with("Nunito"),
+		"the score uses Nunito")
+	_check((load(ScoreHud.SUB_FONT_PATH) as Font).font_name.begins_with("Nunito"),
+		"HUD sub-labels use Nunito")
+
+	# Each UI scene must declare its fonts as real resources too: these are the
+	# paths the editor resolves when it opens the scene.
+	var font_line := RegEx.new()
+	font_line.compile('\\[ext_resource type="FontFile"[^\\]]*path="([^"]+)"')
+	for scene_path: String in TITLE_SCENES:
+		var text := FileAccess.get_file_as_string(scene_path)
+		_check(not text.is_empty(), "%s is readable" % scene_path)
+		var font_refs := font_line.search_all(text)
+		_check(not font_refs.is_empty(), "%s declares a font resource" % scene_path)
+		for hit in font_refs:
+			var path := hit.get_string(1)
+			_check(ResourceLoader.exists(path),
+				"%s references an existing font (%s)" % [scene_path, path])
+			_check(not path.contains("InterTight"),
+				"%s no longer references Inter Tight" % scene_path)
+		# Titles ride the Fredoka override; sharing the scene font would put
+		# the display face on buttons and numbers.
+		_check(text.contains('theme_override_fonts/font = ExtResource("0_titles")'),
+			"%s has a Fredoka title override" % scene_path)
+
+
 func _test_scenes() -> void:
 	var main_scene := load("res://scenes/main.tscn") as PackedScene
 	_check(main_scene != null, "main scene loads")
@@ -3776,17 +3839,17 @@ func _test_scenes() -> void:
 			_check_eq(
 				world.score_hud.label_font("score").resource_path,
 				ScoreHud.SCORE_FONT_PATH,
-				"the score uses Inter Tight ExtraBold",
+				"the score uses Nunito ExtraBold",
 			)
 			_check_eq(
 				world.score_hud.label_font("combo").resource_path,
 				ScoreHud.SUB_FONT_PATH,
-				"the combo readout uses Inter Tight SemiBold",
+				"the combo readout uses Nunito SemiBold",
 			)
 			_check_eq(
 				world.score_hud.label_font("items").resource_path,
 				ScoreHud.SUB_FONT_PATH,
-				"the item count uses Inter Tight SemiBold",
+				"the item count uses Nunito SemiBold",
 			)
 			world.score_hud.set_combo(2, 5)
 			_check_eq(

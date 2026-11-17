@@ -7,10 +7,12 @@ extends Control
 
 signal pause_changed(paused: bool)
 
-const UI_FONT_PATH := "res://assets/fonts/static/InterTight-SemiBold.ttf"
-const TITLE_FONT_PATH := "res://assets/fonts/static/InterTight-ExtraBold.ttf"
+const UI_FONT_PATH := "res://assets/fonts/Nunito-SemiBold.ttf"
+const TITLE_FONT_PATH := "res://assets/fonts/FredokaOne-Regular.otf"
+const BUTTON_FONT_PATH := "res://assets/fonts/Nunito-ExtraBold.ttf"
 const UI_FONT: Font = preload(UI_FONT_PATH)
 const TITLE_FONT: Font = preload(TITLE_FONT_PATH)
+const BUTTON_FONT: Font = preload(BUTTON_FONT_PATH)
 
 const CREAM := Color(1.0, 0.94, 0.86)
 const PANEL := Color(0.1, 0.09, 0.13, 0.85)
@@ -156,7 +158,7 @@ func _style_icon_button() -> void:
 
 
 func _style_menu_button(button_node: Button) -> void:
-	button_node.add_theme_font_override("font", TITLE_FONT)
+	button_node.add_theme_font_override("font", BUTTON_FONT)
 	button_node.add_theme_font_size_override("font_size", 28)
 	button_node.add_theme_color_override("font_color", CREAM)
 	button_node.add_theme_color_override("font_focus_color", CREAM)

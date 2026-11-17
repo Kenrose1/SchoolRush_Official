@@ -20,12 +20,12 @@ const CARD_ICONS := {
 	GameConfig.ShopUpgrade.SHIELD: preload("res://assets/icon/upgrades/shield.png"),
 }
 
-# Card labels are built in code, so the Inter Tight weights are applied
+# Card labels are built in code, so the Nunito weights are applied
 # explicitly - the engine default font would otherwise take over.
 const NAME_FONT: FontFile = preload(
-	"res://assets/fonts/static/InterTight-ExtraBold.ttf")
+	"res://assets/fonts/Nunito-ExtraBold.ttf")
 const SUB_FONT: FontFile = preload(
-	"res://assets/fonts/static/InterTight-SemiBold.ttf")
+	"res://assets/fonts/Nunito-SemiBold.ttf")
 
 @onready var wallet_label: Label = %WalletLabel
 @onready var wallet_chip: HBoxContainer = %WalletChip

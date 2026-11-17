@@ -5,8 +5,8 @@ extends Control
 ## Styled with a translucent dark-amber card container, high-contrast typography,
 ## and responsive anchoring to align gracefully with the pause button.
 
-const SCORE_FONT_PATH := "res://assets/fonts/static/InterTight-ExtraBold.ttf"
-const SUB_FONT_PATH := "res://assets/fonts/static/InterTight-SemiBold.ttf"
+const SCORE_FONT_PATH := "res://assets/fonts/Nunito-ExtraBold.ttf"
+const SUB_FONT_PATH := "res://assets/fonts/Nunito-SemiBold.ttf"
 const SCORE_FONT: Font = preload(SCORE_FONT_PATH)
 const SUB_FONT: Font = preload(SUB_FONT_PATH)
 
@@ -67,6 +67,8 @@ func _ready() -> void:
 	_score_label.add_theme_font_size_override("font_size", 42)
 	_score_label.add_theme_color_override("font_color", TEXT_COLOR)
 	_score_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	_score_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_score_label.add_theme_constant_override("outline_size", 4)
 	_score_label.add_theme_constant_override("shadow_offset_x", 3)
 	_score_label.add_theme_constant_override("shadow_offset_y", 3)
 	_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -117,6 +119,8 @@ func _ready() -> void:
 	_coins_label.add_theme_font_size_override("font_size", 24)
 	_coins_label.add_theme_color_override("font_color", AMBER_COLOR)
 	_coins_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+	_coins_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_coins_label.add_theme_constant_override("outline_size", 3)
 	_coins_label.add_theme_constant_override("shadow_offset_x", 2)
 	_coins_label.add_theme_constant_override("shadow_offset_y", 2)
 	coin_row.add_child(_coins_label)

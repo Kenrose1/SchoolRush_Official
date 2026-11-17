@@ -12,8 +12,8 @@ extends Control
 ##
 ## Preserves 100% compatibility with GameConfig and the test suite.
 
-const SCORE_FONT_PATH := "res://assets/fonts/static/InterTight-ExtraBold.ttf"
-const SUB_FONT_PATH := "res://assets/fonts/static/InterTight-SemiBold.ttf"
+const SCORE_FONT_PATH := "res://assets/fonts/Nunito-ExtraBold.ttf"
+const SUB_FONT_PATH := "res://assets/fonts/Nunito-SemiBold.ttf"
 const SCORE_FONT: Font = preload(SCORE_FONT_PATH)
 const SUB_FONT: Font = preload(SUB_FONT_PATH)
 

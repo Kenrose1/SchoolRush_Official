@@ -3,8 +3,9 @@
 [ext_resource type="PackedScene" uid="uid://b7yyoa3oxewcp" path="res://scenes/hearts_hud.tscn" id="1_hearts"]
 [ext_resource type="Script" uid="uid://1f153lp72fw2" path="res://scripts/ui/score_hud.gd" id="2_score"]
 [ext_resource type="Script" uid="uid://bbvrduu0gqsa7" path="res://scripts/ui/pause_menu.gd" id="3_pause"]
-[ext_resource type="FontFile" uid="uid://cll8r0y660eqw" path="res://assets/fonts/static/InterTight-ExtraBold.ttf" id="4_xbold"]
-[ext_resource type="FontFile" uid="uid://dw4y3ym6vohju" path="res://assets/fonts/static/InterTight-SemiBold.ttf" id="5_semi"]
+[ext_resource type="FontFile" uid="uid://cwhpo71tlndps" path="res://assets/fonts/Nunito-ExtraBold.ttf" id="4_xbold"]
+[ext_resource type="FontFile" uid="uid://cvrqlp2jra0lf" path="res://assets/fonts/Nunito-SemiBold.ttf" id="5_semi"]
+[ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
 [ext_resource type="PackedScene" path="res://scenes/settings_panel.tscn" id="6_settings"]
 [ext_resource type="PackedScene" path="res://scenes/progress_bar_hud.tscn" id="7_progress"]
 
@@ -166,7 +167,7 @@ theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
 theme_override_constants/shadow_offset_x = 4
 theme_override_constants/shadow_offset_y = 4
-theme_override_fonts/font = ExtResource("4_xbold")
+theme_override_fonts/font = ExtResource("0_titles")
 theme_override_font_sizes/font_size = 64
 text = "PAUSED"
 horizontal_alignment = 1

@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://de7y84lnoxl7t"]
 
 [ext_resource type="Script" uid="uid://budimuddptded" path="res://scripts/ui/settings_panel.gd" id="1_settings"]
-[ext_resource type="FontFile" uid="uid://cll8r0y660eqw" path="res://assets/fonts/static/InterTight-ExtraBold.ttf" id="2_xbold"]
+[ext_resource type="FontFile" uid="uid://cwhpo71tlndps" path="res://assets/fonts/Nunito-ExtraBold.ttf" id="2_xbold"]
+[ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
 [ext_resource type="Texture2D" uid="uid://clfht3u1ffwrp" path="res://assets/ui/toggle_on.png" id="3_toggle_on"]
 [ext_resource type="Texture2D" uid="uid://ddlk5pecjkkh" path="res://assets/ui/toggle_off.png" id="4_toggle_off"]
 
@@ -96,7 +97,7 @@ theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
 theme_override_constants/shadow_offset_x = 3
 theme_override_constants/shadow_offset_y = 3
-theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_fonts/font = ExtResource("0_titles")
 theme_override_font_sizes/font_size = 44
 text = "SETTINGS"
 horizontal_alignment = 1
