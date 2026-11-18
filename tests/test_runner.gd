@@ -102,8 +102,8 @@ func _ready() -> void:
 	_section("Run music")
 	await _test_run_music()
 
-	_section("Run footsteps")
-	await _test_run_sfx()
+	_section("Run audio")
+	await _test_run_audio()
 
 	_section("Run countdown")
 	await _test_countdown()
@@ -3547,67 +3547,22 @@ func _test_run_music() -> void:
 	main.queue_free()
 
 
-## Elias's footsteps: routing, loop, the airborne duck, pause mirror and the
-## stop on freeze. Starts on GO, so the world is unlocked first.
-func _test_run_sfx() -> void:
+## World-owned gameplay audio: the combo tier riser lives on RunWorld (not the
+## HUD) so it freezes with the run like every other cue.
+func _test_run_audio() -> void:
 	var main := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	var world := main.get_node("RunWorld") as RunWorld
 	world.set_physics_process(false)
-	world.begin_run()
-	var player := world.player as Player
-	player.set_physics_process(false)
 
-	var run_sfx := player.run_sfx as AudioStreamPlayer
-	_check(run_sfx != null, "the player carries a footstep loop")
-	if run_sfx == null:
-		main.queue_free()
-		return
-	_check_eq(run_sfx.bus, &"SFX", "the footsteps route to the SFX bus")
-	_check(run_sfx.playing, "the footsteps start with the run")
-	_check_eq(player.run_play_count, 1, "the loop starts exactly once")
-	var stream := run_sfx.stream as AudioStreamOggVorbis
-	_check(stream != null, "the footstep loop is an Ogg stream")
-	if stream != null:
-		_check(stream.loop, "the footstep stream loops")
-		_check_near(stream.get_length(), 7.02, 0.35,
-			"the loop is the trimmed 7 s cut")
-	_check_near(run_sfx.volume_db, GameConfig.RUN_SFX_VOLUME_DB, 0.001,
-		"the loop starts at the mix level")
-
-	# Airborne duck: no feet on the ground, so the loop steps back and returns.
-	player.jump()
-	await get_tree().create_timer(GameConfig.RUN_SFX_DUCK_TIME + 0.12).timeout
-	_check_near(run_sfx.volume_db,
-		GameConfig.RUN_SFX_VOLUME_DB + GameConfig.RUN_SFX_AIR_DUCK_DB, 0.01,
-		"a jump ducks the footsteps")
-	_check(player.run_loop_ducked, "the airborne duck is tracked")
-	player.air_height = 0.0
-	player.vertical_speed = 0.0
-	player._update_jump(0.0)
-	await get_tree().create_timer(GameConfig.RUN_SFX_DUCK_TIME + 0.12).timeout
-	_check_near(run_sfx.volume_db, GameConfig.RUN_SFX_VOLUME_DB, 0.01,
-		"landing restores the footsteps")
-	_check(not player.run_loop_ducked, "the duck clears on landing")
-
-	# Same trap as the bed: a paused SceneTree keeps audio playing.
-	world._on_pause_changed(true)
-	_check(run_sfx.stream_paused, "pausing the run freezes the footsteps")
-	world._on_pause_changed(false)
-	_check(not run_sfx.stream_paused, "resuming restarts the footsteps")
-
-	# Every ending funnels through _freeze_world, which owns the stop.
-	world._freeze_world()
-	_check(not run_sfx.playing, "freezing the world stops the footsteps")
-
-	# Tier riser: one player on the SFX bus, owned by the world (not the HUD),
-	# so it freezes with the run like every other gameplay cue.
 	var tier_sfx := world.tier_sfx as AudioStreamPlayer
 	_check(tier_sfx != null, "the world owns a tier-up riser")
-	if tier_sfx != null:
-		_check_eq(tier_sfx.bus, &"SFX", "the tier riser routes to the SFX bus")
-		_check(tier_sfx.stream != null, "the tier riser has a stream")
-		_check_eq(world.tier_up_play_count, 0, "no riser before any rung")
+	if tier_sfx == null:
+		main.queue_free()
+		return
+	_check_eq(tier_sfx.bus, &"SFX", "the tier riser routes to the SFX bus")
+	_check(tier_sfx.stream != null, "the tier riser has a stream")
+	_check_eq(world.tier_up_play_count, 0, "no riser before any rung")
 	main.queue_free()
 
 
@@ -3637,7 +3592,6 @@ func _test_countdown() -> void:
 	_check(world.pause_menu._can_pause(),
 		"the pause button still works during the countdown")
 	_check(not world.music.playing, "the bed waits for GO")
-	_check(not player.run_sfx.playing, "the footsteps wait for GO")
 
 	# Half a second of ticks: the clock moves, the world does not.
 	for i in 10:
@@ -3680,18 +3634,11 @@ func _test_countdown() -> void:
 	_check(player.is_physics_processing(), "GO unlocks player physics")
 	_check(player.is_processing_unhandled_input(), "GO unlocks player input")
 	_check(world.music.playing, "GO starts the bed")
-	_check(player.run_sfx.playing, "GO starts the footsteps")
-	_check_eq(player.run_play_count, 1, "the footsteps start exactly once")
 	_check_near(world.distance, 0.0, 0.001, "the GO frame does not simulate")
 
 	# The frame after GO is a normal live frame.
 	world._physics_process(1.0 / 60.0)
 	_check(world.distance > 0.0, "the frame after GO moves the run")
-
-	# Idempotent: a second unlock must not restart the audio.
-	world.begin_run()
-	_check_eq(player.run_play_count, 1,
-		"a repeated begin_run does not restart the footsteps")
 
 	# The overlay fades itself out after the GO hold, clearing the road.
 	await get_tree().create_timer(

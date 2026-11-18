@@ -6,7 +6,6 @@
 [ext_resource type="AudioStream" path="res://assets/sounds/jumpsound.mp3" id="4_jump"]
 [ext_resource type="AudioStream" path="res://assets/sounds/coin_pick.wav" id="5_coin"]
 [ext_resource type="AudioStream" path="res://assets/sounds/itempick.mp3" id="6_item"]
-[ext_resource type="AudioStream" uid="uid://c1v34y735te0f" path="res://assets/sounds/running_loop.ogg" id="7_run"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hitbox"]
 size = Vector2(52.95359, 78.363335)
@@ -49,10 +48,4 @@ bus = &"SFX"
 unique_name_in_owner = true
 stream = ExtResource("6_item")
 volume_db = 1.0
-bus = &"SFX"
-
-[node name="RunSfx" type="AudioStreamPlayer" parent="."]
-unique_name_in_owner = true
-stream = ExtResource("7_run")
-volume_db = -4.0
 bus = &"SFX"

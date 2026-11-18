@@ -225,14 +225,13 @@ func _begin_countdown() -> void:
 	is_counting_down = true
 	player.set_physics_process(false)
 	player.set_process_unhandled_input(false)
-	player.stop_run_loop()
 	countdown.finished.connect(begin_run)
 	countdown.begin()
 
 
 ## GO frame: unlock the run. Idempotent - the overlay emits finished once, and
 ## the suite calls this directly to skip the wait - so a second call never
-## restarts the bed or the footsteps.
+## restarts the bed.
 func begin_run() -> void:
 	if not is_counting_down:
 		return
@@ -240,7 +239,6 @@ func begin_run() -> void:
 	is_running = true
 	player.set_physics_process(true)
 	player.set_process_unhandled_input(true)
-	player.start_run_loop()
 	_start_music()
 	# A direct unlock (tests) never showed GO, so drop the blocking overlay
 	# here. The real path has already handed the screen to the GO beat.
@@ -285,11 +283,9 @@ func _on_chase_faded() -> void:
 		_fade_music_to(GameConfig.MUSIC_VOLUME_DB, GameConfig.MUSIC_DUCK_TIME * 2.0)
 
 
-## Pausing the tree does not stop audio, so the bed and the footsteps have to be
-## frozen by hand.
+## Pausing the tree does not stop audio, so the bed has to be frozen by hand.
 func _on_pause_changed(paused: bool) -> void:
 	music.stream_paused = paused
-	player.set_run_loop_paused(paused)
 
 
 ## Fade out and stop. A second call before the fade finishes simply restarts
@@ -588,7 +584,6 @@ func _freeze_world() -> void:
 	is_running = false
 	is_counting_down = false
 	_stop_music()
-	player.stop_run_loop()
 	countdown.dismiss()
 	hazards.process_mode = Node.PROCESS_MODE_DISABLED
 	director.process_mode = Node.PROCESS_MODE_DISABLED

@@ -708,16 +708,6 @@ const MUSIC_FADE_IN_TIME := 0.6
 const MUSIC_DUCK_TIME := 0.25
 const MUSIC_FADE_OUT_TIME := 0.7
 
-## Elias's footstep loop. The derived loop is mastered to -22.5 LUFS with a
-## -0.5 dBFS peak, so -4 dB lands it ~3 LU under the bed while staying ~4.5 dB
-## below full scale when a honk or bark stacks on top.
-const RUN_SFX_VOLUME_DB := -4.0
-## Airborne duck: no feet are on the ground while he jumps, so the loop steps
-## back instead of stopping (a hole in the rhythm is more noticeable).
-const RUN_SFX_AIR_DUCK_DB := -6.0
-## Gain crossfade for the duck, so the change never lands mid-footstep.
-const RUN_SFX_DUCK_TIME := 0.06
-
 # --- Countdown ---------------------------------------------------------------
 
 ## 3-2-1-GO beats before every run start: a fresh launch, a retry and a
