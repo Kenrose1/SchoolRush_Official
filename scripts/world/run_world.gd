@@ -78,6 +78,7 @@ var _school_background_texture: Texture2D
 @onready var dog_bark_warn_sfx: AudioStreamPlayer = $DogBarkWarnSfx
 @onready var dog_bark_run_sfx: AudioStreamPlayer = $DogBarkRunSfx
 @onready var music: AudioStreamPlayer = $Music
+@onready var countdown: CountdownOverlay = $Hud/HudRoot/Countdown
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
 @onready var progress_hud: ProgressBarHud = $Hud/HudRoot/Progress
@@ -91,6 +92,9 @@ var speed: float = GameConfig.RUN_SPEED
 var distance: float = 0.0
 ## False after the last heart is lost or the tanod catches Elias; frozen until [R].
 var is_running: bool = true
+## True while the 3-2-1-GO countdown owns the screen. The world is frozen and
+## the player is locked, but the overlay clock still ticks.
+var is_counting_down: bool = false
 ## Pure score system: distance points, hazard passes, School Item pickups.
 var score_system: ScoreSystem = ScoreSystem.new()
 ## Seconds of momentum dip hold remaining, then seconds of eased recovery.
@@ -198,12 +202,45 @@ func _ready() -> void:
 	_bark_rng.randomize()
 	director.setup(hazards, randi())
 
-	# The bed comes up under the run, ducks while the tanod chases and falls
-	# silent the moment the world freezes (see _freeze_world).
+	# The bed comes up on GO (see begin_run), ducks while the tanod chases and
+	# falls silent the moment the world freezes (see _freeze_world).
 	pause_menu.pause_changed.connect(_on_pause_changed)
 	pursuer.chase_started.connect(_on_chase_started)
 	pursuer.chase_faded.connect(_on_chase_faded)
+	_begin_countdown()
+
+
+## Lock the run behind the 3-2-1-GO overlay. is_running is false so every
+## existing "is the world live?" gate (spawns, distance, score, the results
+## screen) answers correctly without a second flag; is_counting_down is what
+## keeps _physics_process ticking the overlay clock instead of returning
+## outright. Pausing stays available on purpose.
+func _begin_countdown() -> void:
+	is_running = false
+	is_counting_down = true
+	player.set_physics_process(false)
+	player.set_process_unhandled_input(false)
+	player.stop_run_loop()
+	countdown.finished.connect(begin_run)
+	countdown.begin()
+
+
+## GO frame: unlock the run. Idempotent - the overlay emits finished once, and
+## the suite calls this directly to skip the wait - so a second call never
+## restarts the bed or the footsteps.
+func begin_run() -> void:
+	if not is_counting_down:
+		return
+	is_counting_down = false
+	is_running = true
+	player.set_physics_process(true)
+	player.set_process_unhandled_input(true)
+	player.start_run_loop()
 	_start_music()
+	# A direct unlock (tests) never showed GO, so drop the blocking overlay
+	# here. The real path has already handed the screen to the GO beat.
+	if not countdown.go_shown:
+		countdown.dismiss()
 
 
 ## Fade the run bed in from silence so starting a run never slams to full.
@@ -214,6 +251,9 @@ func _start_music() -> void:
 		(music.stream as AudioStreamMP3).loop = true
 	elif music.stream is AudioStreamOggVorbis:
 		(music.stream as AudioStreamOggVorbis).loop = true
+	# A pause during the countdown freezes a stopped stream; clearing the flag
+	# keeps the first GO from arriving muted.
+	music.stream_paused = false
 	music.volume_db = GameConfig.MUSIC_SILENT_DB
 	music.play()
 	_fade_music_to(GameConfig.MUSIC_VOLUME_DB, GameConfig.MUSIC_FADE_IN_TIME)
@@ -240,9 +280,11 @@ func _on_chase_faded() -> void:
 		_fade_music_to(GameConfig.MUSIC_VOLUME_DB, GameConfig.MUSIC_DUCK_TIME * 2.0)
 
 
-## Pausing the tree does not stop audio, so the bed has to be frozen by hand.
+## Pausing the tree does not stop audio, so the bed and the footsteps have to be
+## frozen by hand.
 func _on_pause_changed(paused: bool) -> void:
 	music.stream_paused = paused
+	player.set_run_loop_paused(paused)
 
 
 ## Fade out and stop. A second call before the fade finishes simply restarts
@@ -325,6 +367,11 @@ func _base_speed() -> float:
 
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
+		return
+	if is_counting_down:
+		countdown.advance(delta)
+		# The GO beat unlocks the run inside advance(); returning here keeps the
+		# unlock frame from also simulating, so the first live frame is clean.
 		return
 	if not is_running:
 		return
@@ -430,7 +477,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			GameState.set_debug_overlay(not GameState.debug_overlay)
 			get_viewport().set_input_as_handled()
 		KEY_R:
-			if not is_running:
+			if not is_running and not is_counting_down:
 				get_tree().reload_current_scene()
 				get_viewport().set_input_as_handled()
 
@@ -518,7 +565,10 @@ func _on_player_died() -> void:
 
 func _freeze_world() -> void:
 	is_running = false
+	is_counting_down = false
 	_stop_music()
+	player.stop_run_loop()
+	countdown.dismiss()
 	hazards.process_mode = Node.PROCESS_MODE_DISABLED
 	director.process_mode = Node.PROCESS_MODE_DISABLED
 	player.set_physics_process(false)

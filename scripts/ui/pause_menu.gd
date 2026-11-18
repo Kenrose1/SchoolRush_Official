@@ -103,7 +103,9 @@ func set_paused(value: bool) -> void:
 
 
 func _can_pause() -> bool:
-	return _world == null or (_world.is_running and not _world.results.visible)
+	return _world == null or (
+		(_world.is_running or _world.is_counting_down)
+		and not _world.results.visible)
 
 
 func _on_resume_pressed() -> void:

@@ -48,6 +48,10 @@ var jump_play_count: int = 0
 ## asserted rather than assumed.
 var coin_play_count: int = 0
 var item_play_count: int = 0
+## How many times the footstep loop has been started (once per run, on GO).
+var run_play_count: int = 0
+## True while the footstep loop is ducked for an airborne stretch.
+var run_loop_ducked: bool = false
 ## Set by RunWorld each frame from the pursuer. While true, a hazard hit is an
 ## instant loss (hearts and i-frames are ignored).
 var pursuer_active: bool = false
@@ -75,9 +79,12 @@ var _sfx_rng := RandomNumberGenerator.new()
 @onready var jump_sfx: AudioStreamPlayer = %JumpSfx
 @onready var coin_sfx: AudioStreamPlayer = %CoinSfx
 @onready var item_sfx: AudioStreamPlayer = %ItemSfx
+@onready var run_sfx: AudioStreamPlayer = %RunSfx
 
 ## Per-instance copy so sliding cannot resize shapes shared between players.
 var _box: RectangleShape2D
+## The one gain tween the footsteps use for the airborne duck.
+var _run_duck_tween: Tween
 
 
 func _ready() -> void:
@@ -96,6 +103,8 @@ func _ready() -> void:
 	hitbox_shape.shape = _box
 	hitbox.area_entered.connect(_on_hitbox_area_entered)
 	_update_hitbox()
+	jumped.connect(_set_run_loop_ducked.bind(true))
+	landed.connect(_set_run_loop_ducked.bind(false))
 	_play(&"run")
 	_apply_pose()
 	health_changed.emit(health, max_health)
@@ -225,6 +234,67 @@ func _play_pickup_sound(kind: int) -> void:
 		item_play_count += 1
 		item_sfx.pitch_scale = 1.0
 		item_sfx.play()
+
+
+## Start the footstep loop. Called by RunWorld on the GO frame (never from
+## _ready): during the 3-2-1 countdown Elias is jogging in place, and footsteps
+## there would promise a run that has not started. Idempotent, so a second
+## start (retry, test) does not restart the sample.
+func start_run_loop() -> void:
+	if run_sfx == null or run_sfx.playing:
+		return
+	var stream := run_sfx.stream
+	if stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true
+	elif stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = true
+	run_sfx.volume_db = GameConfig.RUN_SFX_VOLUME_DB
+	# A pause during the countdown freezes a stopped stream; clear it so the
+	# loop is audible from its first step at GO.
+	run_sfx.stream_paused = false
+	run_sfx.play()
+	run_play_count += 1
+
+
+## Kill the footstep loop for good: the run is over (arrest, caught, out of
+## hearts, campaign finish line).
+func stop_run_loop() -> void:
+	if _run_duck_tween != null and _run_duck_tween.is_valid():
+		_run_duck_tween.kill()
+	run_loop_ducked = false
+	if run_sfx != null:
+		run_sfx.stop()
+
+
+## Pause/resume with the pause menu. A paused SceneTree keeps audio playing, so
+## the world pauses this explicitly - exactly like the music bed.
+func set_run_loop_paused(paused: bool) -> void:
+	if run_sfx != null:
+		run_sfx.stream_paused = paused
+
+
+## Airborne duck: jumped ducks the loop, landed restores it. Routed through the
+## signals so every launch and landing path is covered.
+func _set_run_loop_ducked(ducked: bool) -> void:
+	if run_sfx == null or ducked == run_loop_ducked:
+		return
+	run_loop_ducked = ducked
+	var target := GameConfig.RUN_SFX_VOLUME_DB
+	if ducked:
+		target += GameConfig.RUN_SFX_AIR_DUCK_DB
+	if _run_duck_tween != null and _run_duck_tween.is_valid():
+		_run_duck_tween.kill()
+	_run_duck_tween = create_tween()
+	_run_duck_tween.tween_property(
+		run_sfx, "volume_db", target, GameConfig.RUN_SFX_DUCK_TIME)
+
+
+## Hook for the campaign speed ramp (not wired yet): the footstep cadence should
+## follow the run speed instead of this fixed-cut loop. Keeping the single call
+## site here makes the ramp a one-line change in run_world later.
+func set_run_loop_pitch(pitch: float) -> void:
+	if run_sfx != null:
+		run_sfx.pitch_scale = clampf(pitch, 0.85, 1.3)
 
 
 ## Restore full health and shields and clear invulnerability (used by tests

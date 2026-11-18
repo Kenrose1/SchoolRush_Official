@@ -102,6 +102,12 @@ func _ready() -> void:
 	_section("Run music")
 	await _test_run_music()
 
+	_section("Run footsteps")
+	await _test_run_sfx()
+
+	_section("Run countdown")
+	await _test_countdown()
+
 	_section("Settings")
 	_test_settings()
 
@@ -3442,6 +3448,8 @@ func _test_run_music() -> void:
 	add_child(main)
 	var world := main.get_node("RunWorld") as RunWorld
 	world.set_physics_process(false)
+	# Skip the 3-2-1-GO gate: this test owns the bed, not the kickoff.
+	world.begin_run()
 
 	var music := world.music
 	_check(music != null, "the run world carries a music bed")
@@ -3486,6 +3494,175 @@ func _test_run_music() -> void:
 	await get_tree().create_timer(GameConfig.MUSIC_FADE_OUT_TIME + 0.2).timeout
 	_check(not music.playing, "the bed stops once the world freezes")
 	main.queue_free()
+
+
+## Elias's footsteps: routing, loop, the airborne duck, pause mirror and the
+## stop on freeze. Starts on GO, so the world is unlocked first.
+func _test_run_sfx() -> void:
+	var main := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	add_child(main)
+	var world := main.get_node("RunWorld") as RunWorld
+	world.set_physics_process(false)
+	world.begin_run()
+	var player := world.player as Player
+	player.set_physics_process(false)
+
+	var run_sfx := player.run_sfx as AudioStreamPlayer
+	_check(run_sfx != null, "the player carries a footstep loop")
+	if run_sfx == null:
+		main.queue_free()
+		return
+	_check_eq(run_sfx.bus, &"SFX", "the footsteps route to the SFX bus")
+	_check(run_sfx.playing, "the footsteps start with the run")
+	_check_eq(player.run_play_count, 1, "the loop starts exactly once")
+	var stream := run_sfx.stream as AudioStreamOggVorbis
+	_check(stream != null, "the footstep loop is an Ogg stream")
+	if stream != null:
+		_check(stream.loop, "the footstep stream loops")
+		_check_near(stream.get_length(), 7.02, 0.35,
+			"the loop is the trimmed 7 s cut")
+	_check_near(run_sfx.volume_db, GameConfig.RUN_SFX_VOLUME_DB, 0.001,
+		"the loop starts at the mix level")
+
+	# Airborne duck: no feet on the ground, so the loop steps back and returns.
+	player.jump()
+	await get_tree().create_timer(GameConfig.RUN_SFX_DUCK_TIME + 0.12).timeout
+	_check_near(run_sfx.volume_db,
+		GameConfig.RUN_SFX_VOLUME_DB + GameConfig.RUN_SFX_AIR_DUCK_DB, 0.01,
+		"a jump ducks the footsteps")
+	_check(player.run_loop_ducked, "the airborne duck is tracked")
+	player.air_height = 0.0
+	player.vertical_speed = 0.0
+	player._update_jump(0.0)
+	await get_tree().create_timer(GameConfig.RUN_SFX_DUCK_TIME + 0.12).timeout
+	_check_near(run_sfx.volume_db, GameConfig.RUN_SFX_VOLUME_DB, 0.01,
+		"landing restores the footsteps")
+	_check(not player.run_loop_ducked, "the duck clears on landing")
+
+	# Same trap as the bed: a paused SceneTree keeps audio playing.
+	world._on_pause_changed(true)
+	_check(run_sfx.stream_paused, "pausing the run freezes the footsteps")
+	world._on_pause_changed(false)
+	_check(not run_sfx.stream_paused, "resuming restarts the footsteps")
+
+	# Every ending funnels through _freeze_world, which owns the stop.
+	world._freeze_world()
+	_check(not run_sfx.playing, "freezing the world stops the footsteps")
+	main.queue_free()
+
+
+## The 3-2-1-GO gate: locked until GO, the beat clock driven from RunWorld (so
+## pause freezes it and the suite can step it), and no simulation on the unlock
+## frame.
+func _test_countdown() -> void:
+	var main := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	add_child(main)
+	var world := main.get_node("RunWorld") as RunWorld
+	world.set_physics_process(false)
+	var countdown := world.countdown
+	var player := world.player as Player
+	player.set_physics_process(false)
+
+	_check(world.is_counting_down, "a fresh run opens on the countdown")
+	_check(not world.is_running, "the run is locked during the countdown")
+	_check(countdown.visible, "the countdown overlay is on screen")
+	_check(countdown.is_active, "the countdown owns the clock")
+	_check_eq(countdown.beat_label.text, "3", "the countdown opens on 3")
+	_check_eq(countdown.beat, GameConfig.START_COUNTDOWN_BEATS,
+		"three beats are queued")
+	_check(not player.is_physics_processing(),
+		"the player is frozen during the countdown")
+	_check(not player.is_processing_unhandled_input(),
+		"player input is locked during the countdown")
+	_check(world.pause_menu._can_pause(),
+		"the pause button still works during the countdown")
+	_check(not world.music.playing, "the bed waits for GO")
+	_check(not player.run_sfx.playing, "the footsteps wait for GO")
+
+	# Half a second of ticks: the clock moves, the world does not.
+	for i in 10:
+		world._physics_process(0.05)
+	_check_near(countdown.beat_time, 0.5, 0.01, "the beat clock advances")
+	_check_eq(countdown.beat_label.text, "3", "3 still holds at half a second")
+	_check_near(world.distance, 0.0, 0.001, "the countdown travels no distance")
+	_check_eq(world.hazards.get_child_count(), 0,
+		"the countdown spawns no hazards")
+	_check_eq(world.score_system.score, 0, "the countdown scores nothing")
+
+	# 3 -> 2 on the beat, with the next rung of the tick ladder.
+	for i in 12:
+		world._physics_process(0.05)
+	_check_eq(countdown.beat, 2, "the beat drops to 2")
+	_check_eq(countdown.beat_label.text, "2", "the overlay shows 2")
+	_check_near(countdown.tick_sfx.pitch_scale,
+		GameConfig.COUNTDOWN_TICK_PITCH_STEP, 0.001, "the tick climbs a rung")
+	_check_eq(countdown.beat_play_count, 2, "two beats have been shown")
+
+	# 2 -> 1.
+	for i in 22:
+		world._physics_process(0.05)
+	_check_eq(countdown.beat_label.text, "1", "the overlay shows 1")
+	_check_near(countdown.tick_sfx.pitch_scale,
+		pow(GameConfig.COUNTDOWN_TICK_PITCH_STEP, 2.0), 0.001,
+		"the tick climbs the last rung")
+
+	# 1 -> GO. Step one tick at a time so the unlock frame can be checked
+	# exactly: the frame that shows GO must not also simulate.
+	var guard := 60
+	while not countdown.go_shown and guard > 0:
+		world._physics_process(0.05)
+		guard -= 1
+	_check(countdown.go_shown, "the countdown reaches GO")
+	_check(not countdown.is_active, "GO hands the clock back to the run")
+	_check_eq(countdown.beat_label.text, "GO!", "the overlay shows GO!")
+	_check(not world.is_counting_down, "the countdown ends on GO")
+	_check(world.is_running, "GO unlocks the run")
+	_check(player.is_physics_processing(), "GO unlocks player physics")
+	_check(player.is_processing_unhandled_input(), "GO unlocks player input")
+	_check(world.music.playing, "GO starts the bed")
+	_check(player.run_sfx.playing, "GO starts the footsteps")
+	_check_eq(player.run_play_count, 1, "the footsteps start exactly once")
+	_check_near(world.distance, 0.0, 0.001, "the GO frame does not simulate")
+
+	# The frame after GO is a normal live frame.
+	world._physics_process(1.0 / 60.0)
+	_check(world.distance > 0.0, "the frame after GO moves the run")
+
+	# Idempotent: a second unlock must not restart the audio.
+	world.begin_run()
+	_check_eq(player.run_play_count, 1,
+		"a repeated begin_run does not restart the footsteps")
+
+	# The overlay fades itself out after the GO hold, clearing the road.
+	await get_tree().create_timer(
+		GameConfig.START_COUNTDOWN_GO_TIME + CountdownOverlay.FADE_OUT_TIME
+		+ 0.15).timeout
+	_check(not countdown.visible, "the overlay clears itself after GO")
+	main.queue_free()
+
+	# Skip path: input before the delay is ignored, input after it jumps straight
+	# to GO and still unlocks the run exactly once.
+	var skip_root := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	add_child(skip_root)
+	var skip_world := skip_root.get_node("RunWorld") as RunWorld
+	skip_world.set_physics_process(false)
+	var unlocks := [0]
+	skip_world.countdown.finished.connect(func() -> void: unlocks[0] += 1)
+	var early_press := InputEventKey.new()
+	early_press.pressed = true
+	skip_world.countdown._unhandled_input(early_press)
+	_check(not skip_world.countdown.go_shown,
+		"input before the skip delay is ignored")
+	for i in 10:
+		skip_world._physics_process(0.05)
+	skip_world.countdown._unhandled_input(early_press)
+	_check(skip_world.countdown.go_shown, "a key press after the delay jumps to GO")
+	_check(skip_world.is_running, "a skip still unlocks the run")
+	_check_eq(skip_world.countdown.skip_count, 1, "one skip is counted")
+	_check_eq(unlocks[0], 1, "a skip emits finished once")
+	skip_world.countdown.skip()
+	_check_eq(unlocks[0], 1, "a second skip does nothing")
+	skip_world.queue_free()
 
 
 func _test_settings() -> void:
@@ -3797,6 +3974,8 @@ func _test_scenes() -> void:
 	_check(world != null, "main scene contains the run world")
 	if world != null:
 		world.set_physics_process(false)
+		# Every scene test below assumes a live run, so skip the countdown.
+		world.begin_run()
 		_check(world.player != null, "run world contains the player")
 		_check(world.hazards != null, "run world contains a hazard container")
 		_check(world.director != null, "run world contains a spawn director")
@@ -3979,6 +4158,7 @@ func _test_scenes() -> void:
 			var campaign_world := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 			add_child(campaign_world)
 			var far := campaign_world.get_node("RunWorld") as RunWorld
+			far.begin_run()
 			far.set_run_mode(GameConfig.RunMode.CAMPAIGN)
 			far.distance = far.campaign_finish_distance \
 				- GameConfig.CAMPAIGN_SPAWN_CUTOFF_PX + 50.0

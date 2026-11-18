@@ -8,6 +8,9 @@
 [ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
 [ext_resource type="PackedScene" path="res://scenes/settings_panel.tscn" id="6_settings"]
 [ext_resource type="PackedScene" path="res://scenes/progress_bar_hud.tscn" id="7_progress"]
+[ext_resource type="Script" uid="uid://d2p5vaorcnrho" path="res://scripts/ui/countdown_overlay.gd" id="8_countdown"]
+[ext_resource type="AudioStream" uid="uid://vp5qxggakmdk" path="res://assets/sounds/countdown_tick.wav" id="9_tick"]
+[ext_resource type="AudioStream" uid="uid://dgsbo070n323s" path="res://assets/sounds/countdown_go.wav" id="10_go"]
 
 [sub_resource type="StyleBoxFlat" id="sb_pause_btn"]
 content_margin_left = 2.0
@@ -91,6 +94,60 @@ theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
 theme_override_fonts/font = ExtResource("5_semi")
 theme_override_font_sizes/font_size = 18
+
+[node name="Countdown" type="Control" parent="HudRoot"]
+process_mode = 1
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("8_countdown")
+
+[node name="Scrim" type="ColorRect" parent="HudRoot/Countdown"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.05, 0.04, 0.07, 0.55)
+
+[node name="Center" type="CenterContainer" parent="HudRoot/Countdown"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Beat" type="Label" parent="HudRoot/Countdown/Center"]
+custom_minimum_size = Vector2(440, 260)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 6
+theme_override_constants/shadow_offset_y = 6
+theme_override_fonts/font = ExtResource("0_titles")
+theme_override_font_sizes/font_size = 160
+text = "3"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TickSfx" type="AudioStreamPlayer" parent="HudRoot/Countdown"]
+stream = ExtResource("9_tick")
+volume_db = -6.0
+bus = &"SFX"
+
+[node name="GoSfx" type="AudioStreamPlayer" parent="HudRoot/Countdown"]
+stream = ExtResource("10_go")
+volume_db = -6.0
+bus = &"SFX"
 
 [node name="Pause" type="Control" parent="HudRoot"]
 process_mode = 3
