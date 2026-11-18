@@ -225,6 +225,8 @@ func _begin_countdown() -> void:
 	is_counting_down = true
 	player.set_physics_process(false)
 	player.set_process_unhandled_input(false)
+	# Physics is off, so the world has to hand the sprite its start-line pose.
+	player.waiting_at_start = true
 	countdown.finished.connect(begin_run)
 	countdown.begin()
 
@@ -239,6 +241,8 @@ func begin_run() -> void:
 	is_running = true
 	player.set_physics_process(true)
 	player.set_process_unhandled_input(true)
+	# GO cuts the idle straight into the run cycle, under the "GO!" beat.
+	player.waiting_at_start = false
 	_start_music()
 	# A direct unlock (tests) never showed GO, so drop the blocking overlay
 	# here. The real path has already handed the screen to the GO beat.

@@ -3589,6 +3589,11 @@ func _test_countdown() -> void:
 		"the player is frozen during the countdown")
 	_check(not player.is_processing_unhandled_input(),
 		"player input is locked during the countdown")
+	_check_eq(player.sprite.animation, &"idle",
+		"Elias idles at the start line, not running on the spot")
+	_check(player.sprite.is_playing(), "the idle loop is running")
+	_check_eq(player._current_anim, &"idle",
+		"the animation state knows it is idling")
 	_check(world.pause_menu._can_pause(),
 		"the pause button still works during the countdown")
 	_check(not world.music.playing, "the bed waits for GO")
@@ -3608,6 +3613,8 @@ func _test_countdown() -> void:
 		world._physics_process(0.05)
 	_check_eq(countdown.beat, 2, "the beat drops to 2")
 	_check_eq(countdown.beat_label.text, "2", "the overlay shows 2")
+	_check_eq(player.sprite.animation, &"idle",
+		"the idle holds through the ticks")
 	_check_near(countdown.tick_sfx.pitch_scale,
 		GameConfig.COUNTDOWN_TICK_PITCH_STEP, 0.001, "the tick climbs a rung")
 	_check_eq(countdown.beat_play_count, 2, "two beats have been shown")
@@ -3633,6 +3640,9 @@ func _test_countdown() -> void:
 	_check(world.is_running, "GO unlocks the run")
 	_check(player.is_physics_processing(), "GO unlocks player physics")
 	_check(player.is_processing_unhandled_input(), "GO unlocks player input")
+	_check_eq(player.sprite.animation, &"run",
+		"GO switches Elias from the idle to the run cycle")
+	_check_eq(player._current_anim, &"run", "the animation state follows GO")
 	_check(world.music.playing, "GO starts the bed")
 	_check_near(world.distance, 0.0, 0.001, "the GO frame does not simulate")
 
@@ -3665,6 +3675,8 @@ func _test_countdown() -> void:
 	skip_world.countdown._unhandled_input(early_press)
 	_check(skip_world.countdown.go_shown, "a key press after the delay jumps to GO")
 	_check(skip_world.is_running, "a skip still unlocks the run")
+	_check_eq(skip_world.player.sprite.animation, &"run",
+		"a skip also starts the run cycle")
 	_check_eq(skip_world.countdown.skip_count, 1, "one skip is counted")
 	_check_eq(unlocks[0], 1, "a skip emits finished once")
 	skip_world.countdown.skip()

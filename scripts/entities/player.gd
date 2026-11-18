@@ -64,6 +64,17 @@ const PICKUP_PITCH_VARIATION := 0.06
 var _lean: float = 0.0
 var _hurt_time_left: float = 0.0
 var _current_anim: StringName = &""
+## True while RunWorld holds Elias at the start line for the 3-2-1 countdown.
+## The physics lock already stops him moving, but the run cycle would read as
+## sprinting on the spot, so the body idles instead. Public because the world
+## owns the countdown; the setter re-plays the pose immediately since physics is
+## switched off while the overlay is up.
+var waiting_at_start: bool = false:
+	set(value):
+		if waiting_at_start == value:
+			return
+		waiting_at_start = value
+		_update_animation()
 ## Per-launch pitch variation for the jump sound, so repeated jumps do not
 ## sound like a machine gun.
 var _sfx_rng := RandomNumberGenerator.new()
@@ -360,6 +371,11 @@ func _apply_pose() -> void:
 
 
 func _update_animation() -> void:
+	# Held at the start line: standing still reads better than a run cycle
+	# playing on the spot while the countdown ticks.
+	if waiting_at_start:
+		_play(&"idle")
+		return
 	if _hurt_time_left > 0.0:
 		_play(&"hurt")
 		return
