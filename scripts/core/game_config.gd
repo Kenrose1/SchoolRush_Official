@@ -553,10 +553,19 @@ const SCORE_PER_HAZARD := 10
 const SCORE_PER_ITEM := 50
 
 ## Pickup chain thresholds. The combo is built only by School Items and resets
-## when the player is hit or lets an item scroll past.
+## when the player is hit or lets an item scroll past. Four rungs so the climb
+## is 2/3/4/5 rather than a jump from 3 to 5; every rung lasts at least two
+## items at the pickup cadence (~3-4 s apart).
 const COMBO_THRESHOLD_2 := 3
 const COMBO_THRESHOLD_3 := 6
+const COMBO_THRESHOLD_4 := 8
 const COMBO_THRESHOLD_5 := 10
+
+## One-time coin bonus per rung, paid once per tier per run (ScoreSystem tracks
+## the paid set). Bounded on purpose: a perfect chain adds +8 coins to a run
+## that collects 50-70, so the combo feeds progression without inflating the
+## shop's exponential price curve.
+const COMBO_TIER_COIN_BONUS := {2: 1, 3: 2, 4: 2, 5: 3}
 
 ## --- Result medals -----------------------------------------------------------
 ## Endless runs medal by distance reached; campaign runs medal by finishing and
@@ -769,11 +778,32 @@ static func row_gap(distance: float) -> float:
 static func combo_multiplier(chain: int) -> int:
 	if chain >= COMBO_THRESHOLD_5:
 		return 5
+	if chain >= COMBO_THRESHOLD_4:
+		return 4
 	if chain >= COMBO_THRESHOLD_3:
 		return 3
 	if chain >= COMBO_THRESHOLD_2:
 		return 2
 	return 1
+
+
+## Chain length needed for the next multiplier rung, or 0 when the ladder is
+## already maxed. Drives the HUD's "x3 · 6/8" readout.
+static func combo_next_threshold(chain: int) -> int:
+	if chain < COMBO_THRESHOLD_2:
+		return COMBO_THRESHOLD_2
+	if chain < COMBO_THRESHOLD_3:
+		return COMBO_THRESHOLD_3
+	if chain < COMBO_THRESHOLD_4:
+		return COMBO_THRESHOLD_4
+	if chain < COMBO_THRESHOLD_5:
+		return COMBO_THRESHOLD_5
+	return 0
+
+
+## One-time coins for reaching [param tier] (0 for an unknown rung).
+static func combo_tier_coin_bonus(tier: int) -> int:
+	return int(COMBO_TIER_COIN_BONUS.get(tier, 0))
 
 
 ## Distance (px) the home zone lasts for [param seconds] at the base run speed,

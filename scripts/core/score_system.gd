@@ -9,12 +9,17 @@ extends RefCounted
 signal score_changed(score: int)
 signal combo_changed(multiplier: int, chain: int)
 signal item_count_changed(count: int)
+## A new multiplier rung was reached. Fires at most once per tier per run, so
+## breaking and rebuilding the chain cannot farm the coin bonus.
+signal tier_reached(tier: int)
 
 var score: int = 0
 var item_count: int = 0
 var chain: int = 0
 
 var _distance_points: int = 0
+## Bitmask of rungs already paid this run (bit N = tier N).
+var _tiers_paid: int = 0
 
 
 ## Award the distance trickle for total [param distance] travelled.
@@ -33,13 +38,22 @@ func add_hazard_passed() -> void:
 	score_changed.emit(score)
 
 
-## Count one School Item and score it with the current multiplier.
+## Count one School Item and score it with the current multiplier. A pickup
+## that crosses a rung pays the new rate and announces the tier.
 func add_item_pickup() -> void:
 	item_count += 1
 	chain += 1
-	score += GameConfig.SCORE_PER_ITEM * GameConfig.combo_multiplier(chain)
+	var multiplier := GameConfig.combo_multiplier(chain)
+	score += GameConfig.SCORE_PER_ITEM * multiplier
 	item_count_changed.emit(item_count)
-	combo_changed.emit(GameConfig.combo_multiplier(chain), chain)
+	combo_changed.emit(multiplier, chain)
+	# Compare against the previous chain length rather than storing a last-tier
+	# field, so a combo reset needs no extra bookkeeping here.
+	if multiplier > GameConfig.combo_multiplier(chain - 1):
+		var bit := 1 << multiplier
+		if (_tiers_paid & bit) == 0:
+			_tiers_paid |= bit
+			tier_reached.emit(multiplier)
 	score_changed.emit(score)
 
 

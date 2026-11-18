@@ -12,7 +12,21 @@ const SUB_FONT: Font = preload(SUB_FONT_PATH)
 
 const TEXT_COLOR := Color(1.0, 0.94, 0.86)
 const AMBER_COLOR := Color(1.0, 0.705882, 0.368627)
-const COMBO_COLOR := Color(1.0, 0.42, 0.28)
+## One colour per multiplier rung: cream -> amber -> orange -> coral -> red.
+## The step is the only cue that the label just changed tier, so it has to read
+## instantly at speed.
+const TIER_COLORS: Array[Color] = [
+	Color(1.0, 0.94, 0.86),
+	Color(1.0, 0.94, 0.86),
+	Color(1.0, 0.78, 0.42),
+	Color(1.0, 0.62, 0.26),
+	Color(1.0, 0.42, 0.28),
+	Color(1.0, 0.30, 0.34),
+]
+## A pickup is a tick; a rung is a small impact (game-feel: scale feedback to
+## importance). Screen shake and hit-stop stay reserved for real impacts.
+const PICKUP_POP := 1.18
+const TIER_POP := 1.35
 const COIN_ICON: Texture2D = preload("res://assets/icon/coin/Golden Coin 2nd Outline 64px.png")
 
 var _card: PanelContainer
@@ -21,6 +35,11 @@ var _combo_label: Label
 var _items_label: Label
 var _coins_label: Label
 var _last_chain: int = 0
+var _last_multiplier: int = 1
+var _last_coins: int = 0
+var _combo_tween: Tween
+var _score_tween: Tween
+var _coin_tween: Tween
 
 
 func _ready() -> void:
@@ -78,12 +97,11 @@ func _ready() -> void:
 	_combo_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_combo_label.add_theme_font_override("font", SUB_FONT)
 	_combo_label.add_theme_font_size_override("font_size", 30)
-	_combo_label.add_theme_color_override("font_color", COMBO_COLOR)
+	_combo_label.add_theme_color_override("font_color", TIER_COLORS[1])
 	_combo_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
 	_combo_label.add_theme_constant_override("shadow_offset_x", 2)
 	_combo_label.add_theme_constant_override("shadow_offset_y", 2)
 	_combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_combo_label.pivot_offset = Vector2(300, 15)
 	vbox.add_child(_combo_label)
 
 	_items_label = Label.new()
@@ -139,12 +157,48 @@ func set_combo(multiplier: int, chain: int) -> void:
 	if chain <= 0:
 		_combo_label.text = ""
 	else:
-		_combo_label.text = "x%d  COMBO %d" % [multiplier, chain]
-		if chain > _last_chain and _combo_label.is_inside_tree():
-			var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-			tw.tween_property(_combo_label, "scale", Vector2(1.18, 1.18), 0.08)
-			tw.tween_property(_combo_label, "scale", Vector2.ONE, 0.12)
+		# Actionable readout: chain, and how many pickups buy the next rung.
+		var next := GameConfig.combo_next_threshold(chain)
+		if next <= 0:
+			_combo_label.text = "x%d · MAX" % multiplier
+		else:
+			_combo_label.text = "x%d · %d/%d" % [multiplier, chain, next]
+		_combo_label.add_theme_color_override("font_color", _tier_color(multiplier))
+		if _combo_label.is_inside_tree():
+			if multiplier > _last_multiplier:
+				_pop(_combo_label, TIER_POP, 0.10, 0.16)
+				_flash_score()
+			elif chain > _last_chain:
+				_pop(_combo_label, PICKUP_POP, 0.08, 0.12)
 	_last_chain = chain
+	_last_multiplier = multiplier
+
+
+func _tier_color(multiplier: int) -> Color:
+	return TIER_COLORS[clampi(multiplier, 1, TIER_COLORS.size() - 1)]
+
+
+func _pop(label: Label, scale: float, up_time: float, down_time: float) -> void:
+	if _combo_tween != null and _combo_tween.is_valid():
+		_combo_tween.kill()
+	label.scale = Vector2.ONE
+	# Right-aligned text: grow from its right edge so the readout stays put
+	# while the digits to its left swell.
+	label.pivot_offset = Vector2(label.size.x, label.size.y * 0.5)
+	_combo_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_combo_tween.tween_property(label, "scale", Vector2(scale, scale), up_time)
+	_combo_tween.tween_property(label, "scale", Vector2.ONE, down_time)
+
+
+## Quick white tint on the score number so the multiplier visibly causes it.
+func _flash_score() -> void:
+	if not _score_label.is_inside_tree():
+		return
+	if _score_tween != null and _score_tween.is_valid():
+		_score_tween.kill()
+	_score_label.modulate = Color(1.9, 1.9, 1.9)
+	_score_tween = create_tween()
+	_score_tween.tween_property(_score_label, "modulate", Color.WHITE, 0.22)
 
 
 func set_items(count: int) -> void:
@@ -155,6 +209,15 @@ func set_items(count: int) -> void:
 ## a coin is collected - never per frame.
 func set_coins(count: int) -> void:
 	_coins_label.text = "COINS  %d" % count
+	if count > _last_coins and _coins_label.is_inside_tree():
+		if _coin_tween != null and _coin_tween.is_valid():
+			_coin_tween.kill()
+		_coins_label.scale = Vector2.ONE
+		_coins_label.pivot_offset = _coins_label.size * 0.5
+		_coin_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_coin_tween.tween_property(_coins_label, "scale", Vector2(1.25, 1.25), 0.08)
+		_coin_tween.tween_property(_coins_label, "scale", Vector2.ONE, 0.12)
+	_last_coins = count
 
 
 ## Theme font used by a readout ("score", "combo", or "items"), for the test suite.
@@ -171,7 +234,7 @@ func label_font(part: String) -> Font:
 	return null
 
 
-## Text currently shown by a readout ("score", "combo", or "items").
+## Text currently shown by a readout ("score", "combo", "items", or "coins").
 func label_text(part: String) -> String:
 	match part:
 		"score":
@@ -183,3 +246,13 @@ func label_text(part: String) -> String:
 		"coins":
 			return _coins_label.text
 	return ""
+
+
+## Colour currently used by a readout ("combo" or "coins"), for the suite.
+func label_color(part: String) -> Color:
+	match part:
+		"combo":
+			return _combo_label.get_theme_color("font_color")
+		"coins":
+			return _coins_label.get_theme_color("font_color")
+	return Color.WHITE

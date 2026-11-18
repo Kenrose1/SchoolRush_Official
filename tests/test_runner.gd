@@ -2249,15 +2249,37 @@ func _test_game_state() -> void:
 
 
 func _test_score_system() -> void:
-	# Combo thresholds.
+	# Combo thresholds: x2 / x3 / x4 / x5 at chains 3 / 6 / 8 / 10.
 	_check_eq(GameConfig.combo_multiplier(0), 1, "chain 0 is x1")
 	_check_eq(GameConfig.combo_multiplier(2), 1, "chain 2 is x1")
 	_check_eq(GameConfig.combo_multiplier(3), 2, "chain 3 is x2")
 	_check_eq(GameConfig.combo_multiplier(5), 2, "chain 5 is x2")
 	_check_eq(GameConfig.combo_multiplier(6), 3, "chain 6 is x3")
-	_check_eq(GameConfig.combo_multiplier(9), 3, "chain 9 is x3")
+	_check_eq(GameConfig.combo_multiplier(7), 3, "chain 7 is x3")
+	_check_eq(GameConfig.combo_multiplier(8), 4, "chain 8 is x4")
+	_check_eq(GameConfig.combo_multiplier(9), 4, "chain 9 is x4")
 	_check_eq(GameConfig.combo_multiplier(10), 5, "chain 10 is x5")
 	_check_eq(GameConfig.combo_multiplier(99), 5, "chain 99 is x5")
+
+	# The next rung drives the HUD's "x3 · 6/8" readout.
+	_check_eq(GameConfig.combo_next_threshold(0), 3, "no chain points at x2")
+	_check_eq(GameConfig.combo_next_threshold(2), 3, "chain 2 points at x2")
+	_check_eq(GameConfig.combo_next_threshold(3), 6, "x2 points at x3")
+	_check_eq(GameConfig.combo_next_threshold(5), 6, "chain 5 points at x3")
+	_check_eq(GameConfig.combo_next_threshold(6), 8, "x3 points at x4")
+	_check_eq(GameConfig.combo_next_threshold(8), 10, "x4 points at x5")
+	_check_eq(GameConfig.combo_next_threshold(10), 0, "x5 has no next rung")
+
+	# One-time coin bonus per rung, bounded on purpose (max +8 per run).
+	_check_eq(GameConfig.combo_tier_coin_bonus(1), 0, "no bonus below x2")
+	_check_eq(GameConfig.combo_tier_coin_bonus(2), 1, "x2 pays one coin")
+	_check_eq(GameConfig.combo_tier_coin_bonus(3), 2, "x3 pays two coins")
+	_check_eq(GameConfig.combo_tier_coin_bonus(4), 2, "x4 pays two coins")
+	_check_eq(GameConfig.combo_tier_coin_bonus(5), 3, "x5 pays three coins")
+	var tier_total := 0
+	for value in GameConfig.COMBO_TIER_COIN_BONUS.values():
+		tier_total += int(value)
+	_check_eq(tier_total, 8, "a perfect chain pays at most +8 coins")
 	_check(
 		GameConfig.PICKUP_GAP_MIN < GameConfig.PICKUP_GAP_MAX,
 		"pickup gap range is sane",
@@ -2283,7 +2305,7 @@ func _test_score_system() -> void:
 	_check_eq(system.score, 25, "hazard pass is +10")
 	_check_eq(system.chain, 0, "hazard passes do not build the combo")
 
-	# Item pickups: 1-2 x1, 3-5 x2, 6-9 x3, 10 x5.
+	# Item pickups: 1-2 x1, 3-5 x2, 6-7 x3, 8-9 x4, 10+ x5.
 	var fresh := ScoreSystem.new()
 	for i in 2:
 		fresh.add_item_pickup()
@@ -2299,20 +2321,49 @@ func _test_score_system() -> void:
 	_check_eq(fresh.item_count, 10, "ten pickups count as ten items")
 	_check_eq(fresh.chain, 10, "ten pickups build a chain of 10")
 	_check_eq(GameConfig.combo_multiplier(fresh.chain), 5, "chain 10 reports x5")
-	# 2*50 + 3*100 + 4*150 + 1*250 = 1250
-	_check_eq(fresh.score, 1250, "ten pickups score 1250 points")
+	# 2*50 + 3*100 + 2*150 + 2*200 + 1*250 = 1350
+	_check_eq(fresh.score, 1350, "ten pickups score 1350 points")
 
 	# Reset breaks the chain but keeps score and item count.
 	fresh.reset_combo()
 	_check_eq(fresh.chain, 0, "reset clears the chain")
-	_check_eq(fresh.score, 1250, "reset keeps the score")
+	_check_eq(fresh.score, 1350, "reset keeps the score")
 	_check_eq(fresh.item_count, 10, "reset keeps the item count")
 	fresh.add_item_pickup()
-	_check_eq(fresh.score, 1300, "pickup after reset is x1 again")
+	_check_eq(fresh.score, 1400, "pickup after reset is x1 again")
 	# reset on an already-empty chain is a no-op (no signal spam / crash).
 	fresh.reset_combo()
 	fresh.reset_combo()
 	_check_eq(fresh.chain, 0, "repeated reset stays at 0")
+
+	# Tier announcements: once per rung per run, so a broken chain cannot farm
+	# the coin bonus. A new ScoreSystem is a new run.
+	var tier_system := ScoreSystem.new()
+	var announced: Array[int] = []
+	tier_system.tier_reached.connect(
+		func(tier: int) -> void: announced.append(tier))
+	for i in 2:
+		tier_system.add_item_pickup()
+	_check_eq(announced.size(), 0, "chains 1-2 announce no rung")
+	for i in 3:
+		tier_system.add_item_pickup()
+	_check_eq(announced.size(), 1, "chain 3 announces one rung")
+	_check_eq(announced[0], 2, "the first rung is x2")
+	for i in 3:
+		tier_system.add_item_pickup()
+	_check_eq(announced.size(), 3, "chain 8 has announced three rungs")
+	_check_eq(announced[1], 3, "the second rung is x3")
+	_check_eq(announced[2], 4, "the third rung is x4")
+	for i in 2:
+		tier_system.add_item_pickup()
+	_check_eq(announced.size(), 4, "chain 10 announces the final rung")
+	_check_eq(announced[3], 5, "the last rung is x5")
+
+	# Rebuilding every rung must stay silent for the rest of the run.
+	tier_system.reset_combo()
+	for i in GameConfig.COMBO_THRESHOLD_5 * 2:
+		tier_system.add_item_pickup()
+	_check_eq(announced.size(), 4, "rebuilding the ladder announces nothing new")
 
 
 func _test_collectible() -> void:
@@ -3548,6 +3599,15 @@ func _test_run_sfx() -> void:
 	# Every ending funnels through _freeze_world, which owns the stop.
 	world._freeze_world()
 	_check(not run_sfx.playing, "freezing the world stops the footsteps")
+
+	# Tier riser: one player on the SFX bus, owned by the world (not the HUD),
+	# so it freezes with the run like every other gameplay cue.
+	var tier_sfx := world.tier_sfx as AudioStreamPlayer
+	_check(tier_sfx != null, "the world owns a tier-up riser")
+	if tier_sfx != null:
+		_check_eq(tier_sfx.bus, &"SFX", "the tier riser routes to the SFX bus")
+		_check(tier_sfx.stream != null, "the tier riser has a stream")
+		_check_eq(world.tier_up_play_count, 0, "no riser before any rung")
 	main.queue_free()
 
 
@@ -4033,8 +4093,19 @@ func _test_scenes() -> void:
 			world.score_hud.set_combo(2, 5)
 			_check_eq(
 				world.score_hud.label_text("combo"),
-				"x2  COMBO 5",
-				"the combo readout shows the multiplier and chain",
+				"x2 · 5/6",
+				"the combo readout shows the chain and the next rung",
+			)
+			var x2_color := world.score_hud.label_color("combo")
+			world.score_hud.set_combo(5, 12)
+			_check_eq(
+				world.score_hud.label_text("combo"),
+				"x5 · MAX",
+				"the combo readout caps out at x5",
+			)
+			_check(
+				world.score_hud.label_color("combo") != x2_color,
+				"every rung steps the combo colour",
 			)
 			world.score_hud.set_combo(1, 0)
 			_check_eq(world.score_hud.label_text("combo"), "", "the combo readout hides with no chain")
@@ -4215,6 +4286,36 @@ func _test_scenes() -> void:
 			world._on_player_damaged(2)
 			_check_eq(world.score_system.chain, 0, "damage resets the combo through the world")
 			_check_eq(world.score_system.item_count, 2, "items survive a combo reset")
+
+			# Reaching a rung pays its one-time coin bonus and fires the riser.
+			_check(
+				world.score_system.tier_reached.is_connected(
+					world._on_tier_reached),
+				"the world listens for combo rungs",
+			)
+			var tier_coins_before := world.coins_collected
+			var tier_wallet_before := GameState.coins
+			var tier_sfx_before := world.tier_up_play_count
+			for i in GameConfig.COMBO_THRESHOLD_2:
+				world._on_item_collected(GameConfig.ItemKind.PENCIL)
+			_check_eq(world.tier_up_play_count, tier_sfx_before + 1,
+				"reaching x2 fires the tier riser")
+			_check_eq(world.coins_collected, tier_coins_before + 1,
+				"reaching x2 pays one coin into the run tally")
+			_check_eq(GameState.coins, tier_wallet_before + 1,
+				"reaching x2 pays one coin into the wallet")
+
+			# Rebuilding the same rung in the same run must pay nothing.
+			world.score_system.reset_combo()
+			for i in GameConfig.COMBO_THRESHOLD_2:
+				world._on_item_collected(GameConfig.ItemKind.PENCIL)
+			_check_eq(world.tier_up_play_count, tier_sfx_before + 1,
+				"rebuilding the rung does not fire the riser again")
+			_check_eq(world.coins_collected, tier_coins_before + 1,
+				"rebuilding the rung does not pay again")
+			_check_eq(GameState.coins, tier_wallet_before + 1,
+				"rebuilding the rung does not add wallet coins")
+			world.score_system.reset_combo()
 
 			for i in GameConfig.MAX_HEARTS:
 				world.player.invulnerable_time_left = 0.0

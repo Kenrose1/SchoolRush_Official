@@ -78,6 +78,7 @@ var _school_background_texture: Texture2D
 @onready var dog_bark_warn_sfx: AudioStreamPlayer = $DogBarkWarnSfx
 @onready var dog_bark_run_sfx: AudioStreamPlayer = $DogBarkRunSfx
 @onready var music: AudioStreamPlayer = $Music
+@onready var tier_sfx: AudioStreamPlayer = $TierSfx
 @onready var countdown: CountdownOverlay = $Hud/HudRoot/Countdown
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
@@ -138,6 +139,9 @@ var car_engine_play_count: int = 0
 ## double-bark telegraph (warn) and the single-bark chase cues (run).
 var dog_bark_warn_play_count: int = 0
 var dog_bark_run_play_count: int = 0
+## Test counter: how many times the combo tier riser fired. One per rung per
+## run at most (ScoreSystem's paid-set rule), so the suite can assert it.
+var tier_up_play_count: int = 0
 ## Per-bark jitter source, so three barks in one encounter never sound like
 ## the same sample three times.
 var _bark_rng := RandomNumberGenerator.new()
@@ -185,6 +189,7 @@ func _ready() -> void:
 	score_system.score_changed.connect(score_hud.set_score)
 	score_system.combo_changed.connect(score_hud.set_combo)
 	score_system.item_count_changed.connect(score_hud.set_items)
+	score_system.tier_reached.connect(_on_tier_reached)
 	# The HUD shows coins earned THIS RUN, not the persistent wallet - a run
 	# always starts from zero. The wallet signal stays reserved for the shop.
 	score_hud.set_score(score_system.score)
@@ -506,6 +511,22 @@ func _on_item_collected(kind: int) -> void:
 		GameState.add_coins(GameConfig.COIN_VALUE)
 		return
 	score_system.add_item_pickup()
+
+
+## A new multiplier rung was reached. ScoreSystem already guarantees this fires
+## at most once per rung per run, so the coin bonus cannot be farmed by letting
+## the chain break and rebuilding it.
+func _on_tier_reached(tier: int) -> void:
+	tier_up_play_count += 1
+	tier_sfx.play()
+	var bonus := GameConfig.combo_tier_coin_bonus(tier)
+	if bonus <= 0:
+		return
+	# Tier coins are currency, not score: the per-run tally (shown on the HUD
+	# and the results card) and the persistent wallet both move by the bonus.
+	coins_collected += bonus
+	score_hud.set_coins(coins_collected)
+	GameState.add_coins(bonus)
 
 
 func _on_player_damaged(_remaining: int) -> void:
