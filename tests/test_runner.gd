@@ -743,6 +743,29 @@ func _test_health() -> void:
 	_check_eq((player.hurt_sfx as AudioStreamPlayer).bus, "SFX", "the hurt sound routes to the SFX bus")
 	_check(player.hurt_play_count == 0, "the hurt sound is silent before any hit")
 
+	# VFX wiring: dust and impact flash are committed assets, attached and
+	# configured to fire once per burst (not per frame).
+	_check(player.land_dust is CPUParticles2D, "the player carries a dust emitter")
+	_check(player.land_dust.one_shot, "the dust emitter fires one shot per burst")
+	_check(not player.land_dust.local_coords, "dust stays behind in world space")
+	_check(
+		player.land_dust.texture != null
+		and player.land_dust.texture.resource_path.ends_with("dust_soft.png"),
+		"the dust emitter uses the committed soft-puff texture",
+	)
+	_check(player.hit_burst != null, "the player carries an impact flash")
+	_check(
+		player.hit_burst.texture != null
+		and player.hit_burst.texture.resource_path.ends_with("impact_flash.png"),
+		"the impact flash uses the committed spritesheet",
+	)
+	_check_eq(player.hit_burst.hframes, 6, "the impact sheet is 6 columns wide")
+	_check_eq(player.hit_burst.vframes, 4, "the impact sheet is 4 rows tall")
+	_check_eq(player.hit_burst.frame_count, 24, "the impact sheet plays all 24 frames")
+	_check(not player.hit_burst.visible, "the impact flash starts hidden")
+	_check_eq(player.dust_burst_count, 0, "no dust before any movement")
+	_check_eq(player.hit_burst_count, 0, "no impact flash before any hit")
+
 	# Jump sound: one per launch, on the SFX bus, with re-rolled pitch.
 	_check(player.jump_sfx != null, "the player carries a jump sound player")
 	_check_eq((player.jump_sfx as AudioStreamPlayer).bus, "SFX", "the jump sound routes to the SFX bus")
@@ -768,6 +791,16 @@ func _test_health() -> void:
 	)
 	player.in_air = false
 	player.air_height = 0.0
+
+	# Dust: one puff per launch, and the landing owns its own puff - the pair
+	# must not share a counter or double-fire from the same frame.
+	_check_eq(player.dust_burst_count, 2, "each launch puffs dust exactly once")
+	player.in_air = true
+	player.air_height = 1.0
+	player.vertical_speed = -100.0
+	player._update_jump(1.0 / 60.0)
+	_check(not player.in_air, "the descent lands the player")
+	_check_eq(player.dust_burst_count, 3, "landing puffs dust once")
 
 	# Pickup audio: coins and items are different reward channels, so they play
 	# different clips on the SFX bus - coins with re-rolled pitch, items stable.
@@ -820,6 +853,9 @@ func _test_health() -> void:
 
 	_check(player.take_damage(), "the first hit lands")
 	_check_eq(player.hurt_play_count, 1, "a landed hit plays the hurt sound")
+	_check_eq(player.hit_burst_count, 1, "a landed hit plays one impact flash")
+	_check(player.hit_burst.visible, "the impact flash becomes visible on a hit")
+	_check_eq(player.hit_burst.frame, 0, "the impact flash starts from frame 0")
 	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "the first hit removes one heart")
 	_check_eq(damaged_events.size(), 1, "damaged fires once")
 	_check_eq(health_events.size(), 2, "health_changed fires on damage")
@@ -828,6 +864,7 @@ func _test_health() -> void:
 	_check(not player.take_damage(), "a hit inside the i-frame window is ignored")
 	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "the ignored hit costs no heart")
 	_check_eq(player.hurt_play_count, 1, "an i-frame-blocked hit stays silent")
+	_check_eq(player.hit_burst_count, 1, "an i-frame-blocked hit does not flash")
 
 	var steps := int(ceil(GameConfig.I_FRAME_TIME * 60.0)) + 2
 	for i in steps:
@@ -847,6 +884,18 @@ func _test_health() -> void:
 	player.reset_health()
 	_check_eq(player.health, GameConfig.MAX_HEARTS, "reset_health restores every heart")
 	_check_eq(deaths[0], 1, "reset does not re-fire died")
+
+	# Shield absorb: spends a charge, costs no heart, and must not flash.
+	player.shield_charges = 1
+	var flash_before: int = player.hit_burst_count
+	_check(not player.take_damage(), "a shield charge absorbs the hit")
+	_check_eq(player.shield_charges, 0, "the absorbing shield is spent")
+	_check_eq(player.hit_burst_count, flash_before, "a shield absorb does not flash")
+	player.reset_health()
+
+	# The flash hides itself when the sheet runs out - no lingering sprite.
+	player.hit_burst._process(1.0)
+	_check(not player.hit_burst.visible, "the impact flash hides when the sheet ends")
 
 	# Hitbox: 10% smaller than the sprite, anchored at the feet.
 	var box := player.hitbox_shape.shape as RectangleShape2D

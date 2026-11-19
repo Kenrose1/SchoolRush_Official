@@ -48,6 +48,11 @@ var jump_play_count: int = 0
 ## asserted rather than assumed.
 var coin_play_count: int = 0
 var item_play_count: int = 0
+## Test counters for the VFX: ground-dust bursts (launch + landing) and the
+## impact flash. Presentation-only work still gets a counter so the suite can
+## hold the trigger conditions (e.g. shield absorbs must not flash).
+var dust_burst_count: int = 0
+var hit_burst_count: int = 0
 ## Set by RunWorld each frame from the pursuer. While true, a hazard hit is an
 ## instant loss (hearts and i-frames are ignored).
 var pursuer_active: bool = false
@@ -55,6 +60,11 @@ var pursuer_active: bool = false
 ## Pitch spread for the jump sound: each launch re-rolls playback pitch in
 ## 1.0 ± this value, so consecutive jumps never sound identical.
 const JUMP_PITCH_VARIATION := 0.05
+
+## Ground dust is presentation only, but takeoff should read lighter than a
+## landing, so each beat sets its own particle count and launch speed.
+const JUMP_DUST_AMOUNT := 8
+const LAND_DUST_AMOUNT := 14
 
 ## Pitch spread for the coin pickup, same trick. A coin trail lands every
 ## ~0.14 s (60 px spacing at RUN_SPEED), so without it the trail machine-guns.
@@ -82,6 +92,8 @@ var _sfx_rng := RandomNumberGenerator.new()
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var hitbox: Area2D = $Hitbox
 @onready var hitbox_shape: CollisionShape2D = $Hitbox/Shape
+@onready var land_dust: CPUParticles2D = $LandDust
+@onready var hit_burst: HitBurst = $HitBurst
 @onready var hurt_sfx: AudioStreamPlayer = %HurtSfx
 @onready var jump_sfx: AudioStreamPlayer = %JumpSfx
 @onready var coin_sfx: AudioStreamPlayer = %CoinSfx
@@ -164,6 +176,7 @@ func jump() -> bool:
 	vertical_speed = GameConfig.shop_jump_speed(
 		GameState.shop_level(GameConfig.ShopUpgrade.JUMP))
 	_play_jump_sound()
+	_burst_ground_dust(JUMP_DUST_AMOUNT, 60.0)
 	jumped.emit()
 	return true
 
@@ -199,6 +212,7 @@ func take_damage(amount: int = 1) -> bool:
 	invulnerable_time_left = GameConfig.I_FRAME_TIME
 	_hurt_time_left = GameConfig.HURT_ANIM_TIME
 	_play_hurt_sound()
+	_flash_hit_burst()
 	damaged.emit(health)
 	health_changed.emit(health, max_health)
 	if health == 0:
@@ -238,6 +252,29 @@ func _play_pickup_sound(kind: int) -> void:
 		item_sfx.play()
 
 
+## Presentation-only dust puff shared by takeoff and landing. The emitter runs
+## in world space, so the puffs stay behind while Elias keeps running. Counter
+## is for the suite: takeoff and landing must both burst exactly once.
+func _burst_ground_dust(count: int, speed: float) -> void:
+	if land_dust == null:
+		return
+	dust_burst_count += 1
+	land_dust.amount = count
+	land_dust.initial_velocity_min = speed * 0.5
+	land_dust.initial_velocity_max = speed
+	land_dust.restart()
+
+
+## Impact flash from the pre-drawn sheet. Only a real heart loss reaches here —
+## shield absorbs and i-frame-blocked hits return before this call — so the
+## flash never lies about damage.
+func _flash_hit_burst() -> void:
+	if hit_burst == null:
+		return
+	hit_burst_count += 1
+	hit_burst.play()
+
+
 ## Restore full health and shields and clear invulnerability (used by tests
 ## and retries).
 func reset_health() -> void:
@@ -269,6 +306,7 @@ func _update_jump(delta: float) -> void:
 		air_height = 0.0
 		vertical_speed = 0.0
 		in_air = false
+		_burst_ground_dust(LAND_DUST_AMOUNT, 105.0)
 		landed.emit()
 
 
