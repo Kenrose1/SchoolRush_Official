@@ -34,12 +34,24 @@ const NAME_FONT: FontFile = preload(
 const SUB_FONT: FontFile = preload(
 	"res://assets/fonts/Nunito-SemiBold.ttf")
 
+## Max-upgrade celebration tuning. The ring is drawn in code (a Line2D circle)
+## rather than from a texture: at this size the bundle's twirl art reads as a
+## smudge, while a line ring keeps the accent colour exact and stays crisp.
+const FX_GOLD := Color(1.0, 0.85, 0.45)
+const RING_POINTS := 48
+const RING_RADIUS := 120.0
+const RING_TIME := 0.55
+const PIP_STAGGER := 0.045
+
 @onready var wallet_label: Label = %WalletLabel
 @onready var wallet_chip: HBoxContainer = %WalletChip
 @onready var grid: GridContainer = %UpgradeGrid
 @onready var close_button: Button = %CloseButton
 @onready var upgrade_sfx: AudioStreamPlayer = %UpgradeSfx
 @onready var max_upgrade_sfx: AudioStreamPlayer = %MaxUpgradeSfx
+@onready var max_burst: CPUParticles2D = %MaxUpgradeBurst
+@onready var max_ring: Line2D = %MaxUpgradeRing
+@onready var max_stamp: Label = %MaxUpgradeStamp
 
 ## Per-kind card widgets, filled in _ready.
 var _cards: Dictionary = {}
@@ -50,6 +62,10 @@ var upgrade_play_count: int = 0
 ## Purchases that completed an upgrade - the fanfare replaces the chime there,
 ## so the two counters are exclusive and the suite can assert that.
 var max_upgrade_play_count: int = 0
+## Max-upgrade celebrations fired - one per finishing purchase.
+var max_burst_count: int = 0
+## Serial for the ring fade, so a re-trigger cannot be hidden by the old tween.
+var _ring_serial: int = 0
 
 
 func _ready() -> void:
@@ -58,6 +74,7 @@ func _ready() -> void:
 	visible = false
 	_build_cards()
 	_build_wallet_icon()
+	_build_max_fx()
 	wallet_label.text = str(GameState.coins)
 	_last_wallet = GameState.coins
 	# Event-driven wallet chip: the panel never polls the wallet.
@@ -264,9 +281,9 @@ func _on_buy_pressed(kind: int) -> void:
 
 
 ## Finishing an upgrade is the biggest event the store has, so it gets one more
-## layer than a normal buy: a bigger spring, a gold border flash, the final pip
-## popping white, and the MAX label flaring. No shake - a menu should not move
-## the player's view.
+## layer than a normal buy: a bigger spring, a gold border flash, a shockwave
+## ring, a star burst, a pip cascade and a MAX! stamp. No shake - a menu should
+## not move the player's view.
 func _celebrate_max(panel: PanelContainer, card: Dictionary) -> void:
 	var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(panel, "scale", Vector2(1.12, 1.12), 0.1)
@@ -275,22 +292,101 @@ func _celebrate_max(panel: PanelContainer, card: Dictionary) -> void:
 
 	var style := panel.get_theme_stylebox("panel") as StyleBoxFlat
 	if style != null:
-		style.border_color = Color(1.0, 0.85, 0.4)
+		style.border_color = FX_GOLD
 		create_tween().tween_property(
 			style, "border_color", Color(1.0, 0.705882, 0.368627, 0.3), 0.7)
 
-	var pips := card["pips"] as HBoxContainer
-	if pips != null and pips.get_child_count() > 0:
-		var last_pip := pips.get_child(pips.get_child_count() - 1) as ColorRect
-		if last_pip != null:
-			last_pip.color = Color.WHITE
-			create_tween().tween_property(
-				last_pip, "color", Color(1.0, 0.705882, 0.368627), 0.5)
+	# Every effect is centred on the card as it was before the spring started,
+	# so the ring, burst and stamp stay put while the card itself scales. The
+	# stamp sits as a badge on the card's top-right corner - dead centre would
+	# bury the name and description, and the button already reads MAX.
+	max_burst_count += 1
+	var fx := max_burst.get_parent() as Node2D
+	var card_rect := panel.get_global_rect()
+	_fire_max_burst(fx.to_local(card_rect.get_center()))
+	_flash_max_ring(fx.to_local(card_rect.get_center()))
+	_pop_max_stamp(fx.to_local(
+		card_rect.position + Vector2(card_rect.size.x - 26.0, 36.0)))
+	_cascade_pips(card)
 
 	var buy := card["buy"] as Button
 	if buy != null:
 		buy.modulate = Color(1.7, 1.4, 0.75)
 		create_tween().tween_property(buy, "modulate", Color.WHITE, 0.45)
+
+
+## One-time setup: the ring's circle lives in code so the scene only carries
+## the styling, and all three effects start hidden.
+func _build_max_fx() -> void:
+	max_ring.points = _circle_points(RING_RADIUS)
+	max_ring.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	max_ring.visible = false
+	max_stamp.rotation = deg_to_rad(-14.0)
+	max_stamp.visible = false
+
+
+static func _circle_points(radius: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for i in RING_POINTS:
+		var angle := TAU * float(i) / float(RING_POINTS)
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	return points
+
+
+func _fire_max_burst(center: Vector2) -> void:
+	max_burst.position = center
+	max_burst.restart()
+	max_burst.emitting = true
+
+
+func _flash_max_ring(center: Vector2) -> void:
+	_ring_serial += 1
+	var serial := _ring_serial
+	max_ring.position = center
+	max_ring.scale = Vector2(0.4, 0.4)
+	max_ring.modulate = Color(1.0, 1.0, 1.0, 0.95)
+	max_ring.visible = true
+	var tw := create_tween().set_parallel(true)
+	tw.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(max_ring, "scale", Vector2(1.3, 1.3), RING_TIME)
+	tw.tween_property(max_ring, "modulate:a", 0.0, RING_TIME)
+	tw.chain().tween_callback(_hide_ring.bind(serial))
+
+
+## Fade finished: hide only when no newer ring has taken over.
+func _hide_ring(serial: int) -> void:
+	if serial == _ring_serial:
+		max_ring.visible = false
+
+
+func _pop_max_stamp(center: Vector2) -> void:
+	max_stamp.visible = true
+	max_stamp.size = max_stamp.get_combined_minimum_size()
+	max_stamp.position = center - max_stamp.size / 2.0
+	max_stamp.pivot_offset = max_stamp.size / 2.0
+	max_stamp.modulate = Color.WHITE
+	max_stamp.scale = Vector2(1.6, 1.6)
+	var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(max_stamp, "scale", Vector2.ONE, 0.16)
+	tw.tween_interval(0.25)
+	tw.tween_property(max_stamp, "modulate:a", 0.0, 0.2)
+	tw.tween_callback(func() -> void: max_stamp.visible = false)
+
+
+## Light the pips left to right instead of only the last one, so the eye reads
+## the whole track completing.
+func _cascade_pips(card: Dictionary) -> void:
+	var pips := card["pips"] as HBoxContainer
+	if pips == null:
+		return
+	for i in pips.get_child_count():
+		var pip := pips.get_child(i) as ColorRect
+		if pip == null:
+			continue
+		pip.color = Color.WHITE
+		var tw := create_tween()
+		tw.tween_interval(PIP_STAGGER * float(i))
+		tw.tween_property(pip, "color", Color(1.0, 0.705882, 0.368627), 0.35)
 
 
 func _on_coins_changed(count: int) -> void:

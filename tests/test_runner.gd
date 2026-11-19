@@ -3173,6 +3173,30 @@ func _test_shop() -> void:
 		"the fanfare and the chime are different clips")
 	_check(panel.max_upgrade_sfx.volume_db > panel.upgrade_sfx.volume_db,
 		"the fanfare is mixed louder than the purchase chime")
+
+	# Max-upgrade FX contract: one shared burst, ring and stamp, all cold/hidden
+	# until a finishing purchase fires them.
+	_check(panel.max_burst != null, "the store carries a max-upgrade star burst")
+	_check(panel.max_burst.one_shot, "the star burst fires once per celebration")
+	_check(panel.max_burst.texture != null, "the star burst has a spark texture")
+	_check(
+		panel.max_burst.texture.resource_path.contains("spark_star"),
+		"the star burst uses the committed spark art",
+	)
+	_check(panel.max_burst.amount >= 12, "the star burst has a full spray")
+	_check_eq(panel.max_burst.z_index, 2, "the star burst draws above the card")
+	_check(not panel.max_burst.emitting, "the star burst idles cold")
+	_check(panel.max_ring != null, "the store carries a shockwave ring")
+	_check_eq(panel.max_ring.points.size(), ShopPanel.RING_POINTS,
+		"the ring is a full circle")
+	_check(panel.max_ring.closed, "the ring closes its loop")
+	_check_eq(panel.max_ring.z_index, 2, "the ring draws above the card")
+	_check(not panel.max_ring.visible, "the shockwave ring hides at rest")
+	_check(panel.max_stamp != null, "the store carries a MAX! stamp")
+	_check_eq(panel.max_stamp.text, "MAX!", "the stamp reads MAX!")
+	_check_eq(panel.max_stamp.z_index, 3, "the stamp draws above every other layer")
+	_check(not panel.max_stamp.visible, "the MAX! stamp hides at rest")
+	_check_eq(panel.max_burst_count, 0, "nothing celebrates before a purchase")
 	_check_eq(panel.upgrade_play_count, 0, "the store is silent before any purchase")
 	_check_eq(panel.max_upgrade_play_count, 0,
 		"the store never fanfares before any purchase")
@@ -3186,6 +3210,10 @@ func _test_shop() -> void:
 	_check_eq(panel.upgrade_play_count, 1, "a completed purchase plays the chime")
 	_check_eq(panel.max_upgrade_play_count, 0,
 		"a mid-track purchase does not fanfare")
+	_check_eq(panel.max_burst_count, 0,
+		"a mid-track purchase fires no celebration")
+	_check(not panel.max_ring.visible, "a mid-track purchase shows no ring")
+	_check(not panel.max_stamp.visible, "a mid-track purchase shows no stamp")
 
 	# The purchase that finishes a track: the fanfare replaces the chime.
 	GameState.shop_levels[GameConfig.ShopUpgrade.HEARTS] = 2
@@ -3197,6 +3225,18 @@ func _test_shop() -> void:
 		"finishing a track plays the fanfare")
 	_check(panel.max_upgrade_sfx.playing, "the fanfare actually plays")
 	_check_eq(panel.upgrade_play_count, 1, "the fanfare replaces the chime")
+	_check_eq(panel.max_burst_count, 1,
+		"finishing a track fires the celebration")
+	_check(panel.max_burst.emitting, "the star burst is emitting")
+	_check(panel.max_ring.visible, "the shockwave ring shows")
+	_check(panel.max_ring.modulate.a > 0.0, "the ring starts opaque")
+	_check(panel.max_stamp.visible, "the MAX! stamp shows")
+	_check(panel.max_stamp.modulate.a > 0.0, "the stamp starts opaque")
+	_check(panel.max_stamp.scale.x > 1.0,
+		"the stamp pops in oversized before settling")
+	_check_eq(panel.max_stamp.get_theme_font("font").resource_path,
+		"res://assets/fonts/Nunito-ExtraBold.ttf",
+		"the stamp uses the store's ExtraBold face")
 
 	# Rejected buys stay silent on both channels.
 	GameState.coins = 1000
@@ -3204,6 +3244,7 @@ func _test_shop() -> void:
 	_check_eq(panel.max_upgrade_play_count, 1,
 		"a maxed card does not fanfare again")
 	_check_eq(panel.upgrade_play_count, 1, "a maxed card does not chime")
+	_check_eq(panel.max_burst_count, 1, "a maxed card does not re-celebrate")
 	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = 2
 	panel._on_buy_pressed(GameConfig.ShopUpgrade.SHIELD)
 	_check_eq(panel.max_upgrade_play_count, 1,
