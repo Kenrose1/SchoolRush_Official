@@ -189,7 +189,6 @@ func _ready() -> void:
 	pursuer.caught.connect(_on_pursuer_caught)
 	pursuer.lunge_finished.connect(_on_lunge_finished)
 	arrest.animation_finished.connect(_on_arrest_finished)
-	fail_sting.finished.connect(_on_fail_sting_finished)
 	hud.set_hearts(player.health, player.max_health)
 	hud.set_shields(player.shield_charges, player.shield_max)
 	pause_menu.setup(self)
@@ -309,22 +308,14 @@ func _stop_music() -> void:
 	_music_tween.tween_callback(music.stop)
 
 
-## Failure presentation: a short sting at the results reveal, then the sad bed
-## once the sting has rung out. Guarded so the lunge fallback and the arrest
-## callback cannot queue it twice.
+## Failure presentation: the sting and the sad bed start together, so the
+## reveal lands on one hit instead of a hand-off. Guarded so the lunge fallback
+## and the arrest callback cannot queue it twice.
 func _play_fail_cue() -> void:
 	if _fail_cue_started:
 		return
 	_fail_cue_started = true
 	fail_cue_play_count += 1
-	fail_sting.play()
-
-
-## The sting's `finished` callback: hand the room over to the looping bed.
-func _on_fail_sting_finished() -> void:
-	# Defensive: a stale signal from a scene being torn down has nowhere to go.
-	if not is_inside_tree() or _fail_cue_started == false:
-		return
 	# Loop in code for the same reason as _start_music: a reimport cannot switch
 	# it off silently. MP3 is the committed format, OGG kept for parity.
 	if fail_music.stream is AudioStreamMP3:
@@ -333,6 +324,7 @@ func _on_fail_sting_finished() -> void:
 		(fail_music.stream as AudioStreamOggVorbis).loop = true
 	fail_music.stream_paused = false
 	fail_music.volume_db = GameConfig.MUSIC_SILENT_DB
+	fail_sting.play()
 	fail_music.play()
 	create_tween().tween_property(
 		fail_music, "volume_db", GameConfig.FAIL_MUSIC_DB,

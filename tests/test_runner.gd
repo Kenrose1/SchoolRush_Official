@@ -3662,8 +3662,6 @@ func _test_run_audio() -> void:
 		_check(sting_clip != null, "the fail sting is the committed MP3")
 		if sting_clip != null:
 			_check(not sting_clip.loop, "the fail sting does not loop")
-		_check(fail_sting.finished.is_connected(world._on_fail_sting_finished),
-			"the bed is chained to the sting's finished signal")
 		_check_eq(world.fail_cue_play_count, 0, "no fail cue before any failure")
 	main.queue_free()
 
@@ -4252,22 +4250,19 @@ func _test_scenes() -> void:
 				"caught fills the final score readout",
 			)
 
-			# Failure audio: the sting lands with the reveal, the bed waits for
-			# the sting to ring out, then loops under the results card.
+			# Failure audio: the sting and the looping bed start together on the
+			# reveal, so the panel lands on one cue rather than a hand-off.
 			_check_eq(world.fail_cue_play_count, 1, "a caught run queues the fail cue once")
 			_check(world.fail_sting.playing, "the fail sting plays on the reveal")
-			_check(not world.fail_music.playing, "the fail bed waits for the sting")
-			world._play_fail_cue()
-			_check_eq(world.fail_cue_play_count, 1, "the fail cue cannot restart")
-			# Stop the real 2 s clip so its finished signal cannot fire later in
-			# the suite, then drive the chain by hand.
-			world.fail_sting.stop()
-			world._on_fail_sting_finished()
-			_check(world.fail_music.playing, "the fail bed starts after the sting")
+			_check(world.fail_music.playing, "the fail bed starts with the sting")
 			var fail_clip := world.fail_music.stream as AudioStreamMP3
 			_check(fail_clip != null, "the fail bed is the committed MP3")
 			if fail_clip != null:
 				_check(fail_clip.loop, "the fail bed loops")
+			world._play_fail_cue()
+			_check_eq(world.fail_cue_play_count, 1, "the fail cue cannot restart")
+			# Silence both so nothing plays through the rest of the suite.
+			world.fail_sting.stop()
 			world.fail_music.stop()
 
 			# Endless: the street is terminal, the school zone never draws.

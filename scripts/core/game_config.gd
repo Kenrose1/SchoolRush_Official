@@ -708,12 +708,12 @@ const MUSIC_FADE_IN_TIME := 0.6
 const MUSIC_DUCK_TIME := 0.25
 const MUSIC_FADE_OUT_TIME := 0.7
 
-## Failure cue: a short sting on the results reveal, then a bed that fades in
-## only when the sting has finished. Victory stays silent by design.
+## Failure cue: a sting and a looping bed, played together on the reveal.
+## Victory stays silent by design.
 const FAIL_STING_DB := -4.0
-## Sits under the sting's -4 so the transition reads as a hand-off, not a cut.
+## Sits under the sting's -4 so the sting still reads on top of the bed.
 const FAIL_MUSIC_DB := -12.0
-const FAIL_MUSIC_FADE_IN := 1.2
+const FAIL_MUSIC_FADE_IN := 0.6
 
 # --- Countdown ---------------------------------------------------------------
 
