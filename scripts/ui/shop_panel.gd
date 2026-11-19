@@ -39,6 +39,7 @@ const SUB_FONT: FontFile = preload(
 @onready var grid: GridContainer = %UpgradeGrid
 @onready var close_button: Button = %CloseButton
 @onready var upgrade_sfx: AudioStreamPlayer = %UpgradeSfx
+@onready var max_upgrade_sfx: AudioStreamPlayer = %MaxUpgradeSfx
 
 ## Per-kind card widgets, filled in _ready.
 var _cards: Dictionary = {}
@@ -46,6 +47,9 @@ var _cards: Dictionary = {}
 var _last_wallet: int = -1
 ## Completed purchases - the confirmation chime is counted for the test suite.
 var upgrade_play_count: int = 0
+## Purchases that completed an upgrade - the fanfare replaces the chime there,
+## so the two counters are exclusive and the suite can assert that.
+var max_upgrade_play_count: int = 0
 
 
 func _ready() -> void:
@@ -235,17 +239,58 @@ func _refresh() -> void:
 func _on_buy_pressed(kind: int) -> void:
 	if not GameState.buy_upgrade(kind):
 		return
-	# Only a completed purchase chimes; unaffordable and maxed cards stay silent.
-	upgrade_play_count += 1
-	upgrade_sfx.play()
+	# Only a completed purchase makes a sound; unaffordable and maxed cards stay
+	# silent. The purchase that finishes a track gets the fanfare INSTEAD of the
+	# chime, so the milestone is readable by ear alone.
+	var max_level := int(GameConfig.SHOP_UPGRADES[kind]["max_level"])
+	var maxed := GameState.shop_level(kind) >= max_level
+	if maxed:
+		max_upgrade_play_count += 1
+		max_upgrade_sfx.play()
+	else:
+		upgrade_play_count += 1
+		upgrade_sfx.play()
 	_refresh()
-	# Pop the bought card so the purchase reads as an event, not a text swap.
 	var card: Dictionary = _cards[kind]
 	var panel := card["card"] as PanelContainer
 	panel.pivot_offset = panel.size / 2.0
+	if maxed:
+		_celebrate_max(panel, card)
+		return
+	# Pop the bought card so the purchase reads as an event, not a text swap.
 	var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(panel, "scale", Vector2(1.05, 1.05), 0.08)
 	tw.tween_property(panel, "scale", Vector2.ONE, 0.14)
+
+
+## Finishing an upgrade is the biggest event the store has, so it gets one more
+## layer than a normal buy: a bigger spring, a gold border flash, the final pip
+## popping white, and the MAX label flaring. No shake - a menu should not move
+## the player's view.
+func _celebrate_max(panel: PanelContainer, card: Dictionary) -> void:
+	var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(panel, "scale", Vector2(1.12, 1.12), 0.1)
+	tw.tween_property(panel, "scale", Vector2(0.97, 0.97), 0.1)
+	tw.tween_property(panel, "scale", Vector2.ONE, 0.16)
+
+	var style := panel.get_theme_stylebox("panel") as StyleBoxFlat
+	if style != null:
+		style.border_color = Color(1.0, 0.85, 0.4)
+		create_tween().tween_property(
+			style, "border_color", Color(1.0, 0.705882, 0.368627, 0.3), 0.7)
+
+	var pips := card["pips"] as HBoxContainer
+	if pips != null and pips.get_child_count() > 0:
+		var last_pip := pips.get_child(pips.get_child_count() - 1) as ColorRect
+		if last_pip != null:
+			last_pip.color = Color.WHITE
+			create_tween().tween_property(
+				last_pip, "color", Color(1.0, 0.705882, 0.368627), 0.5)
+
+	var buy := card["buy"] as Button
+	if buy != null:
+		buy.modulate = Color(1.7, 1.4, 0.75)
+		create_tween().tween_property(buy, "modulate", Color.WHITE, 0.45)
 
 
 func _on_coins_changed(count: int) -> void:

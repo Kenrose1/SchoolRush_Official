@@ -4,6 +4,7 @@
 [ext_resource type="FontFile" uid="uid://cwhpo71tlndps" path="res://assets/fonts/Nunito-ExtraBold.ttf" id="2_xbold"]
 [ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
 [ext_resource type="AudioStream" uid="uid://bgmckdtuggibm" path="res://assets/sounds/upgradesound.mp3" id="3_upgrade"]
+[ext_resource type="AudioStream" path="res://assets/sounds/maxupgrade.mp3" id="4_maxupgrade"]
 
 [sub_resource type="StyleBoxFlat" id="sb_panel"]
 content_margin_left = 44.0
@@ -128,4 +129,10 @@ text = "CLOSE"
 unique_name_in_owner = true
 stream = ExtResource("3_upgrade")
 volume_db = -2.0
+bus = &"SFX"
+
+[node name="MaxUpgradeSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("4_maxupgrade")
+volume_db = 3.0
 bus = &"SFX"

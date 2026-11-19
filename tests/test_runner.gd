@@ -3145,12 +3145,14 @@ func _test_shop() -> void:
 		% store_height)
 	fit_frame.queue_free()
 
-	# Purchase chime: one per completed buy, on the SFX bus, silent when the
-	# purchase is rejected (unaffordable or already maxed). This section owns
-	# the levels it touches: _test_shop restores a snapshot dict by reference,
-	# so a stray level here would follow every later section.
+	# Purchase audio: one clip per completed buy, on the SFX bus, silent when
+	# the purchase is rejected (unaffordable or already maxed). A buy that
+	# finishes the track plays the fanfare INSTEAD of the chime. This section
+	# owns the levels it touches: _test_shop restores a snapshot dict by
+	# reference, so a stray level here would follow every later section.
 	var hearts_before := GameState.shop_level(GameConfig.ShopUpgrade.HEARTS)
 	var shield_before := GameState.shop_level(GameConfig.ShopUpgrade.SHIELD)
+	var coins_before := GameState.coins
 	_check(panel.upgrade_sfx != null, "the store carries an upgrade sound player")
 	_check_eq(panel.upgrade_sfx.bus, "SFX", "the upgrade sound routes to the SFX bus")
 	_check(panel.upgrade_sfx.stream != null, "the upgrade sound has a stream")
@@ -3158,14 +3160,58 @@ func _test_shop() -> void:
 		panel.upgrade_sfx.stream.resource_path.contains("upgradesound"),
 		"the store chimes with the upgrade sound",
 	)
+	_check(panel.max_upgrade_sfx != null, "the store carries a max-upgrade fanfare")
+	_check_eq(panel.max_upgrade_sfx.bus, "SFX",
+		"the max-upgrade fanfare routes to the SFX bus")
+	_check(panel.max_upgrade_sfx.stream != null,
+		"the max-upgrade fanfare has a stream")
+	_check(
+		panel.max_upgrade_sfx.stream.resource_path.contains("maxupgrade"),
+		"finishing a track uses the committed fanfare",
+	)
+	_check(panel.max_upgrade_sfx.stream != panel.upgrade_sfx.stream,
+		"the fanfare and the chime are different clips")
+	_check(panel.max_upgrade_sfx.volume_db > panel.upgrade_sfx.volume_db,
+		"the fanfare is mixed louder than the purchase chime")
 	_check_eq(panel.upgrade_play_count, 0, "the store is silent before any purchase")
+	_check_eq(panel.max_upgrade_play_count, 0,
+		"the store never fanfares before any purchase")
+
+	# Mid-track purchase: the chime, never the fanfare.
+	GameState.shop_levels[GameConfig.ShopUpgrade.HEARTS] = 0
+	GameState.coins = 1000
 	panel._on_buy_pressed(GameConfig.ShopUpgrade.HEARTS)
+	_check_eq(GameState.shop_level(GameConfig.ShopUpgrade.HEARTS), 1,
+		"a mid-track purchase raises one level")
 	_check_eq(panel.upgrade_play_count, 1, "a completed purchase plays the chime")
+	_check_eq(panel.max_upgrade_play_count, 0,
+		"a mid-track purchase does not fanfare")
+
+	# The purchase that finishes a track: the fanfare replaces the chime.
+	GameState.shop_levels[GameConfig.ShopUpgrade.HEARTS] = 2
+	GameState.coins = 1000
+	panel._on_buy_pressed(GameConfig.ShopUpgrade.HEARTS)
+	_check_eq(GameState.shop_level(GameConfig.ShopUpgrade.HEARTS), 3,
+		"the final purchase reaches the cap")
+	_check_eq(panel.max_upgrade_play_count, 1,
+		"finishing a track plays the fanfare")
+	_check(panel.max_upgrade_sfx.playing, "the fanfare actually plays")
+	_check_eq(panel.upgrade_play_count, 1, "the fanfare replaces the chime")
+
+	# Rejected buys stay silent on both channels.
+	GameState.coins = 1000
+	panel._on_buy_pressed(GameConfig.ShopUpgrade.HEARTS)
+	_check_eq(panel.max_upgrade_play_count, 1,
+		"a maxed card does not fanfare again")
+	_check_eq(panel.upgrade_play_count, 1, "a maxed card does not chime")
 	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = 2
 	panel._on_buy_pressed(GameConfig.ShopUpgrade.SHIELD)
-	_check_eq(panel.upgrade_play_count, 1, "a maxed card buys nothing and stays silent")
+	_check_eq(panel.max_upgrade_play_count, 1,
+		"every maxed card stays silent")
+	_check_eq(panel.upgrade_play_count, 1, "every maxed card stays silent")
 	GameState.shop_levels[GameConfig.ShopUpgrade.HEARTS] = hearts_before
 	GameState.shop_levels[GameConfig.ShopUpgrade.SHIELD] = shield_before
+	GameState.coins = coins_before
 
 	# Card labels use the game's Nunito fonts, not the engine default.
 	var card: Dictionary = panel._cards[GameConfig.ShopUpgrade.HEARTS]
