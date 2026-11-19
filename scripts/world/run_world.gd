@@ -79,6 +79,8 @@ var _school_background_texture: Texture2D
 @onready var dog_bark_run_sfx: AudioStreamPlayer = $DogBarkRunSfx
 @onready var music: AudioStreamPlayer = $Music
 @onready var tier_sfx: AudioStreamPlayer = $TierSfx
+@onready var fail_sting: AudioStreamPlayer = $FailStingSfx
+@onready var fail_music: AudioStreamPlayer = $FailMusicSfx
 @onready var countdown: CountdownOverlay = $Hud/HudRoot/Countdown
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
@@ -103,6 +105,9 @@ var momentum_time_left: float = 0.0
 var momentum_recover_time_left: float = 0.0
 ## True once the chase-ending lunge has started (caught or hazard-hit mid-chase).
 var _caught: bool = false
+## True once the failure cue has been queued, so a double game-over call (the
+## lunge fallback plus the arrest callback) cannot restart the sting or bed.
+var _fail_cue_started: bool = false
 
 ## Seconds the home zone lasts. Editable in the Inspector so the house run can
 ## be extended without touching GameConfig; HOME and STREET are timed, SCHOOL
@@ -142,6 +147,8 @@ var dog_bark_run_play_count: int = 0
 ## Test counter: how many times the combo tier riser fired. One per rung per
 ## run at most (ScoreSystem's paid-set rule), so the suite can assert it.
 var tier_up_play_count: int = 0
+## Test counter: the failure cue is queued exactly once per run.
+var fail_cue_play_count: int = 0
 ## Per-bark jitter source, so three barks in one encounter never sound like
 ## the same sample three times.
 var _bark_rng := RandomNumberGenerator.new()
@@ -182,6 +189,7 @@ func _ready() -> void:
 	pursuer.caught.connect(_on_pursuer_caught)
 	pursuer.lunge_finished.connect(_on_lunge_finished)
 	arrest.animation_finished.connect(_on_arrest_finished)
+	fail_sting.finished.connect(_on_fail_sting_finished)
 	hud.set_hearts(player.health, player.max_health)
 	hud.set_shields(player.shield_charges, player.shield_max)
 	pause_menu.setup(self)
@@ -299,6 +307,36 @@ func _stop_music() -> void:
 		return
 	_fade_music_to(GameConfig.MUSIC_SILENT_DB, GameConfig.MUSIC_FADE_OUT_TIME)
 	_music_tween.tween_callback(music.stop)
+
+
+## Failure presentation: a short sting at the results reveal, then the sad bed
+## once the sting has rung out. Guarded so the lunge fallback and the arrest
+## callback cannot queue it twice.
+func _play_fail_cue() -> void:
+	if _fail_cue_started:
+		return
+	_fail_cue_started = true
+	fail_cue_play_count += 1
+	fail_sting.play()
+
+
+## The sting's `finished` callback: hand the room over to the looping bed.
+func _on_fail_sting_finished() -> void:
+	# Defensive: a stale signal from a scene being torn down has nowhere to go.
+	if not is_inside_tree() or _fail_cue_started == false:
+		return
+	# Loop in code for the same reason as _start_music: a reimport cannot switch
+	# it off silently. MP3 is the committed format, OGG kept for parity.
+	if fail_music.stream is AudioStreamMP3:
+		(fail_music.stream as AudioStreamMP3).loop = true
+	elif fail_music.stream is AudioStreamOggVorbis:
+		(fail_music.stream as AudioStreamOggVorbis).loop = true
+	fail_music.stream_paused = false
+	fail_music.volume_db = GameConfig.MUSIC_SILENT_DB
+	fail_music.play()
+	create_tween().tween_property(
+		fail_music, "volume_db", GameConfig.FAIL_MUSIC_DB,
+		GameConfig.FAIL_MUSIC_FADE_IN)
 
 
 ## Honk when the car's exclamation appears, not when the car spawns: the horn
@@ -608,6 +646,9 @@ func _finish_campaign() -> void:
 
 
 func _show_game_over(outcome: int) -> void:
+	# Failure gets the sting, then the looping bed. Victory stays silent.
+	if outcome != ResultsScreen.Outcome.VICTORY:
+		_play_fail_cue()
 	# The progress bar must not peek out from under the results overlay.
 	if progress_hud != null:
 		progress_hud.visible = false

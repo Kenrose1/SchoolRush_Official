@@ -3552,17 +3552,23 @@ func _test_menu_music() -> void:
 	menu.shop_panel.close()
 	menu.settings_panel.close()
 
-	# The run scene now carries its own bed (it used to be menu-only), so the
-	# guarantee is reversed: exactly one music player, on the Music bus.
+	# The run scene now carries its own bed (it used to be menu-only). The
+	# failure bed shares the Music bus, so the guarantee is one *run* bed plus
+	# one explicitly separate fail bed - never a second run bed.
 	var run_root := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(run_root)
 	var run_music: Array[AudioStreamPlayer] = []
 	for player_node: Node in run_root.find_children("*", "AudioStreamPlayer", true, false):
 		if (player_node as AudioStreamPlayer).bus == &"Music":
 			run_music.append(player_node as AudioStreamPlayer)
-	_check_eq(run_music.size(), 1, "the run scene carries exactly one music bed")
-	if run_music.size() == 1:
-		_check(run_music[0].stream != null, "the run bed has a stream")
+	_check_eq(run_music.size(), 2,
+		"the run scene carries the run bed and the fail bed")
+	var run_bed := run_root.get_node_or_null("RunWorld/Music") as AudioStreamPlayer
+	_check(run_bed != null, "the run bed is the Music node")
+	if run_bed != null:
+		_check(run_bed.stream != null, "the run bed has a stream")
+	_check(run_root.get_node_or_null("RunWorld/FailMusicSfx") != null,
+		"the second Music-bus player is the fail bed")
 	run_root.queue_free()
 	menu.queue_free()
 
@@ -3638,6 +3644,27 @@ func _test_run_audio() -> void:
 	_check_eq(tier_sfx.bus, &"SFX", "the tier riser routes to the SFX bus")
 	_check(tier_sfx.stream != null, "the tier riser has a stream")
 	_check_eq(world.tier_up_play_count, 0, "no riser before any rung")
+
+	# Failure cue: a short sting on the SFX bus, and a separate looping bed on
+	# the Music bus that only starts once the sting has rung out.
+	var fail_sting := world.fail_sting as AudioStreamPlayer
+	var fail_music := world.fail_music as AudioStreamPlayer
+	_check(fail_sting != null, "the world owns a fail sting")
+	_check(fail_music != null, "the world owns a fail bed")
+	if fail_sting != null and fail_music != null:
+		_check_eq(fail_sting.bus, &"SFX", "the fail sting routes to the SFX bus")
+		_check_eq(fail_music.bus, &"Music", "the fail bed routes to the Music bus")
+		_check(fail_sting.stream != null, "the fail sting has a stream")
+		_check(fail_music.stream != null, "the fail bed has a stream")
+		_check(fail_sting.stream != fail_music.stream,
+			"the sting and the bed are different clips")
+		var sting_clip := fail_sting.stream as AudioStreamMP3
+		_check(sting_clip != null, "the fail sting is the committed MP3")
+		if sting_clip != null:
+			_check(not sting_clip.loop, "the fail sting does not loop")
+		_check(fail_sting.finished.is_connected(world._on_fail_sting_finished),
+			"the bed is chained to the sting's finished signal")
+		_check_eq(world.fail_cue_play_count, 0, "no fail cue before any failure")
 	main.queue_free()
 
 
@@ -4225,6 +4252,24 @@ func _test_scenes() -> void:
 				"caught fills the final score readout",
 			)
 
+			# Failure audio: the sting lands with the reveal, the bed waits for
+			# the sting to ring out, then loops under the results card.
+			_check_eq(world.fail_cue_play_count, 1, "a caught run queues the fail cue once")
+			_check(world.fail_sting.playing, "the fail sting plays on the reveal")
+			_check(not world.fail_music.playing, "the fail bed waits for the sting")
+			world._play_fail_cue()
+			_check_eq(world.fail_cue_play_count, 1, "the fail cue cannot restart")
+			# Stop the real 2 s clip so its finished signal cannot fire later in
+			# the suite, then drive the chain by hand.
+			world.fail_sting.stop()
+			world._on_fail_sting_finished()
+			_check(world.fail_music.playing, "the fail bed starts after the sting")
+			var fail_clip := world.fail_music.stream as AudioStreamMP3
+			_check(fail_clip != null, "the fail bed is the committed MP3")
+			if fail_clip != null:
+				_check(fail_clip.loop, "the fail bed loops")
+			world.fail_music.stop()
+
 			# Endless: the street is terminal, the school zone never draws.
 			world.set_run_mode(GameConfig.RunMode.ENDLESS)
 			world.distance = world.home_zone_length + world.street_zone_length + 5000.0
@@ -4302,6 +4347,10 @@ func _test_scenes() -> void:
 			_check(far.results.visible, "physics crossing the line shows the results")
 			_check_eq(far.results.title_label.text, "MADE IT TO CLASS!",
 				"a physics-driven finish reads MADE IT!")
+			_check_eq(far.fail_cue_play_count, 0,
+				"a victory never queues the fail cue")
+			_check(not far.fail_sting.playing, "the victory reveal is silent")
+			_check(not far.fail_music.playing, "no fail bed under a victory")
 			_check(far.distance < far.campaign_finish_distance + GameConfig.RUN_SPEED,
 				"the world froze within a second of the line")
 			_check_eq(far.results.awarded_medal(), GameConfig.Medal.SILVER,

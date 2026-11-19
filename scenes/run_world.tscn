@@ -13,6 +13,8 @@
 [ext_resource type="AudioStream" path="res://assets/sounds/dog_bark_run.wav" id="12_bark_run"]
 [ext_resource type="AudioStream" path="res://assets/sounds/Backgroundrunmusic.mp3" id="13_music"]
 [ext_resource type="AudioStream" path="res://assets/sounds/tier_up.wav" id="14_tier"]
+[ext_resource type="AudioStream" path="res://assets/sounds/failed.mp3" id="15_fail_sting"]
+[ext_resource type="AudioStream" path="res://assets/sounds/failedbackground.mp3" id="16_fail_music"]
 
 [node name="RunWorld" type="Node2D" unique_id=894551756]
 script = ExtResource("1_world")
@@ -68,6 +70,18 @@ unique_name_in_owner = true
 stream = ExtResource("14_tier")
 volume_db = -6.0
 bus = &"SFX"
+
+[node name="FailStingSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("15_fail_sting")
+volume_db = -4.0
+bus = &"SFX"
+
+[node name="FailMusicSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("16_fail_music")
+volume_db = -12.0
+bus = &"Music"
 
 [node name="Hud" parent="." unique_id=156043162 instance=ExtResource("4_hud")]
 
