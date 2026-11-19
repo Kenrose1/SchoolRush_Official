@@ -3070,6 +3070,32 @@ func _test_shop() -> void:
 	_check_eq(buy_button.text, "BUY  %d" % GameConfig.shop_cost(
 		GameConfig.ShopUpgrade.HEARTS, 0), "the buy button shows the next price")
 
+	# Icon sizing: the upgrade art is authored at 267-332 px, so it is drawn
+	# downscaled and needs linear filtering. 64 px is the largest card icon that
+	# still keeps the whole store inside the 1080 design viewport.
+	var fit_panel := panel_scene.instantiate() as ShopPanel
+	var fit_frame := Control.new()
+	fit_frame.custom_minimum_size = Vector2(1920.0, 1080.0)
+	add_child(fit_frame)
+	fit_frame.add_child(fit_panel)
+	var card_icon := (
+		fit_panel._cards[GameConfig.ShopUpgrade.SPEED]["card"].get_child(0)
+		as VBoxContainer).get_child(0) as TextureRect
+	_check_near(card_icon.custom_minimum_size.x, ShopPanel.CARD_ICON_SIZE,
+		0.001, "cards draw the upgrade icon at 64 px")
+	_check_eq(card_icon.texture_filter, CanvasItem.TEXTURE_FILTER_LINEAR,
+		"card icons use linear filtering for the downscale")
+	var coin_icon := fit_panel.wallet_chip.get_child(0) as TextureRect
+	_check_near(coin_icon.custom_minimum_size.x, ShopPanel.WALLET_ICON_SIZE,
+		0.001, "the wallet coin matches the new icon scale")
+	_check_eq(coin_icon.texture_filter, CanvasItem.TEXTURE_FILTER_LINEAR,
+		"the wallet coin uses linear filtering")
+	var store_height := fit_panel.get_combined_minimum_size().y
+	_check(store_height <= 1080.0,
+		"the store's natural height fits the 1080 design viewport (%.0f px)"
+		% store_height)
+	fit_frame.queue_free()
+
 	# Purchase chime: one per completed buy, on the SFX bus, silent when the
 	# purchase is rejected (unaffordable or already maxed). This section owns
 	# the levels it touches: _test_shop restores a snapshot dict by reference,

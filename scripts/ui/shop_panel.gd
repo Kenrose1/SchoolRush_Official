@@ -20,6 +20,13 @@ const CARD_ICONS := {
 	GameConfig.ShopUpgrade.SHIELD: preload("res://assets/icon/upgrades/shield.png"),
 }
 
+## Icon sizes. The upgrade art is authored at 267-332 px, so it is always drawn
+## downscaled and needs linear filtering. 64 px is the largest card icon that
+## still fits the 1080 design height (the suite guards that fit). The coin is a
+## 64 px source, so 40 is close to native.
+const CARD_ICON_SIZE := 64.0
+const WALLET_ICON_SIZE := 40.0
+
 # Card labels are built in code, so the Nunito weights are applied
 # explicitly - the engine default font would otherwise take over.
 const NAME_FONT: FontFile = preload(
@@ -88,10 +95,12 @@ func _build_cards() -> void:
 
 		var icon := TextureRect.new()
 		icon.texture = CARD_ICONS[kind]
-		icon.custom_minimum_size = Vector2(44.0, 44.0)
+		icon.custom_minimum_size = Vector2.ONE * CARD_ICON_SIZE
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		# Illustration art, not pixel art: nearest filtering aliases badly at
+		# the 4-5x downscale these sources need.
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(icon)
@@ -153,7 +162,7 @@ func _make_card_frame() -> PanelContainer:
 	style.content_margin_bottom = 18.0
 	card.add_theme_stylebox_override("panel", style)
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
+	vbox.add_theme_constant_override("separation", 8)
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	card.add_child(vbox)
 	return card
@@ -188,10 +197,10 @@ func _buy_style(border: Color) -> StyleBoxFlat:
 func _build_wallet_icon() -> void:
 	var icon := TextureRect.new()
 	icon.texture = COIN_ICON
-	icon.custom_minimum_size = Vector2(30.0, 30.0)
+	icon.custom_minimum_size = Vector2.ONE * WALLET_ICON_SIZE
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wallet_chip.add_child(icon)
 	wallet_chip.move_child(icon, 0)
