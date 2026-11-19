@@ -294,9 +294,11 @@ func _on_chase_faded() -> void:
 		_fade_music_to(GameConfig.MUSIC_VOLUME_DB, GameConfig.MUSIC_DUCK_TIME * 2.0)
 
 
-## Pausing the tree does not stop audio, so the bed has to be frozen by hand.
+## Pausing the tree does not stop audio, so the bed and the countdown voice have
+## to be frozen by hand.
 func _on_pause_changed(paused: bool) -> void:
 	music.stream_paused = paused
+	countdown.set_audio_paused(paused)
 
 
 ## Fade out and stop. A second call before the fade finishes simply restarts

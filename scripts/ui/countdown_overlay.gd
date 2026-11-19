@@ -9,7 +9,8 @@ extends Control
 ## would leave the player guessing when the controls went live.
 ##
 ## The three numbers climb a pitch ladder (one sample, COUNTDOWN_TICK_PITCH_STEP
-## per beat); GO is its own brighter sample.
+## per beat); GO is its own brighter sample. A spoken 3-2-1-GO sample is layered
+## underneath, seeked to each cue so both layers land on the same beat.
 
 ## Emitted on the GO frame, exactly once per countdown. The run unlocks here,
 ## while the GO pop is still on screen, so there are no dead frames.
@@ -31,6 +32,12 @@ const GO_POP_SCALE := 1.5
 const BEAT_FADE_TIME := 0.16
 ## Final fade of the whole overlay once the GO cue has held.
 const FADE_OUT_TIME := 0.2
+## Cue onsets inside 321go.mp3, measured from the sample: "3", "2", "1", "GO".
+## The overlay seeks to each one per beat instead of free-running the file, so
+## the voice lands on the number even though the recording's own spacing drifts
+## slightly from the 1 s beat clock - and a skip can jump straight to GO.
+const CUE_OFFSETS: Array[float] = [0.5, 1.51, 2.44]
+const GO_CUE_OFFSET := 3.48
 
 ## True while the overlay owns the screen and the run is still locked.
 var is_active: bool = false
@@ -43,6 +50,9 @@ var beat_time: float = 0.0
 ## Test counters: how many beats were shown, and how many skips happened.
 var beat_play_count: int = 0
 var skip_count: int = 0
+## Last position the spoken cue was seeked to. The headless dummy audio driver
+## has no advancing playback clock, so the suite asserts this instead.
+var last_cue_offset: float = -1.0
 
 ## Which rung of the ladder the next tick sits on (reset by begin()).
 var _tick_index: int = 0
@@ -52,6 +62,7 @@ var _tween: Tween
 @onready var beat_label: Label = $Center/Beat
 @onready var tick_sfx: AudioStreamPlayer = $TickSfx
 @onready var go_sfx: AudioStreamPlayer = $GoSfx
+@onready var cue_sfx: AudioStreamPlayer = %CueSfx
 
 
 func _ready() -> void:
@@ -59,6 +70,7 @@ func _ready() -> void:
 	beat_label.pivot_offset = BEAT_PIVOT
 	tick_sfx.volume_db = GameConfig.COUNTDOWN_SFX_DB
 	go_sfx.volume_db = GameConfig.COUNTDOWN_SFX_DB
+	cue_sfx.volume_db = GameConfig.COUNTDOWN_CUE_DB
 
 
 ## Start the countdown from beat 3. Safe to call again after a dismiss.
@@ -74,6 +86,9 @@ func begin() -> void:
 	_tick_index = 0
 	beat_play_count = 0
 	skip_count = 0
+	last_cue_offset = -1.0
+	# A restart during the previous GO tail must not carry that voice over.
+	cue_sfx.stop()
 	_show_beat()
 
 
@@ -106,9 +121,18 @@ func advance(delta: float) -> void:
 ## the overlay is abandoned; the real path always reaches GO first.
 func dismiss() -> void:
 	_kill_tween()
+	# The beeps are 0.1 s one-shots and can ring out; the spoken cue is seconds
+	# long and would otherwise talk over the run.
+	cue_sfx.stop()
 	is_active = false
 	visible = false
 	modulate.a = 1.0
+
+
+## Pausing the tree does not stop audio, so the voice is frozen by hand (same
+## rule as RunWorld's music bed). A mid-tick beep is short enough to ring out.
+func set_audio_paused(paused: bool) -> void:
+	cue_sfx.stream_paused = paused
 
 
 ## Any input after START_COUNTDOWN_SKIP_DELAY fast-forwards to GO. Mouse motion
@@ -169,6 +193,7 @@ func _show_go() -> void:
 	beat_label.modulate = Color(1, 1, 1, 1)
 	beat_label.scale = Vector2(GO_POP_SCALE, GO_POP_SCALE)
 	go_sfx.play()
+	_play_cue(GO_CUE_OFFSET)
 	# Fade the scrim first so the road is clear while the run starts moving,
 	# then take the GO cue with it.
 	var tw := create_tween()
@@ -188,11 +213,21 @@ func _on_faded() -> void:
 	modulate.a = 1.0
 
 
-## One sample, one rung per beat: ~660 / 832 / 1048 Hz for 3 / 2 / 1.
+## One sample, one rung per beat: ~660 / 832 / 1048 Hz for 3 / 2 / 1. The
+## spoken cue is seeked underneath on the same beat.
 func _play_tick() -> void:
 	tick_sfx.pitch_scale = pow(GameConfig.COUNTDOWN_TICK_PITCH_STEP, _tick_index)
+	_play_cue(CUE_OFFSETS[_tick_index])
 	_tick_index += 1
 	tick_sfx.play()
+
+
+## Layer the spoken 3-2-1-GO sample under the beeps. Seeking per cue (rather
+## than letting the file free-run) keeps each word on its beat and lets a skip
+## jump straight to the GO hit.
+func _play_cue(offset: float) -> void:
+	last_cue_offset = offset
+	cue_sfx.play(offset)
 
 
 func _kill_tween() -> void:

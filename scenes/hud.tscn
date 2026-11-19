@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://d2p5vaorcnrho" path="res://scripts/ui/countdown_overlay.gd" id="8_countdown"]
 [ext_resource type="AudioStream" uid="uid://vp5qxggakmdk" path="res://assets/sounds/countdown_tick.wav" id="9_tick"]
 [ext_resource type="AudioStream" uid="uid://dgsbo070n323s" path="res://assets/sounds/countdown_go.wav" id="10_go"]
+[ext_resource type="AudioStream" uid="uid://bnpysysscju7j" path="res://assets/sounds/321go.mp3" id="11_321go"]
 
 [sub_resource type="StyleBoxFlat" id="sb_pause_btn"]
 content_margin_left = 2.0
@@ -147,6 +148,12 @@ bus = &"SFX"
 [node name="GoSfx" type="AudioStreamPlayer" parent="HudRoot/Countdown"]
 stream = ExtResource("10_go")
 volume_db = -6.0
+bus = &"SFX"
+
+[node name="CueSfx" type="AudioStreamPlayer" parent="HudRoot/Countdown"]
+unique_name_in_owner = true
+stream = ExtResource("11_321go")
+volume_db = -8.0
 bus = &"SFX"
 
 [node name="Pause" type="Control" parent="HudRoot"]

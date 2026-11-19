@@ -735,6 +735,10 @@ const COUNTDOWN_SFX_DB := -6.0
 ## Pitch ladder for 3/2/1: a rising perfect fourth (~660 / 832 / 1048 Hz). GO
 ## is its own brighter sample (~1320 Hz) rather than a fourth step.
 const COUNTDOWN_TICK_PITCH_STEP := 1.26
+## Spoken 3-2-1-GO layered under the beeps. Its cues peak near -0.4 dBFS, so it
+## sits a couple of dB below the ticks: the voice carries the count while the
+## short beeps keep the beat crisp.
+const COUNTDOWN_CUE_DB := -8.0
 
 # --- HUD ---------------------------------------------------------------------
 

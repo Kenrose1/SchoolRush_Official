@@ -3785,6 +3785,43 @@ func _test_countdown() -> void:
 		"the pause button still works during the countdown")
 	_check(not world.music.playing, "the bed waits for GO")
 
+	# Layering contract: the spoken 3-2-1-GO runs underneath the beep ladder.
+	# The beeps are kept deliberately - this is a two-layer countdown.
+	_check(countdown.cue_sfx != null, "the countdown carries the spoken cue")
+	_check_eq(countdown.cue_sfx.bus, "SFX", "the spoken cue routes to the SFX bus")
+	_check(countdown.cue_sfx.stream != null, "the spoken cue has a stream")
+	_check(
+		countdown.cue_sfx.stream.resource_path.contains("321go"),
+		"the spoken cue uses the committed 321go sample",
+	)
+	_check_eq(countdown.cue_sfx.volume_db, GameConfig.COUNTDOWN_CUE_DB,
+		"the spoken cue is mixed at its configured level")
+	_check(countdown.cue_sfx.volume_db < countdown.tick_sfx.volume_db,
+		"the voice sits under the beeps")
+	_check(
+		countdown.tick_sfx.stream.resource_path.contains("countdown_tick"),
+		"the beep ladder is still wired",
+	)
+	_check(
+		countdown.go_sfx.stream.resource_path.contains("countdown_go"),
+		"the GO blip is still wired",
+	)
+	for i in countdown.CUE_OFFSETS.size() - 1:
+		_check(countdown.CUE_OFFSETS[i] < countdown.CUE_OFFSETS[i + 1],
+			"the spoken cue offsets ascend")
+	_check(countdown.GO_CUE_OFFSET < countdown.cue_sfx.stream.get_length(),
+		"the GO cue sits inside the sample")
+	_check_near(countdown.last_cue_offset, countdown.CUE_OFFSETS[0], 0.001,
+		"beat 3 seeks the first spoken cue")
+	_check(countdown.tick_sfx.playing and countdown.cue_sfx.playing,
+		"beat 3 fires the beep and the voice together")
+
+	# Pausing the tree does not stop audio: both of them freeze by hand.
+	world._on_pause_changed(true)
+	_check(countdown.cue_sfx.stream_paused, "a pause freezes the spoken cue")
+	world._on_pause_changed(false)
+	_check(not countdown.cue_sfx.stream_paused, "unpausing resumes the cue")
+
 	# Half a second of ticks: the clock moves, the world does not.
 	for i in 10:
 		world._physics_process(0.05)
@@ -3804,6 +3841,10 @@ func _test_countdown() -> void:
 		"the idle holds through the ticks")
 	_check_near(countdown.tick_sfx.pitch_scale,
 		GameConfig.COUNTDOWN_TICK_PITCH_STEP, 0.001, "the tick climbs a rung")
+	_check_near(countdown.last_cue_offset, countdown.CUE_OFFSETS[1], 0.001,
+		"beat 2 seeks the second spoken cue")
+	_check(countdown.tick_sfx.playing and countdown.cue_sfx.playing,
+		"beat 2 keeps both layers running")
 	_check_eq(countdown.beat_play_count, 2, "two beats have been shown")
 
 	# 2 -> 1.
@@ -3813,6 +3854,8 @@ func _test_countdown() -> void:
 	_check_near(countdown.tick_sfx.pitch_scale,
 		pow(GameConfig.COUNTDOWN_TICK_PITCH_STEP, 2.0), 0.001,
 		"the tick climbs the last rung")
+	_check_near(countdown.last_cue_offset, countdown.CUE_OFFSETS[2], 0.001,
+		"beat 1 seeks the third spoken cue")
 
 	# 1 -> GO. Step one tick at a time so the unlock frame can be checked
 	# exactly: the frame that shows GO must not also simulate.
@@ -3830,6 +3873,10 @@ func _test_countdown() -> void:
 	_check_eq(player.sprite.animation, &"run",
 		"GO switches Elias from the idle to the run cycle")
 	_check_eq(player._current_anim, &"run", "the animation state follows GO")
+	_check_near(countdown.last_cue_offset, countdown.GO_CUE_OFFSET, 0.001,
+		"GO seeks the spoken GO hit")
+	_check(countdown.go_sfx.playing and countdown.cue_sfx.playing,
+		"GO fires the blip and the voice together")
 	_check(world.music.playing, "GO starts the bed")
 	_check_near(world.distance, 0.0, 0.001, "the GO frame does not simulate")
 
@@ -3865,9 +3912,15 @@ func _test_countdown() -> void:
 	_check_eq(skip_world.player.sprite.animation, &"run",
 		"a skip also starts the run cycle")
 	_check_eq(skip_world.countdown.skip_count, 1, "one skip is counted")
+	_check_near(skip_world.countdown.last_cue_offset,
+		skip_world.countdown.GO_CUE_OFFSET, 0.001,
+		"a skip jumps the spoken cue straight to GO")
 	_check_eq(unlocks[0], 1, "a skip emits finished once")
 	skip_world.countdown.skip()
 	_check_eq(unlocks[0], 1, "a second skip does nothing")
+	skip_world.countdown.dismiss()
+	_check(not skip_world.countdown.cue_sfx.playing,
+		"dismiss silences the spoken cue")
 	skip_world.queue_free()
 
 
