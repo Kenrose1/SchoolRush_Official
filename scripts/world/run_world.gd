@@ -132,6 +132,15 @@ var mode: int = GameConfig.RunMode.CAMPAIGN
 var campaign_finish_distance: float = GameConfig.campaign_finish_distance()
 ## True once the campaign finish line has been crossed (victory shown once).
 var _finished: bool = false
+## True while the victory run-off plays: the scene is frozen, Elias runs off the
+## right edge, and the results card waits for him to leave the frame.
+var run_off_active: bool = false
+## Test counters: victory run-offs started and handed off to the results.
+var run_off_start_count: int = 0
+var run_off_finish_count: int = 0
+## Sprint speed Elias carries into the run-off: his last live speed, floored and
+## multiplied by GameConfig.FINISH_RUN_OFF_SPEED_FACTOR.
+var _run_off_speed: float = 0.0
 ## Coins collected during this run, shown on the results screen. Currency
 ## rides the wallet (GameState); this is just the per-run tally.
 var coins_collected: int = 0
@@ -410,6 +419,11 @@ func _physics_process(delta: float) -> void:
 		# The GO beat unlocks the run inside advance(); returning here keeps the
 		# unlock frame from also simulating, so the first live frame is clean.
 		return
+	if run_off_active:
+		# Victory lap: the world is frozen, only Elias moves. Stepped here (not a
+		# tween) so a paused tree freezes it and the suite can drive it.
+		_advance_run_off(delta)
+		return
 	if not is_running:
 		return
 	var base := _base_speed()
@@ -514,7 +528,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			GameState.set_debug_overlay(not GameState.debug_overlay)
 			get_viewport().set_input_as_handled()
 		KEY_R:
-			if not is_running and not is_counting_down:
+			# No restart during the victory lap: let Elias finish his exit.
+			if not is_running and not is_counting_down and not run_off_active:
 				get_tree().reload_current_scene()
 				get_viewport().set_input_as_handled()
 
@@ -619,6 +634,9 @@ func _on_player_died() -> void:
 func _freeze_world() -> void:
 	is_running = false
 	is_counting_down = false
+	# A failure landing on the same frame as the finish line cancels the victory
+	# lap, so the results card that follows cannot be overwritten by a win.
+	run_off_active = false
 	_stop_music()
 	countdown.dismiss()
 	hazards.process_mode = Node.PROCESS_MODE_DISABLED
@@ -629,13 +647,57 @@ func _freeze_world() -> void:
 	_update_debug()
 
 
-## Cross the campaign finish line: freeze the world and show the victory.
-## Guarded so a single crossing can never double-report the score.
+## Cross the campaign finish line: freeze the world, then let Elias run off the
+## right edge before the victory card is revealed. Guarded so a single crossing
+## can never double-report the score.
 func _finish_campaign() -> void:
 	if _finished:
 		return
 	_finished = true
 	_freeze_world()
+	_begin_run_off()
+
+
+## Victory run-off: the scene has stopped, so the only thing still moving is
+## Elias. He runs forward off the right edge, sprinting faster than his in-run
+## speed with the run cycle scaled to match, so the lap is short and his feet
+## still match the ground.
+func _begin_run_off() -> void:
+	run_off_active = true
+	run_off_start_count += 1
+	_run_off_speed = maxf(speed, GameConfig.FINISH_RUN_OFF_MIN_SPEED) \
+		* GameConfig.FINISH_RUN_OFF_SPEED_FACTOR
+	# A finish mid-jump or mid-slide should still exit on the ground.
+	player.air_height = 0.0
+	player.vertical_speed = 0.0
+	player.in_air = false
+	player.is_sliding = false
+	player.invulnerable_time_left = 0.0
+	player.position = Vector2(player.position.x, player.lane_y)
+	player.sprite.rotation = 0.0
+	player.sprite.modulate = Color.WHITE
+	player.sprite.flip_h = false
+	player.sprite.speed_scale = GameConfig.FINISH_RUN_OFF_SPEED_FACTOR
+	player.sprite.play(&"run")
+	# The last stretch can still hold a car or two: fade them rather than let
+	# Elias ghost through frozen obstacles on his way out.
+	if hazards.get_child_count() > 0:
+		var tw := create_tween()
+		tw.tween_property(
+			hazards, "modulate:a", 0.0, GameConfig.FINISH_RUN_OFF_FADE_TIME)
+		tw.tween_callback(func() -> void: hazards.visible = false)
+	pursuer.visible = false
+	pursuer.process_mode = Node.PROCESS_MODE_DISABLED
+	_update_debug()
+
+
+func _advance_run_off(delta: float) -> void:
+	player.position.x += _run_off_speed * delta
+	if player.position.x < GameConfig.FINISH_RUN_OFF_EXIT_X:
+		return
+	player.position.x = GameConfig.FINISH_RUN_OFF_EXIT_X
+	run_off_active = false
+	run_off_finish_count += 1
 	_show_game_over(ResultsScreen.Outcome.VICTORY)
 
 

@@ -55,7 +55,7 @@ const ZONE_HOME_DURATION_SECONDS := 20.0
 const ZONE_HOME_MIN_SECONDS := 5.0
 
 ## How long the street zone lasts, in seconds. SCHOOL takes over when it ends.
-const ZONE_STREET_DURATION_SECONDS := 90.0
+const ZONE_STREET_DURATION_SECONDS := 40.0
 
 ## Floor for the street duration, so the boundary can never collapse.
 const ZONE_STREET_MIN_SECONDS := 5.0
@@ -67,6 +67,21 @@ const CAMPAIGN_SCHOOL_SECONDS := 20.0
 ## Campaign only: stop spawning this many pixels before the finish line so the
 ## last stretch is a clean sprint instead of a hazard wall.
 const CAMPAIGN_SPAWN_CUTOFF_PX := 400.0
+
+## Campaign victory run-off: once the finish line is crossed the world stops and
+## Elias keeps running forward - right, the way he already faces - until he is
+## fully off the right edge. The results card only appears after that. The exit
+## point clears the viewport width plus the sprite's half-width and a margin.
+const FINISH_RUN_OFF_EXIT_X := 2000.0
+## He sprints off at this multiple of his run speed so the lap stays short. The
+## run cycle playback is scaled by the same factor, so his feet keep the ground
+## instead of skating.
+const FINISH_RUN_OFF_SPEED_FACTOR := 2.5
+## Never run off slower than this, even if the last frame's speed was odd.
+const FINISH_RUN_OFF_MIN_SPEED := 300.0
+## Leftover obstacles fade over this long rather than let Elias ghost through
+## frozen cars on his way out.
+const FINISH_RUN_OFF_FADE_TIME := 0.25
 
 ## Zone swaps are instant: the art changes on the crossing frame. Only hazards
 ## this close ahead of the player are cleared with it, so nothing lands on him

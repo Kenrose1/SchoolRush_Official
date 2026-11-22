@@ -4425,9 +4425,40 @@ func _test_scenes() -> void:
 				"campaign base speed ignores the ramp at any distance")
 			GameState.best_campaign = 0
 			world._finished = false
+			# The caught block above already revealed this overlay; a real run has
+			# exactly one outcome, so clear it to model a fresh finish.
+			world.results.visible = false
 			world.distance = world.campaign_finish_distance
+			var frozen_distance := world.distance
+			var exit_start_x := world.player.position.x
 			world._finish_campaign()
 			_check(not world.is_running, "crossing the finish stops the run")
+			_check(world.run_off_active, "the finish begins the victory run-off")
+			_check(not world.results.visible,
+				"the results wait until Elias leaves the frame")
+			_check(world.player.sprite.flip_h == false,
+				"Elias keeps facing right on his way out")
+			_check_eq(String(world.player.sprite.animation), "run",
+				"Elias keeps his run cycle during the run-off")
+			_check_near(world.player.sprite.speed_scale,
+				GameConfig.FINISH_RUN_OFF_SPEED_FACTOR, 0.001,
+				"the sprint cadence matches his exit speed")
+			# The scene itself never moves during the exit; only Elias does.
+			for i in 10:
+				world._physics_process(1.0 / 60.0)
+			_check_near(world.distance, frozen_distance, 0.001,
+				"the world stays frozen through the victory lap")
+			_check(world.player.position.x > exit_start_x,
+				"Elias runs right during the run-off")
+			_check(not world.results.visible,
+				"the results still wait mid run-off")
+			var run_off_guard := 0
+			while world.run_off_active and run_off_guard < 600:
+				world._physics_process(1.0 / 60.0)
+				run_off_guard += 1
+			_check(not world.run_off_active, "the run-off finishes at the edge")
+			_check_near(world.player.position.x, GameConfig.FINISH_RUN_OFF_EXIT_X,
+				0.01, "Elias exits fully past the right edge")
 			_check(world.results.visible, "the finish shows the results overlay")
 			_check_eq(world.results.title_label.text, "MADE IT TO CLASS!",
 				"a finished campaign reads MADE IT!")
@@ -4435,7 +4466,11 @@ func _test_scenes() -> void:
 				"a finished run reports the line, not a distance")
 			_check_eq(world.results.awarded_medal(), GameConfig.Medal.SILVER,
 				"a first clear medals silver")
+			_check_eq(world.run_off_start_count, 1, "one run-off per finish")
+			_check_eq(world.run_off_finish_count, 1, "one hand-off to the results")
 			world._finish_campaign()
+			_check_eq(world.run_off_start_count, 1,
+				"a second finish call cannot restart the run-off")
 			_check_eq(world.results.title_label.text, "MADE IT TO CLASS!",
 				"the finish reports exactly once")
 
@@ -4479,6 +4514,16 @@ func _test_scenes() -> void:
 			for i in 120:
 				far._physics_process(1.0 / 60.0)
 			_check(not far.is_running, "physics crossing the line stops the run")
+			_check(far.run_off_active, "physics crossing the line begins the run-off")
+			_check(not far.results.visible,
+				"physics crossing keeps the results hidden during the exit")
+			var crossed_distance := far.distance
+			# 1600 px of exit at ~1050 px/s is ~1.5 s; give the guard plenty.
+			for i in 240:
+				far._physics_process(1.0 / 60.0)
+			_check(not far.run_off_active, "the physics run-off completes")
+			_check_near(far.distance, crossed_distance, 0.001,
+				"the world stays frozen through the run-off")
 			_check(far.results.visible, "physics crossing the line shows the results")
 			_check_eq(far.results.title_label.text, "MADE IT TO CLASS!",
 				"a physics-driven finish reads MADE IT!")
