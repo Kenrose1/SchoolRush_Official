@@ -755,6 +755,24 @@ const COUNTDOWN_TICK_PITCH_STEP := 1.26
 ## short beeps keep the beat crisp.
 const COUNTDOWN_CUE_DB := -8.0
 
+# --- Results reveal ----------------------------------------------------------
+
+## Victory is the only results outcome with its own cues. The fanfare lands with
+## the card and the badge cue answers the medal pop a beat later. Failure keeps
+## the sting and looping bed from RunWorld and plays nothing here.
+##
+## The fanfare's master sits at -16.5 LUFS, the same place as maxupgrade.mp3 at
+## +3 dB, so 0 dB keeps the two celebrations matched.
+const RESULTS_FANFARE_DB := 0.0
+## The chime's master is much hotter (-13.3 LUFS), so it sits under the fanfare
+## and reads as the award rather than a second lead.
+const RESULTS_CHIME_DB := -6.0
+## The level-up cue (-14.7 LUFS) takes the chime's slot when a session best
+## falls, so it sits a touch above it.
+const RESULTS_RECORD_DB := -4.0
+## The medal pop peaks about 0.35 s in; the badge cue lands just after it.
+const RESULTS_BADGE_CUE_DELAY := 0.55
+
 # --- HUD ---------------------------------------------------------------------
 
 const HEART_SIZE := 48.0

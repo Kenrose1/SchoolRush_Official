@@ -108,6 +108,9 @@ func _ready() -> void:
 	_section("Run countdown")
 	await _test_countdown()
 
+	_section("Results audio")
+	await _test_results_audio()
+
 	_section("Settings")
 	_test_settings()
 
@@ -3922,6 +3925,77 @@ func _test_countdown() -> void:
 	_check(not skip_world.countdown.cue_sfx.playing,
 		"dismiss silences the spoken cue")
 	skip_world.queue_free()
+
+
+## Victory reveal cues: the fanfare at the reveal, a badge cue after the medal
+## pop, and the level-up cue swapped in only when the session best falls.
+func _test_results_audio() -> void:
+	var screen := (load("res://scenes/results_screen.tscn") as PackedScene).instantiate()
+	add_child(screen)
+	var results := screen as ResultsScreen
+	var fanfare := results.victory_sfx
+	var chime := results.badge_sfx
+	var record := results.record_sfx
+
+	_check(fanfare != null and chime != null and record != null,
+		"the results screen owns its three victory cues")
+	if fanfare == null or chime == null or record == null:
+		screen.queue_free()
+		return
+	_check_eq(fanfare.bus, &"SFX", "the fanfare routes to the SFX bus")
+	_check_eq(chime.bus, &"SFX", "the badge chime routes to the SFX bus")
+	_check_eq(record.bus, &"SFX", "the record cue routes to the SFX bus")
+	for player in [fanfare, chime, record]:
+		var clip := (player as AudioStreamPlayer).stream as AudioStreamMP3
+		_check(clip != null, "each victory cue is the committed MP3")
+		if clip != null:
+			_check(not clip.loop, "the victory cues do not loop")
+	_check(fanfare.stream.resource_path.contains("victory-fanfare"),
+		"the fanfare uses the downloaded fanfare")
+	_check(chime.stream.resource_path.contains("victory-chime"),
+		"the badge uses the downloaded chime")
+	_check(record.stream.resource_path.contains("level-up"),
+		"the record accent uses the downloaded level-up cue")
+	_check_eq(fanfare.volume_db, GameConfig.RESULTS_FANFARE_DB,
+		"the fanfare is mixed at its configured level")
+	_check_eq(chime.volume_db, GameConfig.RESULTS_CHIME_DB,
+		"the badge chime is mixed at its configured level")
+	_check_eq(record.volume_db, GameConfig.RESULTS_RECORD_DB,
+		"the record cue is mixed at its configured level")
+	_check(chime.volume_db < fanfare.volume_db,
+		"the badge sits under the fanfare")
+
+	# Failure is unchanged: the world's sting and bed are the only cues.
+	ResultsScreen.session_runs = 2
+	results.show_results(
+		ResultsScreen.Outcome.CAUGHT, 10, 1, "HOME", 0, GameConfig.Medal.BLACK, 0)
+	_check(not fanfare.playing and not chime.playing and not record.playing,
+		"failure results play no victory cue")
+	await get_tree().create_timer(GameConfig.RESULTS_BADGE_CUE_DELAY + 0.15).timeout
+	_check(not chime.playing and not record.playing,
+		"failure never queues a badge cue")
+
+	# A plain victory: the fanfare leads and the chime answers the medal pop.
+	GameState.best_campaign = 999999
+	results.show_results(
+		ResultsScreen.Outcome.VICTORY, 100, 300, "SCHOOL", 1,
+		GameConfig.Medal.SILVER, 0)
+	_check(fanfare.playing, "victory plays the fanfare on the reveal")
+	_check(not chime.playing, "the badge cue waits for the medal pop")
+	await get_tree().create_timer(GameConfig.RESULTS_BADGE_CUE_DELAY + 0.15).timeout
+	_check(chime.playing, "the badge chime lands after the reveal")
+	_check(not record.playing, "no record cue without a new best")
+
+	# A new best swaps the chime for the level-up cue.
+	GameState.best_campaign = 100
+	results.show_results(
+		ResultsScreen.Outcome.VICTORY, 500, 300, "SCHOOL", 2,
+		GameConfig.Medal.GOLD, 0)
+	_check(not chime.playing, "a new card cuts the previous badge cue")
+	await get_tree().create_timer(GameConfig.RESULTS_BADGE_CUE_DELAY + 0.15).timeout
+	_check(record.playing, "a new best plays the level-up cue")
+	_check(not chime.playing, "the record cue replaces the badge chime")
+	screen.queue_free()
 
 
 func _test_settings() -> void:

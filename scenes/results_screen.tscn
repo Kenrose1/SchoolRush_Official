@@ -5,6 +5,9 @@
 [ext_resource type="FontFile" uid="uid://cvrqlp2jra0lf" path="res://assets/fonts/Nunito-SemiBold.ttf" id="3_semi"]
 [ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
 [ext_resource type="Texture2D" uid="uid://bac0h861x4l7r" path="res://assets/icon/medal/Golden Medal 1st Outline 64px.png" id="4_medal"]
+[ext_resource type="AudioStream" path="res://assets/sounds/universfield-victory-fanfare-152480.mp3" id="5_fanfare"]
+[ext_resource type="AudioStream" path="res://assets/sounds/scratchonix-victory-chime-366449.mp3" id="6_chime"]
+[ext_resource type="AudioStream" path="res://assets/sounds/universfield-level-up-08-402152.mp3" id="7_record"]
 
 [sub_resource type="StyleBoxFlat" id="sb_report_panel"]
 content_margin_left = 44.0
@@ -370,3 +373,21 @@ theme_override_styles/pressed = SubResource("sb_btn_pressed")
 theme_override_styles/hover = SubResource("sb_btn_hover")
 theme_override_styles/focus = SubResource("sb_btn_hover")
 text = "MAIN MENU"
+
+[node name="VictoryFanfareSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("5_fanfare")
+volume_db = 0.0
+bus = &"SFX"
+
+[node name="BadgeChimeSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("6_chime")
+volume_db = -6.0
+bus = &"SFX"
+
+[node name="NewRecordSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("7_record")
+volume_db = -4.0
+bus = &"SFX"

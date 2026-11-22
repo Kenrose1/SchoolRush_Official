@@ -33,6 +33,11 @@ const MEDAL_TEXTURES := {
 }
 
 var _medal: int = GameConfig.Medal.BLACK
+var _outcome: int = Outcome.OUT_OF_HEARTS
+var _is_new_best := false
+## Bumped per reveal so a badge timer queued by an earlier card can never fire
+## on top of the next one.
+var _reveal_id := 0
 
 @onready var title_label: Label = $Center/Panel/VBox/Title
 @onready var medal_plate: PanelContainer = $Center/Panel/VBox/MedalPlate
@@ -42,10 +47,17 @@ var _medal: int = GameConfig.Medal.BLACK
 @onready var new_best_label: Label = $Center/Panel/VBox/NewBest
 @onready var retry_button: Button = $Center/Panel/VBox/Buttons/Retry
 @onready var menu_button: Button = $Center/Panel/VBox/Buttons/Menu
+@onready var victory_sfx: AudioStreamPlayer = $VictoryFanfareSfx
+@onready var badge_sfx: AudioStreamPlayer = $BadgeChimeSfx
+@onready var record_sfx: AudioStreamPlayer = $NewRecordSfx
 
 
 func _ready() -> void:
 	visible = false
+	# Mix levels live in GameConfig so the suite can assert them in one place.
+	victory_sfx.volume_db = GameConfig.RESULTS_FANFARE_DB
+	badge_sfx.volume_db = GameConfig.RESULTS_CHIME_DB
+	record_sfx.volume_db = GameConfig.RESULTS_RECORD_DB
 	retry_button.pressed.connect(_on_retry_pressed)
 	menu_button.pressed.connect(_on_menu_pressed)
 	_setup_button(retry_button)
@@ -80,6 +92,9 @@ func show_results(
 	var is_new_best := session_runs > 0 and score > previous_best
 	GameState.report_score(score)
 	session_runs += 1
+	_outcome = outcome
+	_is_new_best = is_new_best
+	_stop_cues()
 
 	match outcome:
 		Outcome.CAUGHT:
@@ -163,6 +178,38 @@ func _play_reveal() -> void:
 		var tween := create_tween()
 		tween.tween_property(node, "modulate:a", 1.0, 0.16).set_delay(i * 0.05)
 	_pop_medal.call_deferred()
+	if _outcome == Outcome.VICTORY:
+		_play_victory_cues()
+
+
+## Victory is the only outcome with reveal cues: the fanfare hits with the card,
+## and the badge answers the medal pop a beat later. Failure stays silent here
+## on purpose - RunWorld owns its sting and looping bed.
+func _play_victory_cues() -> void:
+	victory_sfx.play()
+	_reveal_id += 1
+	var id := _reveal_id
+	get_tree().create_timer(GameConfig.RESULTS_BADGE_CUE_DELAY).timeout.connect(
+		func() -> void: _play_badge_cue(id))
+
+
+## The award accent: a new session best swaps in the level-up cue, otherwise the
+## medal gets the chime. The reveal id guard drops a stale timer, and the hidden
+## check covers a retry that lands before the delayed cue.
+func _play_badge_cue(id: int) -> void:
+	if id != _reveal_id or not visible or _outcome != Outcome.VICTORY:
+		return
+	if _is_new_best:
+		record_sfx.play()
+	else:
+		badge_sfx.play()
+
+
+## Cut any cue still ringing from the previous card before filling this one.
+func _stop_cues() -> void:
+	_reveal_id += 1
+	for player in [victory_sfx, badge_sfx, record_sfx]:
+		(player as AudioStreamPlayer).stop()
 
 
 ## The award moment: scale-pop from oversized to rest, then a shine sweep on gold.
