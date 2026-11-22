@@ -400,15 +400,18 @@ func set_run_mode(new_mode: int) -> void:
 	)
 
 
-## Speed the run should settle at outside a momentum dip: campaign stays at
-## RUN_SPEED; endless ramps with distance so late runs get faster. The Speed
-## shop upgrade multiplies both.
+## Speed the run should settle at outside a momentum dip: campaign ramps
+## continuously to CAMPAIGN_RAMP_MAX_MULTIPLIER by the finish line; endless
+## ramps with distance so late runs get faster. The Speed shop upgrade
+## multiplies both.
 func _base_speed() -> float:
 	var upgraded := GameConfig.shop_speed_multiplier(
 		GameState.shop_level(GameConfig.ShopUpgrade.SPEED))
 	if mode == GameConfig.RunMode.ENDLESS:
 		return GameConfig.RUN_SPEED * GameConfig.endless_speed_multiplier(distance) * upgraded
-	return GameConfig.RUN_SPEED * upgraded
+	var ramp := GameConfig.campaign_speed_multiplier(
+		distance, campaign_finish_distance)
+	return GameConfig.RUN_SPEED * ramp * upgraded
 
 
 func _physics_process(delta: float) -> void:

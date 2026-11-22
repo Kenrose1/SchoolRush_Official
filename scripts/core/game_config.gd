@@ -125,9 +125,15 @@ const RUN_SPEED := 420.0
 
 ## Endless speed ramp: a linear multiplier on RUN_SPEED that starts at 1.0 and
 ## reaches ENDLESS_RAMP_MAX_MULTIPLIER once ENDLESS_RAMP_DISTANCE px of road
-## have been travelled. Campaign runs never ramp.
+## have been travelled.
 const ENDLESS_RAMP_MAX_MULTIPLIER := 1.5
 const ENDLESS_RAMP_DISTANCE := 40000.0
+
+## Campaign speed ramp: a linear multiplier on RUN_SPEED from 1.0 at the start
+## line to this at the finish. The course stays fixed in pixels, so the ramp
+## makes the run physically faster without moving zone boundaries or the
+## finish line. At 1.2 the last stretch runs 20% faster than the first.
+const CAMPAIGN_RAMP_MAX_MULTIPLIER := 1.2
 
 ## Speed multiplier at [param distance_px] for the endless ramp. Monotonic,
 ## capped at ENDLESS_RAMP_MAX_MULTIPLIER; distance-based so it is deterministic
@@ -135,6 +141,17 @@ const ENDLESS_RAMP_DISTANCE := 40000.0
 static func endless_speed_multiplier(distance_px: float) -> float:
 	return 1.0 + (ENDLESS_RAMP_MAX_MULTIPLIER - 1.0) * clampf(
 		distance_px / ENDLESS_RAMP_DISTANCE, 0.0, 1.0)
+
+## Speed multiplier at [param distance_px] for a campaign course of
+## [param finish_distance_px]. Linear and clamped at both ends, so the first
+## frame is stock speed and the last frame is CAMPAIGN_RAMP_MAX_MULTIPLIER. A
+## non-positive finish distance (boot frames, endless) falls back to 1.0.
+static func campaign_speed_multiplier(
+	distance_px: float, finish_distance_px: float) -> float:
+	if finish_distance_px <= 0.0:
+		return 1.0
+	return 1.0 + (CAMPAIGN_RAMP_MAX_MULTIPLIER - 1.0) * clampf(
+		distance_px / finish_distance_px, 0.0, 1.0)
 
 ## Scrolling ground ticks, used to make speed readable in the M1 gray box.
 const GROUND_TICK_LENGTH := 64.0

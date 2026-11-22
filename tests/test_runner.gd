@@ -2193,6 +2193,35 @@ func _test_modes() -> void:
 		ramp_prev = ramp_mult
 	_check(ramp_monotonic, "the endless ramp only increases with distance")
 
+	# Campaign ramp: linear from stock speed at the start line to +20% at the
+	# finish, capped so a botched distance can never overspeed the world.
+	var finish := home + street + school
+	_check_near(GameConfig.campaign_speed_multiplier(0.0, finish), 1.0, 0.0001,
+		"the campaign ramp starts at stock speed")
+	_check_near(
+		GameConfig.campaign_speed_multiplier(finish * 0.5, finish), 1.1, 0.0001,
+		"the campaign ramp is linear halfway through")
+	_check_near(
+		GameConfig.campaign_speed_multiplier(finish, finish),
+		GameConfig.CAMPAIGN_RAMP_MAX_MULTIPLIER, 0.0001,
+		"the campaign ramp reaches its cap at the finish")
+	_check_near(
+		GameConfig.campaign_speed_multiplier(finish * 2.0, finish),
+		GameConfig.CAMPAIGN_RAMP_MAX_MULTIPLIER, 0.0001,
+		"the campaign ramp never exceeds its cap")
+	_check_near(
+		GameConfig.campaign_speed_multiplier(1000.0, 0.0), 1.0, 0.0001,
+		"a missing finish line disables the campaign ramp")
+	var campaign_prev := 0.0
+	var campaign_monotonic := true
+	for campaign_step in range(1, 9):
+		var campaign_mult := GameConfig.campaign_speed_multiplier(
+			finish * campaign_step / 8.0, finish)
+		if campaign_mult <= campaign_prev:
+			campaign_monotonic = false
+		campaign_prev = campaign_mult
+	_check(campaign_monotonic, "the campaign ramp only increases with distance")
+
 
 func _test_progress() -> void:
 	# Campaign fractions use the per-run zone lengths, so retuned durations
@@ -3030,6 +3059,10 @@ func _test_shop() -> void:
 	_check_near(speed_world._base_speed(),
 		GameConfig.RUN_SPEED * GameConfig.shop_speed_multiplier(2), 0.0001,
 		"the speed upgrade multiplies the campaign base speed")
+	speed_world.distance = speed_world.campaign_finish_distance * 0.5
+	_check_near(speed_world._base_speed(),
+		GameConfig.RUN_SPEED * 1.1 * GameConfig.shop_speed_multiplier(2), 0.0001,
+		"the campaign ramp stacks with the speed upgrade")
 	speed_world.queue_free()
 	GameState.shop_levels = pre_levels
 	GameState.coins = pre_coins
@@ -4433,17 +4466,20 @@ func _test_scenes() -> void:
 			_check(world.momentum_time_left > 0.0, "damage starts the momentum dip")
 			for i in 60:
 				world._physics_process(1.0 / 60.0)
-			_check_near(world.speed, GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR, 0.1, "world holds at 315 px/s during the dip")
+			_check_near(world.speed,
+				world._base_speed() * GameConfig.MOMENTUM_DIP_FACTOR, 0.1,
+				"world holds at 75% of its ramped speed during the dip")
 			for i in 45:
 				world._physics_process(1.0 / 60.0)
 			_check(
-				world.speed > GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR
-				and world.speed < GameConfig.RUN_SPEED,
+				world.speed > world._base_speed() * GameConfig.MOMENTUM_DIP_FACTOR
+				and world.speed < world._base_speed(),
 				"momentum eases back gradually (%.0f px/s mid-recovery)" % world.speed,
 			)
 			for i in 60:
 				world._physics_process(1.0 / 60.0)
-			_check_near(world.speed, GameConfig.RUN_SPEED, 0.1, "momentum recovers after the ease")
+			_check_near(world.speed, world._base_speed(), 0.1,
+				"momentum recovers after the ease")
 
 			# Hazards ride the road: live speed follows the dipped world speed.
 			var sync_hazard := (load("res://scenes/hazard.tscn") as PackedScene).instantiate() as Hazard
@@ -4512,8 +4548,11 @@ func _test_scenes() -> void:
 			world._update_zone()
 			_check_eq(world.current_zone, GameConfig.Zone.SCHOOL,
 				"campaign enters the school at the same distance")
-			_check_near(world._base_speed(), GameConfig.RUN_SPEED, 0.01,
-				"campaign base speed ignores the ramp at any distance")
+			world.distance = world.campaign_finish_distance + 1000.0
+			_check_near(world._base_speed(),
+				GameConfig.RUN_SPEED * GameConfig.CAMPAIGN_RAMP_MAX_MULTIPLIER,
+				0.01,
+				"campaign base speed caps its ramp past the finish")
 			GameState.best_campaign = 0
 			world._finished = false
 			# The caught block above already revealed this overlay; a real run has
@@ -4573,7 +4612,9 @@ func _test_scenes() -> void:
 			far.set_run_mode(GameConfig.RunMode.CAMPAIGN)
 			far.distance = far.campaign_finish_distance \
 				- GameConfig.CAMPAIGN_SPAWN_CUTOFF_PX + 50.0
-			for i in 3:
+			# Two quarter-second ticks: the ramp puts the last stretch near
+			# 504 px/s, so a third tick would cross the line and end the run.
+			for i in 2:
 				far._physics_process(0.25)
 			_check(far.is_running, "the run is still live inside the spawn cutoff")
 			_check_eq(far.hazards.get_child_count(), 0,
@@ -4609,7 +4650,7 @@ func _test_scenes() -> void:
 			_check(not far.results.visible,
 				"physics crossing keeps the results hidden during the exit")
 			var crossed_distance := far.distance
-			# 1600 px of exit at ~1050 px/s is ~1.5 s; give the guard plenty.
+			# 1600 px of exit at ~1260 px/s is ~1.3 s; give the guard plenty.
 			for i in 240:
 				far._physics_process(1.0 / 60.0)
 			_check(not far.run_off_active, "the physics run-off completes")
