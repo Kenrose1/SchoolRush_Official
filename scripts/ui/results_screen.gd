@@ -38,6 +38,10 @@ var _is_new_best := false
 ## Bumped per reveal so a badge timer queued by an earlier card can never fire
 ## on top of the next one.
 var _reveal_id := 0
+## Badge pops played by this screen; the suite reads it as the reveal contract.
+var badge_pop_count := 0
+var _medal_tween: Tween
+var _medal_flash_tween: Tween
 
 @onready var title_label: Label = $Center/Panel/VBox/Title
 @onready var medal_plate: PanelContainer = $Center/Panel/VBox/MedalPlate
@@ -199,10 +203,45 @@ func _play_victory_cues() -> void:
 func _play_badge_cue(id: int) -> void:
 	if id != _reveal_id or not visible or _outcome != Outcome.VICTORY:
 		return
+	_play_badge_pop()
 	if _is_new_best:
 		record_sfx.play()
 	else:
 		badge_sfx.play()
+
+
+## Badge pop: a spring on the medal itself, timed to the chime. The pop is
+## 1.20 -> 0.96 -> 1.0 over 0.35 s, light enough to read as an award tick rather
+## than a second slam. Gold gets its flash here (not at the reveal) so the two
+## hits never flicker together.
+func _play_badge_pop() -> void:
+	badge_pop_count += 1
+	_kill_medal_tweens()
+	medal_icon.pivot_offset = medal_icon.size * 0.5
+	medal_icon.scale = Vector2.ONE
+	medal_icon.modulate = Color.WHITE
+	_medal_tween = create_tween()
+	_medal_tween.tween_property(medal_icon, "scale", Vector2(1.2, 1.2), 0.12) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_medal_tween.tween_property(medal_icon, "scale", Vector2(0.96, 0.96), 0.12) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_medal_tween.tween_property(medal_icon, "scale", Vector2.ONE, 0.11) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	if _medal == GameConfig.Medal.GOLD:
+		_medal_flash_tween = create_tween()
+		_medal_flash_tween.tween_property(medal_icon, "modulate",
+			Color(1.6, 1.6, 1.6, 1.0), 0.08)
+		_medal_flash_tween.tween_property(medal_icon, "modulate",
+			Color.WHITE, 0.2)
+
+
+## One live medal tween at a time: a retry or a re-show must not leave two
+## tweens fighting over scale/modulate.
+func _kill_medal_tweens() -> void:
+	if _medal_tween != null and _medal_tween.is_valid():
+		_medal_tween.kill()
+	if _medal_flash_tween != null and _medal_flash_tween.is_valid():
+		_medal_flash_tween.kill()
 
 
 ## Cut any cue still ringing from the previous card before filling this one.
@@ -212,15 +251,19 @@ func _stop_cues() -> void:
 		(player as AudioStreamPlayer).stop()
 
 
-## The award moment: scale-pop from oversized to rest, then a shine sweep on gold.
+## The reveal slam: the medal arrives oversized and settles. On victory the badge
+## pop and the gold flash are held back for the chime half a second later, so
+## the two hits do not flicker together. Other outcomes keep the original shine.
 func _pop_medal() -> void:
+	_kill_medal_tweens()
+	medal_icon.modulate = Color.WHITE
 	medal_icon.pivot_offset = medal_icon.size * 0.5
 	medal_icon.scale = Vector2(1.5, 1.5)
-	var tween := create_tween()
-	tween.tween_property(medal_icon, "scale", Vector2.ONE, 0.35) \
+	_medal_tween = create_tween()
+	_medal_tween.tween_property(medal_icon, "scale", Vector2.ONE, 0.35) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	if _medal == GameConfig.Medal.GOLD:
-		tween.tween_property(medal_icon, "modulate",
+	if _outcome != Outcome.VICTORY and _medal == GameConfig.Medal.GOLD:
+		_medal_tween.tween_property(medal_icon, "modulate",
 			Color(1.5, 1.5, 1.5, 1.0), 0.14)
-		tween.tween_property(medal_icon, "modulate",
+		_medal_tween.tween_property(medal_icon, "modulate",
 			Color.WHITE, 0.22)

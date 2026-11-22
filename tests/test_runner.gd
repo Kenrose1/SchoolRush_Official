@@ -3927,8 +3927,8 @@ func _test_countdown() -> void:
 	skip_world.queue_free()
 
 
-## Victory reveal cues: the fanfare at the reveal, a badge cue after the medal
-## pop, and the level-up cue swapped in only when the session best falls.
+## Victory reveal cues: the fanfare at the reveal, a badge pop and cue after the
+## medal pop, and the level-up cue swapped in only when the session best falls.
 func _test_results_audio() -> void:
 	var screen := (load("res://scenes/results_screen.tscn") as PackedScene).instantiate()
 	add_child(screen)
@@ -3936,6 +3936,8 @@ func _test_results_audio() -> void:
 	var fanfare := results.victory_sfx
 	var chime := results.badge_sfx
 	var record := results.record_sfx
+
+	_check_eq(results.badge_pop_count, 0, "no badge pop before a reveal")
 
 	_check(fanfare != null and chime != null and record != null,
 		"the results screen owns its three victory cues")
@@ -3974,6 +3976,7 @@ func _test_results_audio() -> void:
 	await get_tree().create_timer(GameConfig.RESULTS_BADGE_CUE_DELAY + 0.15).timeout
 	_check(not chime.playing and not record.playing,
 		"failure never queues a badge cue")
+	_check_eq(results.badge_pop_count, 0, "failure never pops the badge")
 
 	# A plain victory: the fanfare leads and the chime answers the medal pop.
 	GameState.best_campaign = 999999
@@ -3985,6 +3988,9 @@ func _test_results_audio() -> void:
 	await get_tree().create_timer(GameConfig.RESULTS_BADGE_CUE_DELAY + 0.15).timeout
 	_check(chime.playing, "the badge chime lands after the reveal")
 	_check(not record.playing, "no record cue without a new best")
+	_check_eq(results.badge_pop_count, 1, "the badge pops with the chime")
+	_check(results.medal_icon.scale.x > 1.01,
+		"the badge is mid-pop when the chime lands")
 
 	# A new best swaps the chime for the level-up cue.
 	GameState.best_campaign = 100
@@ -3995,6 +4001,17 @@ func _test_results_audio() -> void:
 	await get_tree().create_timer(GameConfig.RESULTS_BADGE_CUE_DELAY + 0.15).timeout
 	_check(record.playing, "a new best plays the level-up cue")
 	_check(not chime.playing, "the record cue replaces the badge chime")
+	_check_eq(results.badge_pop_count, 2, "a new best still pops the badge")
+
+	# The spring settles back to rest and the gold flash returns to white.
+	await get_tree().create_timer(0.4).timeout
+	_check_near(results.medal_icon.scale.x, 1.0, 0.01,
+		"the badge pop settles back to rest")
+	_check(results.medal_icon.modulate.is_equal_approx(Color.WHITE),
+		"the gold flash returns to white")
+	fanfare.stop()
+	chime.stop()
+	record.stop()
 	screen.queue_free()
 
 
