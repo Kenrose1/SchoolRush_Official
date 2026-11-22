@@ -91,6 +91,45 @@ func setup(parent: Node2D, seed_value: int = 0) -> void:
 	_next_car_distance = car_first_distance_px
 
 
+## Cancel specials that cannot legally cross a zone boundary, while leaving
+## zone-agnostic row/pickup/coin clocks intact. Warning nodes are freed so their
+## async finished callbacks cannot spawn a dog or car after the art has swapped.
+func reset_for_zone_swap(distance: float) -> void:
+	var had_dog_warning := is_instance_valid(_dog_warning) \
+		and not _dog_warning.is_queued_for_deletion()
+	var had_active_dog := is_instance_valid(_active_dog) \
+		and not _active_dog.is_queued_for_deletion()
+	if had_dog_warning:
+		_dog_warning.queue_free()
+	if had_active_dog:
+		_active_dog.queue_free()
+
+	_dog_warning = null
+	_active_dog = null
+	_active_dog_variant = 0
+	_dog_barks_fired = 0
+	_dog_reserved_lane = -1
+	if had_dog_warning or had_active_dog:
+		_next_dog_distance = distance + _rng.randf_range(
+			GameConfig.DOG_GAP_MIN,
+			GameConfig.DOG_GAP_MAX,
+		)
+
+	for i in range(_car_warnings.size() - 1, -1, -1):
+		var entry: Dictionary = _car_warnings[i]
+		var warning = entry.get("warning")
+		if is_instance_valid(warning):
+			var warning_node := warning as Node
+			if is_instance_valid(warning_node) and not warning_node.is_queued_for_deletion():
+				warning_node.queue_free()
+	_car_warnings = []
+	_next_car_distance = distance + _rng.randf_range(
+		minf(car_gap_min_px, car_gap_max_px),
+		maxf(car_gap_min_px, car_gap_max_px),
+	)
+	_refresh_coin_reservation()
+
+
 ## Advance the spawn clock. Call once per physics frame with the world speed.
 ## [param zone] gates zone-restricted kinds (HOME furniture, street-only
 ## dog/car). [param home_length] is the run's home length in px, scaling the

@@ -141,6 +141,15 @@ var run_off_finish_count: int = 0
 ## Sprint speed Elias carries into the run-off: his last live speed, floored and
 ## multiplied by GameConfig.FINISH_RUN_OFF_SPEED_FACTOR.
 var _run_off_speed: float = 0.0
+## True only during a live home/street/school boundary exit. Unlike the finish
+## run-off, this transition swaps the zone and resumes the run when Elias leaves.
+var zone_swap_active: bool = false
+var zone_swap_start_count: int = 0
+var zone_swap_finish_count: int = 0
+var _zone_swap_speed: float = 0.0
+var _zone_swap_target: int = GameConfig.Zone.HOME
+var _zone_swap_pursuer_visible: bool = false
+var _zone_swap_pursuer_process_mode: int = Node.PROCESS_MODE_INHERIT
 ## Coins collected during this run, shown on the results screen. Currency
 ## rides the wallet (GameState); this is just the per-run tally.
 var coins_collected: int = 0
@@ -427,6 +436,9 @@ func _physics_process(delta: float) -> void:
 		# tween) so a paused tree freezes it and the suite can drive it.
 		_advance_run_off(delta)
 		return
+	if zone_swap_active:
+		_advance_zone_swap(delta)
+		return
 	if not is_running:
 		return
 	var base := _base_speed()
@@ -453,6 +465,8 @@ func _physics_process(delta: float) -> void:
 			child.speed = speed
 	distance += speed * delta
 	_update_zone()
+	if zone_swap_active:
+		return
 	_update_progress()
 	# Campaign: stop spawning before the line so the last stretch is a clean
 	# sprint, then end the run in a victory the moment Elias reaches it.
@@ -489,17 +503,96 @@ func _update_progress() -> void:
 		progress_hud.set_endless(distance)
 
 
-## Step the zone clock. HOME and STREET are timed; the mode decides what comes
-## after the street - SCHOOL for campaign, street forever for endless.
-## The swap is instant - there is no transition art - and leftover hazards are
-## cleared in the same frame, so nothing from the old zone lingers on screen.
+## Step the zone clock. Direct calls (tests/editor/distance jumps) swap instantly.
+## Physics frames start the live sprint-off transition only for a near boundary.
 func _update_zone() -> void:
 	var next := GameConfig.zone_for_distance(
 		distance, home_zone_length, street_zone_length, mode)
 	if next == current_zone:
 		return
-	current_zone = next
+	var crossing_px := absf(distance - (
+		home_zone_length if next == GameConfig.Zone.STREET
+		else home_zone_length + street_zone_length
+	))
+	if is_physics_processing() and not Engine.is_editor_hint() and is_running \
+		and crossing_px <= GameConfig.ZONE_SWAP_MAX_CROSSING_PX:
+		_begin_zone_swap(next)
+		return
+	_complete_zone_swap(next)
+
+
+## Freeze the old zone behind Elias and start his right-facing sprint exit.
+func _begin_zone_swap(next_zone: int) -> void:
+	if zone_swap_active:
+		return
+	zone_swap_active = true
+	zone_swap_start_count += 1
+	_zone_swap_target = next_zone
+	# The tanod never shares Elias's transition frame. Preserve its prior
+	# visibility/process state and restore exactly that state after the swap.
+	_zone_swap_speed = maxf(speed, GameConfig.ZONE_SWAP_MIN_SPEED) \
+		* GameConfig.ZONE_SWAP_SPEED_FACTOR
+	player.set_physics_process(false)
+	player.set_process_unhandled_input(false)
+	player.hitbox.monitoring = false
+	player.invulnerable_time_left = 9999.0
+	player.waiting_at_start = false
+	player.air_height = 0.0
+	player.vertical_speed = 0.0
+	player.in_air = false
+	player.is_sliding = false
+	player.invulnerable_time_left = 0.0
+	player.position = Vector2(player.position.x, player.lane_y)
+	player.sprite.rotation = 0.0
+	player.sprite.modulate = Color.WHITE
+	player.sprite.flip_h = false
+	player.sprite.speed_scale = GameConfig.ZONE_SWAP_SPEED_FACTOR
+	player.sprite.play(&"run")
+	_zone_swap_pursuer_visible = pursuer.visible
+	_zone_swap_pursuer_process_mode = pursuer.process_mode
+	pursuer.visible = false
+	pursuer.process_mode = Node.PROCESS_MODE_DISABLED
+	director.process_mode = Node.PROCESS_MODE_DISABLED
+	if hazards.get_child_count() > 0:
+		var tw := create_tween()
+		tw.tween_property(hazards, "modulate:a", 0.0, GameConfig.ZONE_SWAP_FADE_TIME)
+		tw.tween_callback(func() -> void: hazards.visible = false)
+	_update_debug()
+
+
+## Step Elias out of the old zone, then swap art and resume from the left origin.
+func _advance_zone_swap(delta: float) -> void:
+	player.position.x += _zone_swap_speed * delta
+	if player.position.x < GameConfig.ZONE_SWAP_EXIT_X:
+		return
+	player.position.x = GameConfig.ZONE_SWAP_EXIT_X
+	_complete_zone_swap(_zone_swap_target)
+
+
+## Complete a direct swap or the end of a live exit. State is restored before
+## listeners receive zone_changed, so the new frame is consistent immediately.
+func _complete_zone_swap(next_zone: int) -> void:
+	if zone_swap_active:
+		zone_swap_active = false
+		zone_swap_finish_count += 1
+	current_zone = next_zone
+	director.reset_for_zone_swap(distance)
 	_purge_zone_leftovers()
+	hazards.visible = true
+	hazards.modulate = Color.WHITE
+	player.position = Vector2(GameConfig.PLAYER_X, player.lane_y)
+	player.sprite.modulate = Color.WHITE
+	player.sprite.flip_h = false
+	player.sprite.speed_scale = 1.0
+	player.waiting_at_start = false
+	player.hitbox.monitoring = true
+	player.invulnerable_time_left = GameConfig.I_FRAME_TIME
+	player.set_physics_process(true)
+	player.set_process_unhandled_input(true)
+	pursuer.visible = _zone_swap_pursuer_visible
+	pursuer.process_mode = _zone_swap_pursuer_process_mode
+	director.process_mode = Node.PROCESS_MODE_INHERIT
+	hazards.process_mode = Node.PROCESS_MODE_INHERIT
 	zone_changed.emit(current_zone)
 	queue_redraw()
 

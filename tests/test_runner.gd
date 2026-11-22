@@ -509,6 +509,25 @@ func _test_zones() -> void:
 		var seen: Array = []
 		world.zone_changed.connect(func(zone: GameConfig.Zone) -> void: seen.append(zone))
 		world.distance = world.home_zone_length + 1.0
+		world.distance = world.home_zone_length + 1.0
+		world.begin_run()
+		world._update_zone()
+		if world.zone_swap_active:
+			_check(not world.pursuer.visible,
+				"the tanod is hidden during a zone exit")
+			_check_eq(world.pursuer.process_mode, Node.PROCESS_MODE_DISABLED,
+				"the tanod cannot advance while Elias exits")
+			_check(not world.player.hitbox.monitoring,
+				"zone exit disables Elias's hazard hitbox")
+			_check(not world.player.can_take_damage(),
+				"zone exit grants Elias invulnerability")
+			while world.zone_swap_active:
+				world._physics_process(1.0 / 60.0)
+			_check(world.player.hitbox.monitoring,
+				"the next zone restores Elias's hazard hitbox")
+			_check_near(world.player.invulnerable_time_left,
+				GameConfig.I_FRAME_TIME, 0.01,
+				"the next zone starts Elias on a fresh i-frame window")
 		world._update_zone()
 		_check_eq(world.current_zone, GameConfig.Zone.STREET,
 			"crossing the boundary swaps the zone on the same frame")

@@ -49,7 +49,7 @@ const ZONE_ORDER := [Zone.HOME, Zone.STREET, Zone.SCHOOL]
 
 ## How long the home zone lasts, in seconds. Extend this to keep Elias indoors
 ## longer; HOME and STREET are timed, SCHOOL runs forever.
-const ZONE_HOME_DURATION_SECONDS := 20.0
+const ZONE_HOME_DURATION_SECONDS := 25.0
 
 ## Floor for the home duration, so the boundary can never collapse.
 const ZONE_HOME_MIN_SECONDS := 5.0
@@ -83,10 +83,26 @@ const FINISH_RUN_OFF_MIN_SPEED := 300.0
 ## frozen cars on his way out.
 const FINISH_RUN_OFF_FADE_TIME := 0.25
 
-## Zone swaps are instant: the art changes on the crossing frame. Only hazards
-## this close ahead of the player are cleared with it, so nothing lands on him
-## during the frame the world changes underneath.
+## Direct zone swaps (distance warps, rule checks) change the art on the
+## crossing frame. Only hazards this close ahead of the player are cleared with
+## it, so nothing lands on him during the frame the world changes underneath.
 const ZONE_SWAP_CLEAR_PX := 80.0
+
+## Live zone transitions: at a boundary the old zone freezes behind Elias while
+## he sprints off the right edge; the next zone snaps in only after he clears
+## the frame. The exit mirrors the finish run-off so both reads feel the same.
+const ZONE_SWAP_EXIT_X := 2000.0
+## Exit sprint speed as a multiple of the live run speed, with the run cycle
+## scaled by the same factor so his feet keep the ground.
+const ZONE_SWAP_SPEED_FACTOR := 2.5
+## Never exit slower than this, even from a momentum-dipped frame.
+const ZONE_SWAP_MIN_SPEED := 300.0
+## Old-zone hazards fade over this long instead of ghosting past Elias.
+const ZONE_SWAP_FADE_TIME := 0.2
+## A transition only plays when the boundary was crossed by a real frame of
+## running. A larger jump (test warp, debug tool) is treated as a direct swap,
+## so it can never strand the run in an exit at the wrong place.
+const ZONE_SWAP_MAX_CROSSING_PX := 400.0
 
 ## Y (in the original house source) where the wall ends and the floor begins.
 const HOUSE_FLOOR_SPLIT_Y := 1125.0
@@ -693,13 +709,13 @@ const DESPAWN_X := -400.0
 ## Applied to the faster of the current world speed and RUN_SPEED, so the
 ## tanod keeps up with the endless speed ramp while a momentum dip (world
 ## below RUN_SPEED) still lets him close the gap.
-const PURSUER_CHASE_FACTOR := 0.95
+const PURSUER_CHASE_FACTOR := 0.96
 ## Eases toward full speed if a chase drags on (seconds to reach 1.0x).
 const PURSUER_CHASE_RAMP_TIME := 10.0
 ## Gap (px behind the player) at which the tanod catches Elias.
 const PURSUER_CATCH_DISTANCE := 60.0
 ## Gap (px) when the tanod wakes up (slides in visible behind the player).
-const PURSUER_WAKE_GAP := 300.0
+const PURSUER_WAKE_GAP := 220.0
 ## Dormant gap (px behind the player, off-screen left).
 const PURSUER_DORMANT_GAP := 1000.0
 ## Seconds of chase survived before the tanod gives up and fades.
