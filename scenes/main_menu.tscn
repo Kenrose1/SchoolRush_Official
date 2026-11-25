@@ -4,7 +4,6 @@
 [ext_resource type="FontFile" uid="uid://cwhpo71tlndps" path="res://assets/fonts/Nunito-ExtraBold.ttf" id="2_xbold"]
 [ext_resource type="FontFile" uid="uid://cvrqlp2jra0lf" path="res://assets/fonts/Nunito-SemiBold.ttf" id="3_semi"]
 [ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
-[ext_resource type="Texture2D" uid="uid://ckhckcfyk2onp" path="res://assets/backgrounds/SchoolBackground.png" id="4_bg"]
 [ext_resource type="SpriteFrames" path="res://assets/characters/elias/elias_frames.tres" id="5_elias_frames"]
 [ext_resource type="SpriteFrames" uid="uid://cde02m0qw1a37" path="res://assets/characters/tanod/tanod_frames.tres" id="6_tanod_frames"]
 [ext_resource type="Texture2D" uid="uid://ckqlklo3ew6nf" path="res://assets/props/item_book.png" id="7_book"]
@@ -13,6 +12,8 @@
 [ext_resource type="PackedScene" uid="uid://de7y84lnoxl7t" path="res://scenes/settings_panel.tscn" id="10_settings"]
 [ext_resource type="PackedScene" path="res://scenes/shop_panel.tscn" id="11_shop"]
 [ext_resource type="AudioStream" uid="uid://ccwpy4tj80c1o" path="res://assets/sounds/menumusic.mp3" id="12_music"]
+[ext_resource type="Script" path="res://scripts/ui/menu_backdrop.gd" id="13_backdrop"]
+[ext_resource type="AudioStream" path="res://assets/sounds/clicksound.wav" id="14_click"]
 
 [sub_resource type="StyleBoxFlat" id="sb_pill"]
 content_margin_left = 10.0
@@ -145,17 +146,9 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
 
-[node name="Backdrop" type="TextureRect" parent="." unique_id=1431751600]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture = ExtResource("4_bg")
-expand_mode = 1
-stretch_mode = 6
+[node name="MenuBackdrop" type="Node2D" parent="." unique_id=1431751600]
+unique_name_in_owner = true
+script = ExtResource("13_backdrop")
 
 [node name="BackdropDim" type="ColorRect" parent="." unique_id=480658868]
 layout_mode = 1
@@ -165,7 +158,18 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.07, 0.05, 0.09, 0.48)
+color = Color(0.07, 0.05, 0.09, 0.30)
+
+[node name="LaunchFlash" type="ColorRect" parent="." unique_id=480658869]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0)
 
 [node name="VignetteContainer" type="Control" parent="." unique_id=1868663654]
 layout_mode = 1
@@ -178,9 +182,9 @@ mouse_filter = 2
 
 [node name="TanodVignette" type="AnimatedSprite2D" parent="VignetteContainer" unique_id=1270411486]
 unique_name_in_owner = true
-modulate = Color(0.7, 0.7, 0.8, 0.45)
-position = Vector2(1220, 740)
-scale = Vector2(2.4, 2.4)
+modulate = Color(0.7, 0.7, 0.8, 0.62)
+position = Vector2(1080, 800)
+scale = Vector2(1.0, 1.0)
 sprite_frames = ExtResource("6_tanod_frames")
 animation = &"run"
 autoplay = "run"
@@ -188,8 +192,8 @@ frame_progress = 0.42
 
 [node name="EliasVignette" type="AnimatedSprite2D" parent="VignetteContainer" unique_id=1759552920]
 unique_name_in_owner = true
-position = Vector2(1540, 710)
-scale = Vector2(3.2, 3.2)
+position = Vector2(1420, 817)
+scale = Vector2(1.2, 1.2)
 sprite_frames = ExtResource("5_elias_frames")
 animation = &"run"
 autoplay = "run"
@@ -626,3 +630,9 @@ stream = ExtResource("12_music")
 volume_db = -8.0
 autoplay = true
 bus = &"Music"
+
+[node name="ClickSfx" type="AudioStreamPlayer" parent="." unique_id=453149557]
+unique_name_in_owner = true
+stream = ExtResource("14_click")
+volume_db = -8.0
+bus = &"SFX"

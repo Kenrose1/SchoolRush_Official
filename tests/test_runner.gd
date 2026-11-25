@@ -3393,12 +3393,12 @@ func _test_debug_tools() -> void:
 
 func _test_pursuer() -> void:
 	# Config contract.
-	_check_near(GameConfig.PURSUER_CHASE_FACTOR, 0.95, 0.001, "chase factor is 95%")
+	_check_near(GameConfig.PURSUER_CHASE_FACTOR, 0.96, 0.001, "chase factor is 96%")
 	_check_near(
 		GameConfig.RUN_SPEED * GameConfig.PURSUER_CHASE_FACTOR,
-		399.0,
+		403.2,
 		0.01,
-		"chase speed is 399 px/s at base",
+		"chase speed is 403.2 px/s at base",
 	)
 	_check_near(GameConfig.MOMENTUM_DIP_TIME, 1.0, 0.001, "momentum dip lasts 1.0 s")
 	_check_near(GameConfig.PURSUER_CATCH_DISTANCE, 60.0, 0.01, "catch distance is 60 px")
@@ -3461,18 +3461,18 @@ func _test_pursuer() -> void:
 	_check_near(pursuer.gap, GameConfig.PURSUER_WAKE_GAP, 0.01, "wake during chase does not reset gap")
 
 	# Gap dynamics: full speed grows the gap (escape), dip shrinks it (pressure).
-	# Factor eases 0.95 -> 1.0 over 10 s, so speed is ~401 at chase_time~1.
+	# Factor eases 0.96 -> 1.0 over 10 s, so speed is ~405 at chase_time~1.
 	pursuer.set_world_speed(GameConfig.RUN_SPEED)
 	var gap_before := pursuer.gap
 	pursuer._physics_process(1.0)
 	_check(pursuer.gap > gap_before, "full speed pulls away from the tanod")
-	_check_near(pursuer.gap, gap_before + 19.0, 3.0, "gap grows ~19 px/s at full speed")
+	_check_near(pursuer.gap, gap_before + 15.12, 3.0, "gap grows ~15 px/s at full speed")
 
 	pursuer.set_world_speed(GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR)
 	gap_before = pursuer.gap
 	pursuer._physics_process(1.0)
 	_check(pursuer.gap < gap_before, "momentum dip lets the tanod gain")
-	_check_near(pursuer.gap - gap_before, -86.0, 4.0, "gap shrinks ~86 px/s while dipped")
+	_check_near(pursuer.gap - gap_before, -91.56, 4.0, "gap shrinks ~92 px/s while dipped")
 
 	# Fade after surviving the chase.
 	var fades := [0]
@@ -3657,6 +3657,35 @@ func _test_menu() -> void:
 		menu.quit_button.pressed.is_connected(menu._on_quit_pressed),
 		"quit is wired to close the app",
 	)
+
+	# The menu is a live slice of the school zone, not a static backdrop.
+	var backdrop := menu.get_node_or_null("MenuBackdrop") as MenuBackdrop
+	_check(backdrop != null, "the menu carries the live school-zone backdrop")
+	if backdrop != null:
+		_check_near(
+			backdrop.scroll_speed,
+			GameConfig.RUN_SPEED * MenuBackdrop.SCROLL_FACTOR, 0.001,
+			"the menu strip scrolls slower than a live run",
+		)
+		var before_scroll := backdrop.distance
+		backdrop._process(0.5)
+		_check(backdrop.distance > before_scroll, "the menu backdrop scrolls over time")
+
+	_check(menu.click_sfx != null, "the menu has a click player")
+	if menu.click_sfx != null:
+		_check_eq(menu.click_sfx.bus, &"SFX", "menu clicks route to the SFX bus")
+		_check_near(menu.click_sfx.volume_db, MainMenu.CLICK_DB, 0.001,
+			"menu clicks use the tuned UI level")
+
+	# Launch feedback locks the menu and cannot double-fire a scene change.
+	var previous_mode := GameState.mode
+	menu._launch(GameConfig.RunMode.CAMPAIGN, false)
+	_check_eq(menu.launch_count, 1, "a mode press starts exactly one launch")
+	_check_eq(GameState.mode, GameConfig.RunMode.CAMPAIGN, "launch sets the mode before the flash")
+	_check(menu.campaign_button.disabled, "launch locks the menu buttons")
+	menu._launch(GameConfig.RunMode.ENDLESS, false)
+	_check_eq(menu.launch_count, 1, "a second press cannot restart the launch")
+	GameState.mode = previous_mode
 	menu.queue_free()
 
 

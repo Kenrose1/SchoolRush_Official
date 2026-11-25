@@ -3,14 +3,20 @@ class_name MainMenu
 extends Control
 ## Main menu: CAMPAIGN / ENDLESS / HOW TO PLAY / QUIT over the school backdrop.
 ##
-## Upgraded with "Morning Rush Vignette" asymmetric layout, animated character
-## sprites, floating props, and dynamic button micro-interactions.
+## The backdrop is a live, non-interactive slice of the game's school zone:
+## scrolling hallway, lane paint, drifting hazards and coins, with Elias and
+## the tanod on the same floor line. The original asymmetric vignette layout,
+## focus order and overlays are unchanged.
 
 const WORLD_SCENE := "res://scenes/main.tscn"
 const BEST_FORMAT := "BEST  %06d"
 const MUSIC_DB := -8.0
 const MUSIC_FADE_FROM_DB := -40.0
 const MUSIC_FADE_TIME := 1.5
+const CLICK_DB := -8.0
+const LAUNCH_FLASH_PEAK := 0.55
+const LAUNCH_FLASH_IN := 0.08
+const LAUNCH_FLASH_OUT := 0.12
 
 @onready var campaign_button: Button = %Campaign
 @onready var endless_button: Button = %Endless
@@ -28,6 +34,9 @@ const MUSIC_FADE_TIME := 1.5
 @onready var tanod_sprite: AnimatedSprite2D = %TanodVignette
 @onready var title_label: Label = %TitleLabel
 @onready var tag_pill: Label = %UrgencyPill
+@onready var backdrop: MenuBackdrop = %MenuBackdrop
+@onready var click_sfx: AudioStreamPlayer = %ClickSfx
+@onready var launch_flash: ColorRect = %LaunchFlash
 
 # Floating props
 @onready var prop_book: TextureRect = %PropBook
@@ -37,11 +46,18 @@ const MUSIC_FADE_TIME := 1.5
 var _buttons: Array[Button] = []
 var _button_initial_x: Dictionary = {}
 var _prop_origins: Dictionary = {}
+var _click_rng := RandomNumberGenerator.new()
+## Test counter: how many launch sequences actually started.
+var launch_count: int = 0
+var _launching: bool = false
 
 
 func _ready() -> void:
 	how_to_panel.visible = false
 	best_label.text = BEST_FORMAT % GameState.best_campaign
+	_click_rng.randomize()
+	click_sfx.volume_db = CLICK_DB
+	click_sfx.bus = &"SFX"
 
 	# Menu music fades in gently instead of slamming in at full volume.
 	menu_music.volume_db = MUSIC_FADE_FROM_DB
@@ -51,6 +67,7 @@ func _ready() -> void:
 	endless_button.pressed.connect(_on_endless_pressed)
 	how_to_button.pressed.connect(_on_how_to_pressed)
 	back_button.pressed.connect(_on_how_to_pressed)
+	back_button.pressed.connect(func(): _play_button_feedback(back_button))
 	settings_button.pressed.connect(_on_settings_pressed)
 	settings_panel.closed.connect(_on_settings_closed)
 	shop_button.pressed.connect(_on_shop_pressed)
@@ -75,6 +92,7 @@ func _setup_button_effects(btn: Button) -> void:
 	btn.mouse_exited.connect(func(): _animate_button_hover(btn, false))
 	btn.focus_entered.connect(func(): _animate_button_hover(btn, true))
 	btn.focus_exited.connect(func(): _animate_button_hover(btn, false))
+	btn.pressed.connect(func(): _play_button_feedback(btn))
 
 
 func _animate_button_hover(btn: Button, is_hovered: bool) -> void:
@@ -87,6 +105,18 @@ func _animate_button_hover(btn: Button, is_hovered: bool) -> void:
 	else:
 		tw.tween_property(btn, "scale", Vector2.ONE, 0.2)
 		tw.tween_property(btn, "modulate", Color.WHITE, 0.2)
+
+
+## Game-style press feedback: a short click with tiny pitch variation and an
+## elastic squash. The click plays for every button, including modal Back.
+func _play_button_feedback(btn: Button) -> void:
+	click_sfx.pitch_scale = _click_rng.randf_range(0.97, 1.03)
+	click_sfx.play()
+	var tw := create_tween()
+	tw.tween_property(btn, "scale", Vector2(0.92, 0.98), 0.07) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_property(btn, "scale", Vector2.ONE, 0.18) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _setup_props() -> void:
@@ -107,6 +137,10 @@ func _start_ambient_animations() -> void:
 		var pill_tw := create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		pill_tw.tween_property(tag_pill, "rotation_degrees", -4.0, 1.2)
 		pill_tw.tween_property(tag_pill, "rotation_degrees", 4.0, 1.2)
+		# The "late again" pill ticks like a countdown under pressure.
+		var pulse := create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		pulse.tween_property(tag_pill, "scale", Vector2(1.04, 1.04), 0.9)
+		pulse.tween_property(tag_pill, "scale", Vector2.ONE, 0.9)
 
 	# Drifting stationery props
 	var props = [prop_book, prop_pencil, prop_bag]
@@ -127,14 +161,30 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## Mode launch: lock the menu, flash the world like a GO beat, then hand off.
+## Guarded so a double press can never queue two scene changes. Tests can pass
+## false to exercise the state without tearing down the suite's current scene.
+func _launch(mode: int, change_scene: bool = true) -> void:
+	if _launching:
+		return
+	_launching = true
+	launch_count += 1
+	GameState.mode = mode
+	for btn in _buttons:
+		btn.disabled = true
+	var tw := create_tween()
+	tw.tween_property(launch_flash, "color:a", LAUNCH_FLASH_PEAK, LAUNCH_FLASH_IN)
+	tw.tween_property(launch_flash, "color:a", 0.0, LAUNCH_FLASH_OUT)
+	if change_scene:
+		tw.tween_callback(func() -> void: get_tree().change_scene_to_file(WORLD_SCENE))
+
+
 func _on_campaign_pressed() -> void:
-	GameState.mode = GameConfig.RunMode.CAMPAIGN
-	get_tree().change_scene_to_file(WORLD_SCENE)
+	_launch(GameConfig.RunMode.CAMPAIGN)
 
 
 func _on_endless_pressed() -> void:
-	GameState.mode = GameConfig.RunMode.ENDLESS
-	get_tree().change_scene_to_file(WORLD_SCENE)
+	_launch(GameConfig.RunMode.ENDLESS)
 
 
 func _on_how_to_pressed() -> void:
@@ -172,4 +222,5 @@ func _on_shop_closed() -> void:
 
 
 func _on_quit_pressed() -> void:
+	click_sfx.play()
 	get_tree().quit()
