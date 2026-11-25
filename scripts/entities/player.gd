@@ -41,6 +41,10 @@ var shield_max: int = 0
 var invulnerable_time_left: float = 0.0
 ## Test counter: how many times the hurt sound actually fired.
 var hurt_play_count: int = 0
+## Test counter: how many times the car-death animation actually fired.
+var death_play_count: int = 0
+## Once a fatal car hit plays the knockdown, nothing may swap it back to hurt.
+var _death_played: bool = false
 ## Counted for the test suite; pitch is re-rolled per launch (see below).
 var jump_play_count: int = 0
 ## Test counters: how many times each pickup sound actually fired. A coin
@@ -199,7 +203,7 @@ func can_take_damage() -> bool:
 ## Apply damage unless invulnerable. A shield charge absorbs the hit first:
 ## no heart loss, no combo break, but the brief i-frame grace still applies.
 ## Returns true only when the hit landed (a heart was lost).
-func take_damage(amount: int = 1) -> bool:
+func take_damage(amount: int = 1, source_kind: int = -1) -> bool:
 	if not can_take_damage():
 		return false
 	if shield_charges > 0:
@@ -216,12 +220,22 @@ func take_damage(amount: int = 1) -> bool:
 	damaged.emit(health)
 	health_changed.emit(health, max_health)
 	if health == 0:
+		if source_kind == GameConfig.HazardKind.CAR:
+			_play_death()
 		died.emit()
 	return true
 
 
 ## Hurt sound fires only when a heart is actually lost - shield absorbs and
 ## i-frame-blocked hits stay silent. Counted for the test suite.
+## Car impacts swap the generic hurt pose for the dedicated knockdown sheet.
+## Counted so the suite can prove it only fires for a fatal car hit.
+func _play_death() -> void:
+	death_play_count += 1
+	_death_played = true
+	_play(&"death")
+
+
 func _play_hurt_sound() -> void:
 	hurt_play_count += 1
 	hurt_sfx.play()
@@ -282,6 +296,7 @@ func reset_health() -> void:
 	shield_charges = shield_max
 	invulnerable_time_left = 0.0
 	_hurt_time_left = 0.0
+	_death_played = false
 	health_changed.emit(health, max_health)
 	shield_changed.emit(shield_charges, shield_max)
 
@@ -352,7 +367,7 @@ func _hit_hazard(hazard: Hazard) -> void:
 		caught.emit()
 		died.emit()
 		return
-	take_damage()
+	take_damage(1, hazard.kind)
 
 
 ## School Items obey the same lane rule: nothing is picked up across lanes,
@@ -409,6 +424,8 @@ func _apply_pose() -> void:
 
 
 func _update_animation() -> void:
+	if _death_played:
+		return
 	# Held at the start line: standing still reads better than a run cycle
 	# playing on the spot while the countdown ticks.
 	if waiting_at_start:

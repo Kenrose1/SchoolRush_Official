@@ -16,6 +16,7 @@ const ANIMATIONS := {
 	"jump": {"frames": 3, "fps": 10.0, "loop": false},
 	"slide": {"frames": 4, "fps": 8.0, "loop": true},
 	"hurt": {"frames": 6, "fps": 10.0, "loop": false},
+	"death": {"frames": 8, "fps": 12.0, "loop": false},
 }
 
 

@@ -724,16 +724,18 @@ func _test_player() -> void:
 			frames.resource_path.ends_with("elias_frames.tres"),
 			"sprite frames come from the committed resource (%s)" % frames.resource_path,
 		)
-		_check_eq(frames.get_animation_names().size(), 5, "five Elias animations exist")
+		_check_eq(frames.get_animation_names().size(), 6, "six Elias animations exist")
 		_check_eq(frames.get_frame_count("run"), 7, "run animation has 7 frames")
 		_check_eq(frames.get_frame_count("jump"), 3, "jump animation has 3 frames")
 		_check_eq(frames.get_frame_count("slide"), 4, "slide animation has 4 frames")
+		_check_eq(frames.get_frame_count("death"), 8, "death animation has 8 frames")
 		var first_run := frames.get_frame_texture("run", 0)
 		_check(first_run != null, "run frame 0 has a texture")
 		if first_run != null:
 			_check(first_run.resource_path.ends_with("run_0.png"), "run frame 0 is run_0.png")
 		_check(frames.get_animation_loop("run"), "run animation loops")
 		_check(not frames.get_animation_loop("jump"), "jump animation does not loop")
+		_check(not frames.get_animation_loop("death"), "death animation does not loop")
 	player._physics_process(1.0 / 60.0)
 	_check_eq(player.sprite.animation, &"run", "running animation tracks the ground state")
 
@@ -902,7 +904,26 @@ func _test_health() -> void:
 	_check_eq(deaths[0], 1, "died fires exactly once")
 	_check(not player.take_damage(), "a player at zero hearts cannot be hit again")
 	_check_eq(deaths[0], 1, "died does not fire twice")
+	_check_eq(player.death_play_count, 0,
+		"ordinary fatal hits do not play the car-death animation")
 
+	# A fatal car hit swaps to the dedicated knockdown sheet.
+	player.reset_health()
+	player.health = 1
+	_check(player.take_damage(1, GameConfig.HazardKind.CAR),
+		"the fatal car hit lands")
+	_check_eq(player.death_play_count, 1,
+		"a fatal car hit plays the car-death animation")
+	_check_eq(String(player.sprite.animation), "death",
+		"the sprite switches to the death animation")
+	_check_eq(deaths[0], 2, "the car death also fires died once")
+
+	player.reset_health()
+	_check(not player._death_played, "reset clears the death-animation guard")
+
+	# Other assertions in this section share `deaths`; put it back to the value
+	# they expect now that the car-death case has been counted.
+	deaths[0] = 1
 	player.reset_health()
 	_check_eq(player.health, GameConfig.MAX_HEARTS, "reset_health restores every heart")
 	_check_eq(deaths[0], 1, "reset does not re-fire died")
