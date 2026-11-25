@@ -509,6 +509,19 @@ const ITEM_HITBOX_SIZE := Vector2(44.0, 44.0)
 const ITEM_BOB_HEIGHT := 6.0
 const ITEM_BOB_SPEED := 4.0
 
+## Pickup feedback: the item pops, rises and fades out after it is scored.
+## Coins get a shorter version because a coin run arrives every 160 px
+## (~0.28-0.38 s), so a long effect would stack ghosts on screen.
+const ITEM_COLLECT_TIME := 0.28
+const ITEM_COLLECT_RISE := 34.0
+const COIN_COLLECT_TIME := 0.14
+const COIN_COLLECT_RISE := 18.0
+const COLLECT_POP_SCALE := 1.15
+const COLLECT_POP_TIME_FRACTION := 0.3
+const COLLECT_END_SCALE := 0.6
+## Sparks outlive the sprite fade; the node stays alive until both are done.
+const COLLECT_SPARK_LIFETIME := 0.35
+
 ## Coins run on their own distance clock, like School Items but rarer. A run
 ## drops COIN_RUN_MIN..COIN_RUN_MAX coins at once, all in one clear lane,
 ## spaced COIN_SPACING px apart so Elias collects them in a trail.

@@ -8,6 +8,10 @@ extends Area2D
 signal picked_up(kind: GameConfig.ItemKind)
 signal missed
 
+## Presentation-only one-shot burst for School Items. Coins skip it: a coin
+## trail would fire several bursts a second and turn into visual soup.
+const SPARK_COUNT := 6
+
 var kind: GameConfig.ItemKind = GameConfig.ItemKind.PENCIL
 var speed: float = GameConfig.RUN_SPEED
 var lane: int = GameConfig.LANE_MIDDLE
@@ -20,6 +24,7 @@ var _hover_y: float = -GameConfig.ITEM_HOVER_HEIGHT
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var shape: CollisionShape2D = $Shape
+@onready var collect_spark: CPUParticles2D = $CollectSpark
 
 
 func _ready() -> void:
@@ -45,7 +50,10 @@ func setup(new_kind: GameConfig.ItemKind, new_lane: int, world_speed: float) -> 
 
 
 func _physics_process(delta: float) -> void:
+	# A collected item keeps riding the world while its pickup FX plays, so it
+	# does not look glued to the camera. Miss/despawn checks stop at that point.
 	if _collected:
+		position.x -= speed * delta
 		return
 	position.x -= speed * delta
 	# Currency (coins) never reports a miss: a trail the player runs past
@@ -66,14 +74,52 @@ func _process(delta: float) -> void:
 	sprite.position.y = _hover_y + sin(_bob_time * GameConfig.ITEM_BOB_SPEED) * GameConfig.ITEM_BOB_HEIGHT
 
 
-## Returns true only for the first successful collection.
+## Returns true only for the first successful collection. Scoring is instant;
+## the sprite stays alive briefly for the pickup FX and frees itself at the end.
 func collect() -> bool:
 	if _collected or _missed:
 		return false
 	_collected = true
+	# collect() runs during the player's physics flush, so defer the shape edit.
+	shape.set_deferred("disabled", true)
 	picked_up.emit(kind)
-	queue_free()
+	_play_collect_fx()
 	return true
+
+
+## Pop, rise and fade the collected item. All tweens run in parallel from t=0;
+## the shrink/fade pair is delayed until the pop finishes. The spark outlives
+## the sprite fade, so the node is freed when the longer of the two is done.
+func _play_collect_fx() -> void:
+	var is_currency: bool = _data.get("currency", false)
+	var duration := (GameConfig.COIN_COLLECT_TIME if is_currency
+		else GameConfig.ITEM_COLLECT_TIME)
+	var rise := (GameConfig.COIN_COLLECT_RISE if is_currency
+		else GameConfig.ITEM_COLLECT_RISE)
+	var base_scale := sprite.scale
+	var pop_time := duration * GameConfig.COLLECT_POP_TIME_FRACTION
+	var fade_time := duration - pop_time
+
+	if not is_currency and collect_spark != null:
+		collect_spark.amount = SPARK_COUNT
+		collect_spark.restart()
+
+	var tween := create_tween()
+	tween.tween_property(sprite, "position:y", sprite.position.y - rise, duration) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(
+		sprite, "scale", base_scale * GameConfig.COLLECT_POP_SCALE, pop_time) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(
+		sprite, "scale", base_scale * GameConfig.COLLECT_END_SCALE, fade_time) \
+		.set_delay(pop_time).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(sprite, "modulate:a", 0.0, fade_time) \
+		.set_delay(pop_time).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	# Sparks are world-space but parented here, so wait them out before freeing.
+	if not is_currency:
+		tween.tween_interval(
+			maxf(0.0, GameConfig.COLLECT_SPARK_LIFETIME - duration))
+	tween.tween_callback(queue_free)
 
 
 ## Top and bottom Y of the pickup box, relative to the lane baseline.

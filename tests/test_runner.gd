@@ -2530,6 +2530,39 @@ func _test_collectible() -> void:
 	_check_eq(picked[0], 1, "picked_up does not fire twice")
 	once.queue_free()
 
+	# Pickup FX: scoring is instant, but the item lives on to pop, rise and
+	# fade. The scale is tweened from the item's own art scale, never from 1.
+	var fx_item := scene.instantiate() as Collectible
+	add_child(fx_item)
+	fx_item.setup(GameConfig.ItemKind.BOOK, GameConfig.LANE_MIDDLE, 120.0)
+	var base_scale := fx_item.sprite.scale
+	var start_x := fx_item.position.x
+	var start_y := fx_item.sprite.position.y
+	_check(fx_item.collect(), "item collects and starts its FX")
+	_check(is_instance_valid(fx_item), "a collected item is not freed immediately")
+	_check_near(fx_item.sprite.scale.x, base_scale.x, 0.001,
+		"FX starts from the item's own art scale")
+	await _physics_frames(3)
+	_check(fx_item.shape.disabled, "the pickup box shuts off after collection")
+	_check(fx_item.sprite.position.y < start_y, "the item rises as it is collected")
+	_check(fx_item.sprite.scale.x > base_scale.x, "the item pops before it shrinks")
+	_check(fx_item.position.x < start_x, "the item keeps scrolling during its FX")
+	_check(fx_item.collect_spark.emitting, "School Items fire the spark burst")
+	await get_tree().create_timer(
+		GameConfig.ITEM_COLLECT_TIME + GameConfig.COLLECT_SPARK_LIFETIME + 0.2).timeout
+	_check(not is_instance_valid(fx_item), "the item frees itself when the FX ends")
+
+	# Coins use the shorter effect with no spark, so a trail cannot stack ghosts.
+	var fx_coin := scene.instantiate() as Collectible
+	add_child(fx_coin)
+	fx_coin.setup(GameConfig.ItemKind.COIN, GameConfig.LANE_MIDDLE, 0.0)
+	_check(GameConfig.COIN_COLLECT_TIME < GameConfig.ITEM_COLLECT_TIME,
+		"coin FX is shorter than the School Item FX")
+	_check(fx_coin.collect(), "coin collects and starts its shorter FX")
+	_check(not fx_coin.collect_spark.emitting, "coins skip the spark burst")
+	await get_tree().create_timer(GameConfig.COIN_COLLECT_TIME + 0.15).timeout
+	_check(not is_instance_valid(fx_coin), "the coin frees itself after its short FX")
+
 	# missed fires when it scrolls behind the player.
 	var drifter := scene.instantiate() as Collectible
 	add_child(drifter)
