@@ -55,7 +55,7 @@ const ZONE_HOME_DURATION_SECONDS := 25.0
 const ZONE_HOME_MIN_SECONDS := 5.0
 
 ## How long the street zone lasts, in seconds. SCHOOL takes over when it ends.
-const ZONE_STREET_DURATION_SECONDS := 40.0
+const ZONE_STREET_DURATION_SECONDS := 120.0
 
 ## Floor for the street duration, so the boundary can never collapse.
 const ZONE_STREET_MIN_SECONDS := 5.0
