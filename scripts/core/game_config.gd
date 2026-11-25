@@ -148,8 +148,8 @@ const ENDLESS_RAMP_DISTANCE := 40000.0
 ## Campaign speed ramp: a linear multiplier on RUN_SPEED from 1.0 at the start
 ## line to this at the finish. The course stays fixed in pixels, so the ramp
 ## makes the run physically faster without moving zone boundaries or the
-## finish line. At 1.2 the last stretch runs 20% faster than the first.
-const CAMPAIGN_RAMP_MAX_MULTIPLIER := 1.2
+## finish line. At 1.35 the last stretch runs 35% faster than the first.
+const CAMPAIGN_RAMP_MAX_MULTIPLIER := 1.35
 
 ## Speed multiplier at [param distance_px] for the endless ramp. Monotonic,
 ## capped at ENDLESS_RAMP_MAX_MULTIPLIER; distance-based so it is deterministic
@@ -705,11 +705,11 @@ const DESPAWN_X := -400.0
 
 # --- Pursuer (tanod) ---------------------------------------------------------
 
-## Chase speed as a fraction of RUN_SPEED. 0.95 = 399 px/s at base speed.
+## Chase speed as a fraction of RUN_SPEED. 0.97 = 407.4 px/s at base speed.
 ## Applied to the faster of the current world speed and RUN_SPEED, so the
-## tanod keeps up with the endless speed ramp while a momentum dip (world
-## below RUN_SPEED) still lets him close the gap.
-const PURSUER_CHASE_FACTOR := 0.96
+## tanod keeps up with the speed ramps while a momentum dip (world below
+## RUN_SPEED) still lets him close the gap.
+const PURSUER_CHASE_FACTOR := 0.97
 ## Eases toward full speed if a chase drags on (seconds to reach 1.0x).
 const PURSUER_CHASE_RAMP_TIME := 10.0
 ## Gap (px behind the player) at which the tanod catches Elias.

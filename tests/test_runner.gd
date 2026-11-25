@@ -2212,13 +2212,14 @@ func _test_modes() -> void:
 		ramp_prev = ramp_mult
 	_check(ramp_monotonic, "the endless ramp only increases with distance")
 
-	# Campaign ramp: linear from stock speed at the start line to +20% at the
+	# Campaign ramp: linear from stock speed at the start line to +35% at the
 	# finish, capped so a botched distance can never overspeed the world.
 	var finish := home + street + school
 	_check_near(GameConfig.campaign_speed_multiplier(0.0, finish), 1.0, 0.0001,
 		"the campaign ramp starts at stock speed")
 	_check_near(
-		GameConfig.campaign_speed_multiplier(finish * 0.5, finish), 1.1, 0.0001,
+		GameConfig.campaign_speed_multiplier(finish * 0.5, finish),
+		1.0 + (GameConfig.CAMPAIGN_RAMP_MAX_MULTIPLIER - 1.0) * 0.5, 0.0001,
 		"the campaign ramp is linear halfway through")
 	_check_near(
 		GameConfig.campaign_speed_multiplier(finish, finish),
@@ -3080,7 +3081,9 @@ func _test_shop() -> void:
 		"the speed upgrade multiplies the campaign base speed")
 	speed_world.distance = speed_world.campaign_finish_distance * 0.5
 	_check_near(speed_world._base_speed(),
-		GameConfig.RUN_SPEED * 1.1 * GameConfig.shop_speed_multiplier(2), 0.0001,
+		GameConfig.RUN_SPEED * GameConfig.campaign_speed_multiplier(
+			speed_world.distance, speed_world.campaign_finish_distance)
+		* GameConfig.shop_speed_multiplier(2), 0.0001,
 		"the campaign ramp stacks with the speed upgrade")
 	speed_world.queue_free()
 	GameState.shop_levels = pre_levels
@@ -3393,12 +3396,12 @@ func _test_debug_tools() -> void:
 
 func _test_pursuer() -> void:
 	# Config contract.
-	_check_near(GameConfig.PURSUER_CHASE_FACTOR, 0.96, 0.001, "chase factor is 96%")
+	_check_near(GameConfig.PURSUER_CHASE_FACTOR, 0.97, 0.001, "chase factor is 97%")
 	_check_near(
 		GameConfig.RUN_SPEED * GameConfig.PURSUER_CHASE_FACTOR,
-		403.2,
+		407.4,
 		0.01,
-		"chase speed is 403.2 px/s at base",
+		"chase speed is 407.4 px/s at base",
 	)
 	_check_near(GameConfig.MOMENTUM_DIP_TIME, 1.0, 0.001, "momentum dip lasts 1.0 s")
 	_check_near(GameConfig.PURSUER_CATCH_DISTANCE, 60.0, 0.01, "catch distance is 60 px")
@@ -3454,25 +3457,38 @@ func _test_pursuer() -> void:
 	_check(pursuer.state == Pursuer.State.CHASE, "wake enters chase")
 	_check(pursuer.visible, "pursuer becomes visible on wake")
 	_check(pursuer.is_active(), "chasing pursuer is active")
-	_check_near(pursuer.gap, GameConfig.PURSUER_WAKE_GAP, 0.01, "wake gap is 700 px")
+	_check_near(pursuer.gap, GameConfig.PURSUER_WAKE_GAP, 0.01,
+		"wake gap uses the tuned chase distance")
 	_check_eq(wakes[0], 1, "chase_started fires once")
 	pursuer.wake()
 	_check_eq(wakes[0], 1, "wake during chase is a no-op")
 	_check_near(pursuer.gap, GameConfig.PURSUER_WAKE_GAP, 0.01, "wake during chase does not reset gap")
 
 	# Gap dynamics: full speed grows the gap (escape), dip shrinks it (pressure).
-	# Factor eases 0.96 -> 1.0 over 10 s, so speed is ~405 at chase_time~1.
+	# Both expectations are derived from the tuned factor so retuning the chase
+	# cannot silently leave stale magic numbers in the suite.
 	pursuer.set_world_speed(GameConfig.RUN_SPEED)
 	var gap_before := pursuer.gap
-	pursuer._physics_process(1.0)
+	var escape_delta := 1.0
+	var escape_factor := lerpf(GameConfig.PURSUER_CHASE_FACTOR, 1.0, clampf(
+		(pursuer.chase_time + escape_delta) / GameConfig.PURSUER_CHASE_RAMP_TIME, 0.0, 1.0))
+	pursuer._physics_process(escape_delta)
 	_check(pursuer.gap > gap_before, "full speed pulls away from the tanod")
-	_check_near(pursuer.gap, gap_before + 15.12, 3.0, "gap grows ~15 px/s at full speed")
+	_check_near(pursuer.gap - gap_before,
+		GameConfig.RUN_SPEED * (1.0 - escape_factor) * escape_delta, 0.01,
+		"full speed grows the gap by the tuned fraction")
 
 	pursuer.set_world_speed(GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR)
 	gap_before = pursuer.gap
-	pursuer._physics_process(1.0)
+	var dip_delta := 1.0
+	var dip_factor := lerpf(GameConfig.PURSUER_CHASE_FACTOR, 1.0, clampf(
+		(pursuer.chase_time + dip_delta) / GameConfig.PURSUER_CHASE_RAMP_TIME, 0.0, 1.0))
+	var dip_world := GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR
+	pursuer._physics_process(dip_delta)
 	_check(pursuer.gap < gap_before, "momentum dip lets the tanod gain")
-	_check_near(pursuer.gap - gap_before, -91.56, 4.0, "gap shrinks ~92 px/s while dipped")
+	_check_near(pursuer.gap - gap_before,
+		dip_world - maxf(dip_world, GameConfig.RUN_SPEED) * dip_factor, 0.01,
+		"momentum dip closes the gap at the tuned rate")
 
 	# Fade after surviving the chase.
 	var fades := [0]
@@ -4661,7 +4677,7 @@ func _test_scenes() -> void:
 			far.distance = far.campaign_finish_distance \
 				- GameConfig.CAMPAIGN_SPAWN_CUTOFF_PX + 50.0
 			# Two quarter-second ticks: the ramp puts the last stretch near
-			# 504 px/s, so a third tick would cross the line and end the run.
+			# 566 px/s, so a third tick would cross the line and end the run.
 			for i in 2:
 				far._physics_process(0.25)
 			_check(far.is_running, "the run is still live inside the spawn cutoff")
@@ -4682,7 +4698,8 @@ func _test_scenes() -> void:
 			far.pursuer.state = Pursuer.State.DORMANT
 			far.pursuer.gap = GameConfig.PURSUER_DORMANT_GAP
 			far.player.invulnerable_time_left = 9999.0
-			far.distance = far.campaign_finish_distance - GameConfig.RUN_SPEED * 2.0
+			far.distance = far.campaign_finish_distance \
+				- GameConfig.RUN_SPEED * GameConfig.CAMPAIGN_RAMP_MAX_MULTIPLIER * 2.0
 			for i in 45:
 				far.player.invulnerable_time_left = 9999.0
 				far._physics_process(1.0 / 60.0)
@@ -4691,14 +4708,21 @@ func _test_scenes() -> void:
 				"no results two seconds before the line")
 			_check(far._finish_debug_text().length() > 0,
 				"the finish readout is available")
-			for i in 120:
+			# Tick until the line is crossed instead of assuming a frame count:
+			# the tuned ramp changes how long two seconds of road actually takes.
+			var crossed := false
+			for i in 300:
+				far.player.invulnerable_time_left = 9999.0
 				far._physics_process(1.0 / 60.0)
-			_check(not far.is_running, "physics crossing the line stops the run")
+				if not far.is_running:
+					crossed = true
+					break
+			_check(crossed, "physics crossing the line stops the run")
 			_check(far.run_off_active, "physics crossing the line begins the run-off")
 			_check(not far.results.visible,
 				"physics crossing keeps the results hidden during the exit")
 			var crossed_distance := far.distance
-			# 1600 px of exit at ~1260 px/s is ~1.3 s; give the guard plenty.
+			# 2000 px of exit at ~1418 px/s is ~1.4 s; give the guard plenty.
 			for i in 240:
 				far._physics_process(1.0 / 60.0)
 			_check(not far.run_off_active, "the physics run-off completes")
