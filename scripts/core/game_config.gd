@@ -480,7 +480,10 @@ static func first_zone_kind(zone: int) -> int:
 
 # --- School Items ------------------------------------------------------------
 
-enum ItemKind { PENCIL, ERASER, BOOK, BAG, COIN }
+enum ItemKind {
+	PENCIL, ERASER, BOOK, BAG, COIN,
+	SHARPENER, RULER, CALCULATOR,
+}
 
 ## Per-kind art. All items float at the same hover height and share one hitbox.
 ## Currency kinds carry "currency": true - they route to the coin wallet
@@ -490,6 +493,9 @@ const ITEM_DATA := {
 	ItemKind.ERASER: {"texture": "res://assets/props/item_eraser.png", "scale": 0.42},
 	ItemKind.BOOK: {"texture": "res://assets/props/item_book.png", "scale": 0.55},
 	ItemKind.BAG: {"texture": "res://assets/props/item_bag.png", "scale": 0.50},
+	ItemKind.SHARPENER: {"texture": "res://assets/props/item_sharpener.png", "scale": 0.42},
+	ItemKind.RULER: {"texture": "res://assets/props/item_ruler.png", "scale": 0.42},
+	ItemKind.CALCULATOR: {"texture": "res://assets/props/item_calculator.png", "scale": 0.42},
 	ItemKind.COIN: {
 		"texture": "res://assets/icon/coin/Golden Coin 2nd Outline 64px.png",
 		"scale": 0.62,

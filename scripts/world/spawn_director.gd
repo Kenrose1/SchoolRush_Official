@@ -227,6 +227,9 @@ func spawn_pickup(distance: float, speed: float = GameConfig.RUN_SPEED) -> int:
 		GameConfig.ItemKind.ERASER,
 		GameConfig.ItemKind.BOOK,
 		GameConfig.ItemKind.BAG,
+		GameConfig.ItemKind.SHARPENER,
+		GameConfig.ItemKind.RULER,
+		GameConfig.ItemKind.CALCULATOR,
 	]
 	var item := COLLECTIBLE_SCENE.instantiate() as Collectible
 	hazards.add_child(item)
