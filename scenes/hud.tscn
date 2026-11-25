@@ -1,0 +1,298 @@
+[gd_scene format=3 uid="uid://ncmb7o4kcxhc"]
+
+[ext_resource type="PackedScene" uid="uid://b7yyoa3oxewcp" path="res://scenes/hearts_hud.tscn" id="1_hearts"]
+[ext_resource type="Script" uid="uid://1f153lp72fw2" path="res://scripts/ui/score_hud.gd" id="2_score"]
+[ext_resource type="Script" uid="uid://bbvrduu0gqsa7" path="res://scripts/ui/pause_menu.gd" id="3_pause"]
+[ext_resource type="FontFile" uid="uid://cwhpo71tlndps" path="res://assets/fonts/Nunito-ExtraBold.ttf" id="4_xbold"]
+[ext_resource type="FontFile" uid="uid://cvrqlp2jra0lf" path="res://assets/fonts/Nunito-SemiBold.ttf" id="5_semi"]
+[ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
+[ext_resource type="PackedScene" path="res://scenes/settings_panel.tscn" id="6_settings"]
+[ext_resource type="PackedScene" path="res://scenes/progress_bar_hud.tscn" id="7_progress"]
+[ext_resource type="Script" uid="uid://d2p5vaorcnrho" path="res://scripts/ui/countdown_overlay.gd" id="8_countdown"]
+[ext_resource type="AudioStream" uid="uid://vp5qxggakmdk" path="res://assets/sounds/countdown_tick.wav" id="9_tick"]
+[ext_resource type="AudioStream" uid="uid://dgsbo070n323s" path="res://assets/sounds/countdown_go.wav" id="10_go"]
+[ext_resource type="AudioStream" uid="uid://bnpysysscju7j" path="res://assets/sounds/321go.mp3" id="11_321go"]
+
+[sub_resource type="StyleBoxFlat" id="sb_pause_btn"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.08, 0.07, 0.1, 0.78)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 0.35)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 6
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="sb_pause_panel"]
+content_margin_left = 44.0
+content_margin_top = 36.0
+content_margin_right = 44.0
+content_margin_bottom = 40.0
+bg_color = Color(0.08, 0.07, 0.1, 0.94)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 0.705882, 0.368627, 0.45)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+shadow_color = Color(0, 0, 0, 0.6)
+shadow_size = 16
+shadow_offset = Vector2(0, 8)
+
+[node name="Hud" type="CanvasLayer"]
+process_mode = 3
+
+[node name="HudRoot" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="Hearts" parent="HudRoot" instance=ExtResource("1_hearts")]
+layout_mode = 0
+
+[node name="Score" type="Control" parent="HudRoot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_score")
+
+[node name="Progress" parent="HudRoot" instance=ExtResource("7_progress")]
+
+[node name="Debug" type="Label" parent="HudRoot"]
+process_mode = 3
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 36.0
+offset_top = -140.0
+offset_right = 650.0
+offset_bottom = -24.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.93, 0.97, 1, 0.85)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("5_semi")
+theme_override_font_sizes/font_size = 18
+
+[node name="Countdown" type="Control" parent="HudRoot"]
+process_mode = 1
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("8_countdown")
+
+[node name="Scrim" type="ColorRect" parent="HudRoot/Countdown"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.05, 0.04, 0.07, 0.55)
+
+[node name="Center" type="CenterContainer" parent="HudRoot/Countdown"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Beat" type="Label" parent="HudRoot/Countdown/Center"]
+custom_minimum_size = Vector2(440, 260)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 6
+theme_override_constants/shadow_offset_y = 6
+theme_override_fonts/font = ExtResource("0_titles")
+theme_override_font_sizes/font_size = 160
+text = "3"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TickSfx" type="AudioStreamPlayer" parent="HudRoot/Countdown"]
+stream = ExtResource("9_tick")
+volume_db = -6.0
+bus = &"SFX"
+
+[node name="GoSfx" type="AudioStreamPlayer" parent="HudRoot/Countdown"]
+stream = ExtResource("10_go")
+volume_db = -6.0
+bus = &"SFX"
+
+[node name="CueSfx" type="AudioStreamPlayer" parent="HudRoot/Countdown"]
+unique_name_in_owner = true
+stream = ExtResource("11_321go")
+volume_db = -8.0
+bus = &"SFX"
+
+[node name="Pause" type="Control" parent="HudRoot"]
+process_mode = 3
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_pause")
+
+[node name="Button" type="Button" parent="HudRoot/Pause"]
+custom_minimum_size = Vector2(68, 68)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -92.0
+offset_top = 28.0
+offset_right = -24.0
+offset_bottom = 96.0
+grow_horizontal = 0
+tooltip_text = "Pause (Esc)"
+focus_mode = 0
+theme_override_styles/normal = SubResource("sb_pause_btn")
+
+[node name="Overlay" type="Control" parent="HudRoot/Pause"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="HudRoot/Pause/Overlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.04, 0.07, 0.76)
+
+[node name="Center" type="CenterContainer" parent="HudRoot/Pause/Overlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="HudRoot/Pause/Overlay/Center"]
+custom_minimum_size = Vector2(460, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("sb_pause_panel")
+
+[node name="VBox" type="VBoxContainer" parent="HudRoot/Pause/Overlay/Center/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="HallPassTag" type="Label" parent="HudRoot/Pause/Overlay/Center/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 0.8)
+theme_override_fonts/font = ExtResource("5_semi")
+theme_override_font_sizes/font_size = 18
+text = "• HALL PASS • GAME FROZEN"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="HudRoot/Pause/Overlay/Center/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_fonts/font = ExtResource("0_titles")
+theme_override_font_sizes/font_size = 64
+text = "PAUSED"
+horizontal_alignment = 1
+
+[node name="Resume" type="Button" parent="HudRoot/Pause/Overlay/Center/Panel/VBox"]
+custom_minimum_size = Vector2(340, 64)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_neighbor_top = NodePath("../Quit")
+focus_neighbor_bottom = NodePath("../Restart")
+focus_next = NodePath("../Restart")
+focus_previous = NodePath("../Quit")
+theme_override_fonts/font = ExtResource("4_xbold")
+theme_override_font_sizes/font_size = 30
+text = "RESUME"
+
+[node name="Restart" type="Button" parent="HudRoot/Pause/Overlay/Center/Panel/VBox"]
+custom_minimum_size = Vector2(340, 64)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_neighbor_top = NodePath("../Resume")
+focus_neighbor_bottom = NodePath("../Settings")
+focus_next = NodePath("../Settings")
+focus_previous = NodePath("../Resume")
+theme_override_fonts/font = ExtResource("4_xbold")
+theme_override_font_sizes/font_size = 30
+text = "RESTART"
+
+[node name="Settings" type="Button" parent="HudRoot/Pause/Overlay/Center/Panel/VBox"]
+custom_minimum_size = Vector2(340, 64)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_neighbor_top = NodePath("../Restart")
+focus_neighbor_bottom = NodePath("../Quit")
+focus_next = NodePath("../Quit")
+focus_previous = NodePath("../Restart")
+theme_override_fonts/font = ExtResource("4_xbold")
+theme_override_font_sizes/font_size = 30
+text = "SETTINGS"
+
+[node name="Quit" type="Button" parent="HudRoot/Pause/Overlay/Center/Panel/VBox"]
+custom_minimum_size = Vector2(340, 64)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_neighbor_top = NodePath("../Settings")
+focus_neighbor_bottom = NodePath("../Resume")
+focus_next = NodePath("../Resume")
+focus_previous = NodePath("../Settings")
+theme_override_fonts/font = ExtResource("4_xbold")
+theme_override_font_sizes/font_size = 30
+text = "MAIN MENU"
+
+[node name="SettingsCenter" type="CenterContainer" parent="HudRoot/Pause/Overlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SettingsPanel" parent="HudRoot/Pause/Overlay/SettingsCenter" instance=ExtResource("6_settings")]
+unique_name_in_owner = true
+layout_mode = 2

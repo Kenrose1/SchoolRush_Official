@@ -1,0 +1,190 @@
+[gd_scene format=3 uid="uid://c6tofu2gcnhba"]
+
+[ext_resource type="Script" uid="uid://drem1oiqfxv7p" path="res://scripts/ui/shop_panel.gd" id="1_shop"]
+[ext_resource type="FontFile" uid="uid://cwhpo71tlndps" path="res://assets/fonts/Nunito-ExtraBold.ttf" id="2_xbold"]
+[ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
+[ext_resource type="AudioStream" uid="uid://bgmckdtuggibm" path="res://assets/sounds/upgradesound.mp3" id="3_upgrade"]
+[ext_resource type="AudioStream" path="res://assets/sounds/maxupgrade.mp3" id="4_maxupgrade"]
+[ext_resource type="Texture2D" path="res://assets/vfx/spark_star.png" id="5_spark"]
+
+[sub_resource type="StyleBoxFlat" id="sb_panel"]
+content_margin_left = 44.0
+content_margin_top = 36.0
+content_margin_right = 44.0
+content_margin_bottom = 40.0
+bg_color = Color(0.08, 0.07, 0.1, 0.94)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 0.705882, 0.368627, 0.45)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+shadow_size = 16
+shadow_offset = Vector2(0, 8)
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_normal"]
+content_margin_left = 28.0
+content_margin_top = 12.0
+content_margin_right = 28.0
+content_margin_bottom = 12.0
+bg_color = Color(0.1, 0.09, 0.13, 0.82)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 0.25)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="Gradient" id="Gradient_maxspark"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(1, 0.97, 0.8, 1, 1, 0.78, 0.3, 0.85, 1, 0.45, 0.12, 0)
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_hover"]
+content_margin_left = 28.0
+content_margin_top = 12.0
+content_margin_right = 28.0
+content_margin_bottom = 12.0
+bg_color = Color(0.18, 0.14, 0.22, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[node name="ShopPanel" type="PanelContainer" unique_id=1734480668]
+custom_minimum_size = Vector2(780, 0)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("sb_panel")
+script = ExtResource("1_shop")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=1005096001]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderRow" type="HBoxContainer" parent="VBox" unique_id=1638061376]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="VBox/HeaderRow" unique_id=448499330]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_fonts/font = ExtResource("0_titles")
+theme_override_font_sizes/font_size = 40
+text = "SCHOOL STORE"
+vertical_alignment = 1
+
+[node name="Spacer" type="Control" parent="VBox/HeaderRow" unique_id=1421545699]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="WalletChip" type="HBoxContainer" parent="VBox/HeaderRow" unique_id=1037062298]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="WalletLabel" type="Label" parent="VBox/HeaderRow/WalletChip" unique_id=557411998]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 30
+text = "0"
+vertical_alignment = 1
+
+[node name="UpgradeGrid" type="GridContainer" parent="VBox" unique_id=1913857722]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 20
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="CloseButton" type="Button" parent="VBox" unique_id=1234328724]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 28
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "CLOSE"
+
+[node name="UpgradeSfx" type="AudioStreamPlayer" parent="." unique_id=40848052]
+unique_name_in_owner = true
+stream = ExtResource("3_upgrade")
+volume_db = -2.0
+bus = &"SFX"
+
+[node name="MaxUpgradeSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("4_maxupgrade")
+volume_db = 3.0
+bus = &"SFX"
+
+[node name="MaxFx" type="Node2D" parent="."]
+
+[node name="MaxUpgradeRing" type="Line2D" parent="MaxFx"]
+unique_name_in_owner = true
+visible = false
+z_index = 2
+width = 6.0
+default_color = Color(1, 0.85, 0.45, 0.95)
+closed = true
+
+[node name="MaxUpgradeBurst" type="CPUParticles2D" parent="MaxFx"]
+unique_name_in_owner = true
+z_index = 2
+emitting = false
+amount = 16
+lifetime = 0.55
+one_shot = true
+explosiveness = 1.0
+local_coords = false
+texture = ExtResource("5_spark")
+spread = 180.0
+gravity = Vector2(0, 0)
+initial_velocity_min = 90.0
+initial_velocity_max = 190.0
+damping_min = 80.0
+damping_max = 110.0
+angle_min = -180.0
+angle_max = 180.0
+scale_amount_min = 0.05
+scale_amount_max = 0.1
+color = Color(1, 0.85, 0.45, 1)
+color_ramp = SubResource("Gradient_maxspark")
+
+[node name="MaxUpgradeStamp" type="Label" parent="MaxFx"]
+unique_name_in_owner = true
+visible = false
+z_index = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.45, 1)
+theme_override_colors/font_outline_color = Color(0.1, 0.06, 0.14, 1)
+theme_override_constants/outline_size = 10
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 38
+text = "MAX!"
+horizontal_alignment = 1
+vertical_alignment = 1

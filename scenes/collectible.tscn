@@ -1,0 +1,43 @@
+[gd_scene format=3 uid="uid://hf231nf1k5n3"]
+
+[ext_resource type="Script" uid="uid://d1ctd6xoxgn4e" path="res://scripts/entities/collectible.gd" id="1_collectible"]
+[ext_resource type="Texture2D" path="res://assets/vfx/spark_star.png" id="2_spark"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pickup"]
+size = Vector2(44, 44)
+
+[sub_resource type="Gradient" id="Gradient_collect_spark"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.7, 1, 1, 1, 0)
+
+[node name="Collectible" type="Area2D" unique_id=136014191]
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+script = ExtResource("1_collectible")
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=81528175]
+
+[node name="Shape" type="CollisionShape2D" parent="." unique_id=1535036339]
+position = Vector2(0, -2)
+shape = SubResource("RectangleShape2D_pickup")
+
+[node name="CollectSpark" type="CPUParticles2D" parent="."]
+position = Vector2(0, -62)
+emitting = false
+amount = 6
+lifetime = 0.35
+one_shot = true
+explosiveness = 1.0
+local_coords = false
+texture = ExtResource("2_spark")
+spread = 180.0
+gravity = Vector2(0, 90)
+initial_velocity_min = 40.0
+initial_velocity_max = 110.0
+damping_min = 60.0
+damping_max = 100.0
+scale_amount_min = 0.05
+scale_amount_max = 0.09
+color = Color(1, 0.87, 0.5, 1)
+color_ramp = SubResource("Gradient_collect_spark")

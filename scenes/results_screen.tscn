@@ -1,0 +1,393 @@
+[gd_scene format=3 uid="uid://bn5lxoocwbxws"]
+
+[ext_resource type="Script" uid="uid://c3j5e458sfoye" path="res://scripts/ui/results_screen.gd" id="1_res"]
+[ext_resource type="FontFile" uid="uid://cwhpo71tlndps" path="res://assets/fonts/Nunito-ExtraBold.ttf" id="2_xbold"]
+[ext_resource type="FontFile" uid="uid://cvrqlp2jra0lf" path="res://assets/fonts/Nunito-SemiBold.ttf" id="3_semi"]
+[ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
+[ext_resource type="Texture2D" uid="uid://bac0h861x4l7r" path="res://assets/icon/medal/Golden Medal 1st Outline 64px.png" id="4_medal"]
+[ext_resource type="AudioStream" path="res://assets/sounds/universfield-victory-fanfare-152480.mp3" id="5_fanfare"]
+[ext_resource type="AudioStream" path="res://assets/sounds/scratchonix-victory-chime-366449.mp3" id="6_chime"]
+[ext_resource type="AudioStream" path="res://assets/sounds/universfield-level-up-08-402152.mp3" id="7_record"]
+
+[sub_resource type="StyleBoxFlat" id="sb_report_panel"]
+content_margin_left = 44.0
+content_margin_top = 36.0
+content_margin_right = 44.0
+content_margin_bottom = 40.0
+bg_color = Color(0.08, 0.07, 0.1, 0.94)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 0.705882, 0.368627, 0.45)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+shadow_color = Color(0, 0, 0, 0.6)
+shadow_size = 16
+shadow_offset = Vector2(0, 8)
+
+[sub_resource type="StyleBoxFlat" id="sb_medal_pedestal"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.14, 0.11, 0.18, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.705882, 0.368627, 0.5)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+shadow_color = Color(1, 0.705882, 0.368627, 0.25)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="sb_stats_container"]
+content_margin_left = 28.0
+content_margin_top = 20.0
+content_margin_right = 28.0
+content_margin_bottom = 20.0
+bg_color = Color(0.05, 0.04, 0.07, 0.75)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.94, 0.86, 0.12)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="sb_pill_new_best"]
+content_margin_left = 18.0
+content_margin_top = 6.0
+content_margin_right = 18.0
+content_margin_bottom = 6.0
+bg_color = Color(0.95, 0.35, 0.22, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.94, 0.86, 0.95)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_normal"]
+content_margin_left = 32.0
+content_margin_top = 14.0
+content_margin_right = 32.0
+content_margin_bottom = 14.0
+bg_color = Color(0.1, 0.09, 0.13, 0.85)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 4
+border_color = Color(1, 0.705882, 0.368627, 0.25)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 4
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_hover"]
+content_margin_left = 32.0
+content_margin_top = 14.0
+content_margin_right = 32.0
+content_margin_bottom = 14.0
+bg_color = Color(0.18, 0.14, 0.22, 0.95)
+border_width_left = 4
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 4
+border_color = Color(1, 0.705882, 0.368627, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(1, 0.705882, 0.368627, 0.3)
+shadow_size = 8
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_pressed"]
+content_margin_left = 32.0
+content_margin_top = 16.0
+content_margin_right = 32.0
+content_margin_bottom = 12.0
+bg_color = Color(0.06, 0.05, 0.08, 0.95)
+border_width_left = 2
+border_width_top = 3
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.88, 0.6, 0.29, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[node name="ResultsScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_res")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.05, 0.04, 0.07, 0.78)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(560, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("sb_report_panel")
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="HeaderBadge" type="Label" parent="Center/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 0.8)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 18
+text = "• MORNING CLEARANCE SLIP •"
+horizontal_alignment = 1
+
+[node name="MedalPlate" type="PanelContainer" parent="Center/Panel/VBox"]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/panel = SubResource("sb_medal_pedestal")
+
+[node name="Medal" type="TextureRect" parent="Center/Panel/VBox/MedalPlate"]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("4_medal")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Title" type="Label" parent="Center/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_fonts/font = ExtResource("0_titles")
+theme_override_font_sizes/font_size = 64
+text = "OUT OF HEARTS"
+horizontal_alignment = 1
+
+[node name="StatsCard" type="PanelContainer" parent="Center/Panel/VBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("sb_stats_container")
+
+[node name="Stats" type="GridContainer" parent="Center/Panel/VBox/StatsCard"]
+layout_mode = 2
+theme_override_constants/h_separation = 40
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="ScoreCaption" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.7)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "FINAL SCORE"
+
+[node name="ScoreValue" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 32
+text = "000000"
+
+[node name="BestCaption" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.7)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "SESSION BEST"
+
+[node name="BestValue" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.65)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 30
+text = "000000"
+
+[node name="DistanceCaption" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.7)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "DISTANCE"
+
+[node name="DistanceValue" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.65)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 30
+text = "0 m"
+
+[node name="ZoneCaption" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.7)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "ZONE REACHED"
+
+[node name="ZoneValue" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.65)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 30
+text = "HOME"
+
+[node name="ItemsCaption" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.7)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "ITEMS RECOVERED"
+
+[node name="ItemsValue" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.65)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 30
+text = "0"
+
+[node name="CoinsCaption" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 0.7)
+theme_override_fonts/font = ExtResource("3_semi")
+theme_override_font_sizes/font_size = 24
+text = "COINS EARNED"
+
+[node name="CoinsValue" type="Label" parent="Center/Panel/VBox/StatsCard/Stats"]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_colors/font_color = Color(1, 0.705882, 0.368627, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.65)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 30
+text = "0"
+
+[node name="NewBest" type="Label" parent="Center/Panel/VBox"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("sb_pill_new_best")
+text = "★ NEW RECORD! ★"
+horizontal_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="Retry" type="Button" parent="Center/Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(210, 64)
+layout_mode = 2
+focus_neighbor_right = NodePath("../Menu")
+focus_next = NodePath("../Menu")
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "RUN AGAIN"
+
+[node name="Menu" type="Button" parent="Center/Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(210, 64)
+layout_mode = 2
+focus_neighbor_left = NodePath("../Retry")
+focus_previous = NodePath("../Retry")
+theme_override_colors/font_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_focus_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.94, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 0.94, 0.86, 1)
+theme_override_fonts/font = ExtResource("2_xbold")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("sb_btn_normal")
+theme_override_styles/pressed = SubResource("sb_btn_pressed")
+theme_override_styles/hover = SubResource("sb_btn_hover")
+theme_override_styles/focus = SubResource("sb_btn_hover")
+text = "MAIN MENU"
+
+[node name="VictoryFanfareSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("5_fanfare")
+volume_db = 0.0
+bus = &"SFX"
+
+[node name="BadgeChimeSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("6_chime")
+volume_db = -6.0
+bus = &"SFX"
+
+[node name="NewRecordSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("7_record")
+volume_db = -4.0
+bus = &"SFX"
