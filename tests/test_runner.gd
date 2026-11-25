@@ -1606,7 +1606,7 @@ func _test_spawn_director() -> void:
 	car_container.queue_free()
 	await get_tree().process_frame
 
-	# --- Car cooldown: one warning, then a 3000-4800 px gap ---------------------
+	# --- Car cooldown: one warning, then a tuned distance gap -------------------
 	var cool_container := Node2D.new()
 	add_child(cool_container)
 	var cool_director := SpawnDirector.new()
@@ -1614,7 +1614,8 @@ func _test_spawn_director() -> void:
 	cool_director.setup(cool_container, 405)
 
 	# The gate itself: street only, clear pending, and past the clock.
-	_check(not cool_director._car_allowed(1000.0, GameConfig.Zone.STREET),
+	_check(not cool_director._car_allowed(
+			GameConfig.CAR_FIRST_DISTANCE - 1.0, GameConfig.Zone.STREET),
 		"no car before the first-car distance")
 	_check(cool_director._car_allowed(
 			GameConfig.CAR_FIRST_DISTANCE, GameConfig.Zone.STREET),
@@ -1632,14 +1633,16 @@ func _test_spawn_director() -> void:
 	cool_director._next_car_distance = GameConfig.CAR_FIRST_DISTANCE
 	var early_car := false
 	for i in 40:
-		cool_director.spawn_row(1000.0, 0.0, GameConfig.Zone.STREET)
+		cool_director.spawn_row(
+			GameConfig.CAR_FIRST_DISTANCE - 1.0, 0.0, GameConfig.Zone.STREET)
 		if not cool_director._car_warnings.is_empty():
 			early_car = true
 			break
 	_check(not early_car, "no car starts before the first-car distance")
 
 	# Once the clock allows, a street row eventually warns, and the clock
-	# arms a full 3000-4800 px gap before the next car may be considered.
+	# arms a full tuned gap before the next car may be considered.
+	cool_director._car_warnings.clear()
 	cool_director._next_car_distance = 0.0
 	var warned := false
 	for i in 80:
@@ -1651,7 +1654,7 @@ func _test_spawn_director() -> void:
 	_check(
 		cool_director._next_car_distance >= 60000.0 + GameConfig.CAR_GAP_MIN
 		and cool_director._next_car_distance <= 60000.0 + GameConfig.CAR_GAP_MAX,
-		"the next car waits a full 3000-4800 px gap",
+		"the next car waits a full tuned gap",
 	)
 
 	# Rows during the gap never start another car.

@@ -217,9 +217,9 @@ const DOG_TEXTURES: Array[String] = [
 	"res://assets/characters/dog1/Walk.png",
 	"res://assets/characters/dog2/Walk.png",
 ]
-const DOG_FIRST_DISTANCE := 12000.0
-const DOG_GAP_MIN := 8000.0
-const DOG_GAP_MAX := 14000.0
+const DOG_FIRST_DISTANCE := 9500.0
+const DOG_GAP_MIN := 6500.0
+const DOG_GAP_MAX := 11000.0
 const DOG_WARNING_DURATION := 0.8
 const DOG_WARNING_X := DESIGN_WIDTH - 120.0
 const DOG_WARNING_Y_OFFSET := 92.0
@@ -253,11 +253,11 @@ const CAR_WARNING_X := DESIGN_WIDTH - 120.0
 const CAR_WARNING_Y_OFFSET := 92.0
 const CAR_WARNING_TEXTURE := "res://assets/signs/exclamation/Exclamation Mark 2nd Outline 64px.png"
 ## Cooldown between two car warnings, measured in travelled distance so the
-## spacing stays identical if RUN_SPEED changes. 3000-4800 px is about
-## 7-11 s at RUN_SPEED 420, i.e. roughly 2-3 cars per street zone.
-const CAR_FIRST_DISTANCE := 1500.0
-const CAR_GAP_MIN := 3000.0
-const CAR_GAP_MAX := 4800.0
+## spacing stays identical if RUN_SPEED changes. 2400-4000 px is about
+## 5.7-9.5 s at RUN_SPEED 420, i.e. roughly 3-4 cars per street zone.
+const CAR_FIRST_DISTANCE := 900.0
+const CAR_GAP_MIN := 2400.0
+const CAR_GAP_MAX := 4000.0
 
 ## Per-variant honk pitch, indexed by CAR_VARIANTS: Ride1 at 1.0, Ride2 a
 ## slightly bigger, lower-sounding vehicle at 0.93.
@@ -690,15 +690,17 @@ static func endless_silver_fraction() -> float:
 
 # --- Spawning ----------------------------------------------------------------
 
-## Distance between hazard rows, easing from start toward the floor.
-const ROW_GAP_START := 620.0
-const ROW_GAP_MIN := 320.0
-const ROW_GAP_RAMP_DISTANCE := 60000.0
+## Distance between hazard rows, easing from start toward the floor. The ramp
+## distance matches a full campaign (33,600 px), so the tightest rows arrive at
+## the finish instead of only in a much longer endless run.
+const ROW_GAP_START := 600.0
+const ROW_GAP_MIN := 290.0
+const ROW_GAP_RAMP_DISTANCE := 33600.0
 
 ## Chance that a row blocks two lanes instead of one, easing upward with
 ## distance. Two lanes is the maximum: one lane must always stay open.
-const TWO_LANE_CHANCE_START := 0.15
-const TWO_LANE_CHANCE_MAX := 0.6
+const TWO_LANE_CHANCE_START := 0.18
+const TWO_LANE_CHANCE_MAX := 0.75
 
 const SPAWN_X := 2140.0
 const DESPAWN_X := -400.0

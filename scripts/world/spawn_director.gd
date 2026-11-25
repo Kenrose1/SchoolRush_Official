@@ -65,6 +65,11 @@ var _next_car_distance: float = GameConfig.CAR_FIRST_DISTANCE
 @export_range(0.0, 30000.0, 100.0) var car_first_distance_px: float = GameConfig.CAR_FIRST_DISTANCE
 @export_range(0.0, 30000.0, 100.0) var car_gap_min_px: float = GameConfig.CAR_GAP_MIN
 @export_range(0.0, 30000.0, 100.0) var car_gap_max_px: float = GameConfig.CAR_GAP_MAX
+## Dog encounter timing, mirrored from GameConfig so it can be tuned in the
+## SpawnDirector Inspector just like the car (both clocks are distance-based).
+@export_range(0.0, 30000.0, 100.0) var dog_first_distance_px: float = GameConfig.DOG_FIRST_DISTANCE
+@export_range(0.0, 30000.0, 100.0) var dog_gap_min_px: float = GameConfig.DOG_GAP_MIN
+@export_range(0.0, 30000.0, 100.0) var dog_gap_max_px: float = GameConfig.DOG_GAP_MAX
 
 
 ## Attach to the container that receives hazard instances.
@@ -81,7 +86,7 @@ func setup(parent: Node2D, seed_value: int = 0) -> void:
 	_distance_since_coin_run = 0.0
 	_coin_run_lane = -1
 	_coin_run_coins = []
-	_next_dog_distance = GameConfig.DOG_FIRST_DISTANCE
+	_next_dog_distance = dog_first_distance_px
 	_dog_reserved_lane = -1
 	_dog_warning = null
 	_active_dog = null
@@ -111,8 +116,8 @@ func reset_for_zone_swap(distance: float) -> void:
 	_dog_reserved_lane = -1
 	if had_dog_warning or had_active_dog:
 		_next_dog_distance = distance + _rng.randf_range(
-			GameConfig.DOG_GAP_MIN,
-			GameConfig.DOG_GAP_MAX,
+			dog_gap_min_px,
+			dog_gap_max_px,
 		)
 
 	for i in range(_car_warnings.size() - 1, -1, -1):
@@ -340,8 +345,8 @@ func _try_start_dog_encounter(distance: float, speed: float, zone: int = -1) -> 
 	_dog_reserved_lane = dog_lane
 	_dog_speed = speed
 	_next_dog_distance = distance + _rng.randf_range(
-		GameConfig.DOG_GAP_MIN,
-		GameConfig.DOG_GAP_MAX,
+		dog_gap_min_px,
+		dog_gap_max_px,
 	)
 
 	var warning := WARNING_SCENE.instantiate() as HazardWarning
