@@ -1832,11 +1832,12 @@ func _test_home_hazards() -> void:
 	# so the street's random roll set is the props plus the car.
 	var street_roll_kinds: Array[int] = street_props.duplicate()
 	street_roll_kinds.append(GameConfig.HazardKind.CAR)
-	# School: unchanged by the street swap. The gantry is still the one
-	# overhead hazard, so the slide still has a job there.
+	# School: the gantry is disabled, so only these seven kinds roll indoors.
 	var school_kinds: Array[int] = [
 		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
-		GameConfig.HazardKind.SIGN, GameConfig.HazardKind.GANTRY,
+		GameConfig.HazardKind.SIGN,
+		GameConfig.HazardKind.CHAIR, GameConfig.HazardKind.FALBAG,
+		GameConfig.HazardKind.MOP, GameConfig.HazardKind.WETFLOOR,
 	]
 	# Everything that must never appear indoors.
 	var outdoor: Array[int] = [
@@ -1873,8 +1874,10 @@ func _test_home_hazards() -> void:
 			"%s still appears in the school zone" % kind_name.call(kind),
 		)
 	_check(
-		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.GANTRY, GameConfig.Zone.STREET),
-		"the gantry no longer appears in the street",
+		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.GANTRY, GameConfig.Zone.SCHOOL)
+		and not GameConfig.hazard_allows_zone(GameConfig.HazardKind.GANTRY, GameConfig.Zone.STREET)
+		and not GameConfig.hazard_allows_zone(GameConfig.HazardKind.GANTRY, GameConfig.Zone.HOME),
+		"the gantry is disabled in every zone",
 	)
 	_check(
 		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.SIGN, GameConfig.Zone.STREET),
@@ -1961,8 +1964,9 @@ func _test_home_hazards() -> void:
 		)
 
 	# STREET and SCHOOL never roll a home prop (the inverse freeze guard), and
-	# each zone rolls exactly its own pool: the sign and gantry have moved from
-	# the street to the school, and the four new props are street-only.
+	# each zone rolls exactly its own pool: the sign has moved from the street
+	# to the school, the gantry is disabled, and the four new props are
+	# street-only.
 	var street_rng := RandomNumberGenerator.new()
 	street_rng.seed = 89
 	var street_seen := {}
@@ -1976,7 +1980,7 @@ func _test_home_hazards() -> void:
 	_check(
 		not street_seen.has(GameConfig.HazardKind.SIGN)
 		and not street_seen.has(GameConfig.HazardKind.GANTRY),
-		"the sign and gantry have left the street",
+		"the sign and gantry never roll in the street",
 	)
 	for kind: int in home_only:
 		_check(
@@ -1990,7 +1994,7 @@ func _test_home_hazards() -> void:
 		school_seen[SpawnDirector.pick_kind(
 			60000.0, school_rng, GameConfig.Zone.SCHOOL)] = true
 	_check_eq(school_seen.size(), school_kinds.size(),
-		"the school still rolls exactly its four kinds")
+		"the school rolls all seven of its kinds")
 	for kind: int in school_kinds:
 		_check(
 			school_seen.has(kind),

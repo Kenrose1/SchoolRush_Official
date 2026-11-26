@@ -55,7 +55,7 @@ const ZONE_HOME_DURATION_SECONDS := 25.0
 const ZONE_HOME_MIN_SECONDS := 5.0
 
 ## How long the street zone lasts, in seconds. SCHOOL takes over when it ends.
-const ZONE_STREET_DURATION_SECONDS := 120.0
+const ZONE_STREET_DURATION_SECONDS := 20.0
 
 ## Floor for the street duration, so the boundary can never collapse.
 const ZONE_STREET_MIN_SECONDS := 5.0
@@ -210,7 +210,7 @@ const SLIDE_HITBOX_HEIGHT_FACTOR := 0.5
 enum HazardKind {
 	MANHOLE, DEBRIS, SIGN, GANTRY, DOG, CAR,
 	BARRICADE, BRICKS, CONE, DUMPSTER,
-	NIGHTSTAND, ARMCHAIR, COFFEE_TABLE, CUSHION, BOOKSHELF, BOXES,
+	NIGHTSTAND, ARMCHAIR, COFFEE_TABLE, CUSHION, BOOKSHELF, BOXES, CHAIR, FALBAG, MOP, WETFLOOR,
 }
 
 const DOG_TEXTURES: Array[String] = [
@@ -287,9 +287,9 @@ const HAZARD_DATA := {
 		"scale": 1, "hitbox_w": 96.0, "hitbox_h": 67.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 	},
-	## SIGN and GANTRY are school-hallway props now: the street keeps its own
-	## six street props instead. GANTRY stays the one overhead hazard, so the
-	## slide still matters in the school.
+	## SIGN is a school-hallway prop now: the street keeps its own six street
+	## props instead. GANTRY is disabled - no zone allows it - but its data and
+	## art remain so it can be re-enabled by restoring its zones list.
 	HazardKind.SIGN: {
 		"texture": "res://assets/hazards/haz_sign.png",
 		"scale": 0.8, "hitbox_w": 38.0, "hitbox_h": 64.0,
@@ -300,7 +300,7 @@ const HAZARD_DATA := {
 		"texture": "res://assets/hazards/haz_gantry.png",
 		"scale": 0.8, "hitbox_w": 150.0, "hitbox_h": 56.0,
 		"clearance": 62.0, "overhead": true, "frames": 0, "extra_speed": 0.0,
-		"zones": [Zone.SCHOOL],
+		"zones": [],
 	},
 	HazardKind.DOG: {
 		"texture": DOG_TEXTURES[0],
@@ -387,6 +387,33 @@ const HAZARD_DATA := {
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.HOME],
 	},
+	# --- School-zone hazards -------------------------------------------------
+	## School props (1024px source art) scaled to read at the same lane size as
+	## the street/home sheets. Static, lane-bound, no warning, no extra speed.
+	HazardKind.CHAIR: {
+		"texture": "res://assets/hazards/chair.png",
+		"scale": 0.11, "hitbox_w": 62.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.SCHOOL],
+	},
+	HazardKind.FALBAG: {
+		"texture": "res://assets/hazards/falbag.png",
+		"scale": 0.11, "hitbox_w": 70.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.SCHOOL],
+	},
+	HazardKind.MOP: {
+		"texture": "res://assets/hazards/mop.png",
+		"scale": 0.10, "hitbox_w": 80.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.SCHOOL],
+	},
+	HazardKind.WETFLOOR: {
+		"texture": "res://assets/hazards/wetfloor.png",
+		"scale": 0.12, "hitbox_w": 90.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"zones": [Zone.SCHOOL],
+	},
 }
 
 ## Distance (px) after which each kind starts appearing. The street props ramp
@@ -404,6 +431,10 @@ const HAZARD_UNLOCK := {
 	HazardKind.SIGN: 12000.0,
 	HazardKind.DOG: DOG_FIRST_DISTANCE,
 	HazardKind.CAR: 0.0,
+	HazardKind.CHAIR: 0.0,
+	HazardKind.FALBAG: 0.0,
+	HazardKind.MOP: 0.0,
+	HazardKind.WETFLOOR: 0.0,
 }
 
 ## Relative spawn weight of each kind once unlocked.
@@ -429,6 +460,11 @@ const HAZARD_WEIGHT := {
 	HazardKind.CUSHION: 2.0,
 	HazardKind.BOOKSHELF: 2.0,
 	HazardKind.BOXES: 2.0,
+	## School-zone props: slip hazards (mop, wet floor) are more common.
+	HazardKind.CHAIR: 2.0,
+	HazardKind.FALBAG: 2.0,
+	HazardKind.MOP: 3.0,
+	HazardKind.WETFLOOR: 4.0,
 }
 
 ## Home props unlock as a fraction of the home zone's length. All zero means

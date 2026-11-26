@@ -1,19 +1,19 @@
 [gd_scene format=3 uid="uid://dq8m2v7k4p1rs"]
 
+[ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
 [ext_resource type="Script" uid="uid://caui7wxtjhklq" path="res://scripts/ui/main_menu.gd" id="1_menu"]
 [ext_resource type="FontFile" uid="uid://cwhpo71tlndps" path="res://assets/fonts/Nunito-ExtraBold.ttf" id="2_xbold"]
 [ext_resource type="FontFile" uid="uid://cvrqlp2jra0lf" path="res://assets/fonts/Nunito-SemiBold.ttf" id="3_semi"]
-[ext_resource type="FontFile" uid="uid://d0m7ykyi3kdnd" path="res://assets/fonts/FredokaOne-Regular.otf" id="0_titles"]
 [ext_resource type="SpriteFrames" path="res://assets/characters/elias/elias_frames.tres" id="5_elias_frames"]
 [ext_resource type="SpriteFrames" uid="uid://cde02m0qw1a37" path="res://assets/characters/tanod/tanod_frames.tres" id="6_tanod_frames"]
 [ext_resource type="Texture2D" uid="uid://ckqlklo3ew6nf" path="res://assets/props/item_book.png" id="7_book"]
 [ext_resource type="Texture2D" uid="uid://cbainy4o7nwae" path="res://assets/props/item_pencil.png" id="8_pencil"]
 [ext_resource type="Texture2D" uid="uid://bpg6acgu2we0s" path="res://assets/props/item_bag.png" id="9_bag"]
 [ext_resource type="PackedScene" uid="uid://de7y84lnoxl7t" path="res://scenes/settings_panel.tscn" id="10_settings"]
-[ext_resource type="PackedScene" path="res://scenes/shop_panel.tscn" id="11_shop"]
+[ext_resource type="PackedScene" uid="uid://c6tofu2gcnhba" path="res://scenes/shop_panel.tscn" id="11_shop"]
 [ext_resource type="AudioStream" uid="uid://ccwpy4tj80c1o" path="res://assets/sounds/menumusic.mp3" id="12_music"]
-[ext_resource type="Script" path="res://scripts/ui/menu_backdrop.gd" id="13_backdrop"]
-[ext_resource type="AudioStream" path="res://assets/sounds/clicksound.wav" id="14_click"]
+[ext_resource type="Script" uid="uid://cmjrd2ow256ld" path="res://scripts/ui/menu_backdrop.gd" id="13_backdrop"]
+[ext_resource type="AudioStream" uid="uid://ccxvunggrrufq" path="res://assets/sounds/clicksound.wav" id="14_click"]
 
 [sub_resource type="StyleBoxFlat" id="sb_pill"]
 content_margin_left = 10.0
@@ -158,7 +158,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.07, 0.05, 0.09, 0.30)
+color = Color(0.07, 0.05, 0.09, 0.3)
 
 [node name="LaunchFlash" type="ColorRect" parent="." unique_id=480658869]
 unique_name_in_owner = true
@@ -184,7 +184,6 @@ mouse_filter = 2
 unique_name_in_owner = true
 modulate = Color(0.7, 0.7, 0.8, 0.62)
 position = Vector2(1080, 800)
-scale = Vector2(1.0, 1.0)
 sprite_frames = ExtResource("6_tanod_frames")
 animation = &"run"
 autoplay = "run"
