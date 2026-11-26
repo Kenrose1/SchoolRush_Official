@@ -29,8 +29,14 @@ const DOG_WARNING_TEXTURE := preload(
 const CAR_WARNING_TEXTURE := preload(
 	"res://assets/signs/exclamation/Exclamation Mark 2nd Outline 64px.png")
 
+## Number of recent rows whose blocked lanes are tracked so hazard rows can be
+## spread evenly across lanes instead of randomly loading one lane over time.
+const LANE_BALANCE_WINDOW := 6
+
 var hazards: Node2D = null
 var _rng := RandomNumberGenerator.new()
+## Blocked-lane lists from the last LANE_BALANCE_WINDOW rows, newest last.
+var _recent_blocked_rows: Array = []
 var _distance_since_row: float = GameConfig.ROW_GAP_START
 var _distance_since_pickup: float = 0.0
 var _pickup_gap: float = 0.0
@@ -80,6 +86,7 @@ var _next_car_distance: float = GameConfig.CAR_FIRST_DISTANCE
 func setup(parent: Node2D, seed_value: int = 0) -> void:
 	hazards = parent
 	_rng.seed = seed_value
+	_recent_blocked_rows = []
 	# Luck upgrade makes both item clocks denser.
 	_luck_gap_factor = GameConfig.shop_luck_gap_factor(
 		GameState.shop_level(GameConfig.ShopUpgrade.LUCK))
@@ -107,6 +114,7 @@ func setup(parent: Node2D, seed_value: int = 0) -> void:
 ## zone-agnostic row/pickup/coin clocks intact. Warning nodes are freed so their
 ## async finished callbacks cannot spawn a dog or car after the art has swapped.
 func reset_for_zone_swap(distance: float) -> void:
+	_recent_blocked_rows = []
 	var had_dog_warning := is_instance_valid(_dog_warning) \
 		and not _dog_warning.is_queued_for_deletion()
 	var had_active_dog := is_instance_valid(_active_dog) \
@@ -198,8 +206,19 @@ func spawn_row(
 	zone: int = -1,
 	home_length: float = -1.0,
 ) -> Array[int]:
+	# Count how often each lane was blocked in the recent window so the pattern
+	# generator can favour the least-used lanes instead of randomly stacking
+	# hazards in one lane over many rows.
+	var recent_counts: Array[int] = [0, 0, 0]
+	for row in _recent_blocked_rows:
+		for lane in row:
+			recent_counts[lane] += 1
 	var lanes := generate_pattern(
-		distance, _rng, _dog_reserved_lane, _coin_run_lane, _car_reserved_lanes())
+		distance, _rng, _dog_reserved_lane, _coin_run_lane, _car_reserved_lanes(),
+		recent_counts)
+	_recent_blocked_rows.append(lanes.duplicate())
+	if _recent_blocked_rows.size() > LANE_BALANCE_WINDOW:
+		_recent_blocked_rows.pop_front()
 	# At most one car per row, and only when the cooldown allows one.
 	var allow_car := _car_allowed(distance, zone)
 	for lane in lanes:
@@ -500,6 +519,7 @@ static func generate_pattern(
 	reserved_lane: int = -1,
 	also_reserved: int = -1,
 	more_reserved: Array[int] = [],
+	recent_counts: Array[int] = [],
 ) -> Array[int]:
 	var lanes: Array[int] = []
 	for lane in GameConfig.LANE_COUNT:
@@ -515,6 +535,16 @@ static func generate_pattern(
 		var swap := lanes[i]
 		lanes[i] = lanes[j]
 		lanes[j] = swap
+
+	# Spread hazard blocks across lanes: stable-sort the shuffled candidates by
+	# how often each lane was blocked in the recent window, least-used first.
+	# The shuffle above is the seeded tiebreak, so output stays deterministic.
+	if not recent_counts.is_empty():
+		lanes.sort_custom(func(a: int, b: int) -> bool:
+			var ca: int = recent_counts[a] if a < recent_counts.size() else 0
+			var cb: int = recent_counts[b] if b < recent_counts.size() else 0
+			return ca < cb
+		)
 
 	var progress := clampf(distance / GameConfig.ROW_GAP_RAMP_DISTANCE, 0.0, 1.0)
 	var two_lane_chance := lerpf(
