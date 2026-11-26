@@ -36,6 +36,10 @@ var _distance_since_pickup: float = 0.0
 var _pickup_gap: float = 0.0
 ## Luck upgrade: pickup and coin-run gaps shrink by this factor (<= 1.0).
 var _luck_gap_factor: float = 1.0
+## Speed upgrade: hazard rows spread out by the same factor the world speeds
+## up, so faster runs get the same hazard RATE instead of a hidden difficulty
+## spike (see GameConfig.shop_row_gap_scale).
+var _speed_gap_scale: float = 1.0
 ## Coin-run clock: one trail of 3-5 coins in a single reserved lane.
 var _distance_since_coin_run: float = 0.0
 var _next_coin_run_gap: float = GameConfig.COIN_RUN_GAP_MIN
@@ -79,6 +83,9 @@ func setup(parent: Node2D, seed_value: int = 0) -> void:
 	# Luck upgrade makes both item clocks denser.
 	_luck_gap_factor = GameConfig.shop_luck_gap_factor(
 		GameState.shop_level(GameConfig.ShopUpgrade.LUCK))
+	# Speed upgrade widens the rows by the same factor it raises speed.
+	_speed_gap_scale = GameConfig.shop_row_gap_scale(
+		GameState.shop_level(GameConfig.ShopUpgrade.SPEED))
 	_pickup_gap = _rng.randf_range(GameConfig.PICKUP_GAP_MIN, GameConfig.PICKUP_GAP_MAX) \
 		* _luck_gap_factor
 	_next_coin_run_gap = _rng.randf_range(
@@ -139,12 +146,15 @@ func reset_for_zone_swap(distance: float) -> void:
 ## [param zone] gates zone-restricted kinds (HOME furniture, street-only
 ## dog/car). [param home_length] is the run's home length in px, scaling the
 ## home kinds' fractional unlock distances; -1 falls back to the default.
+## [param mode] lets endless play keep tightening the rows past the campaign
+## ramp instead of plateauing.
 func tick(
 	delta: float,
 	speed: float,
 	distance: float,
 	zone: int = -1,
 	home_length: float = -1.0,
+	mode: int = GameConfig.RunMode.CAMPAIGN,
 ) -> void:
 	if hazards == null:
 		return
@@ -155,11 +165,11 @@ func tick(
 		_try_start_dog_encounter(distance, speed, zone)
 
 	_distance_since_row += speed * delta
-	var gap := GameConfig.row_gap(distance)
+	var gap := GameConfig.row_gap(distance, mode) * _speed_gap_scale
 	while _distance_since_row >= gap:
 		_distance_since_row -= gap
 		spawn_row(distance, speed, zone, home_length)
-		gap = GameConfig.row_gap(distance)
+		gap = GameConfig.row_gap(distance, mode) * _speed_gap_scale
 
 	_distance_since_pickup += speed * delta
 	while _distance_since_pickup >= _pickup_gap:

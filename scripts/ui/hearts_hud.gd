@@ -14,6 +14,10 @@ var _hearts: Array[TextureRect] = []
 var _shields: Array[TextureRect] = []
 var _last_current: int = -1
 var _last_shields: int = -1
+## The panel's settled x, captured on the first shake. Hardcoding it snapped
+## the plate back to a stale position whenever the HUD layout moved.
+var _panel_base_x: float = 0.0
+var _panel_base_known: bool = false
 
 
 func _ready() -> void:
@@ -46,13 +50,17 @@ func set_hearts(current: int, maximum: int) -> void:
 				_play_heart_anim(_hearts[index], is_full)
 			_hearts[index].texture = target_texture
 	
-	# Slight shake on panel when taking damage
+	# Slight shake on panel when taking damage. The settled x is captured from
+	# the live layout instead of a hardcoded value, so the plate never snaps.
 	if _last_current != -1 and current < _last_current and _panel:
+		if not _panel_base_known:
+			_panel_base_x = _panel.position.x
+			_panel_base_known = true
 		var shake := create_tween().set_trans(Tween.TRANS_SINE)
-		shake.tween_property(_panel, "position:x", 32.0 - 4.0, 0.05)
-		shake.tween_property(_panel, "position:x", 32.0 + 4.0, 0.05)
-		shake.tween_property(_panel, "position:x", 32.0, 0.05)
-		
+		shake.tween_property(_panel, "position:x", _panel_base_x - 4.0, 0.05)
+		shake.tween_property(_panel, "position:x", _panel_base_x + 4.0, 0.05)
+		shake.tween_property(_panel, "position:x", _panel_base_x, 0.05)
+
 	_last_current = current
 
 
@@ -71,6 +79,19 @@ func set_shields(current: int, maximum: int) -> void:
 	for index in _shields.size():
 		_shields[index].visible = index < current
 	_last_shields = current
+
+
+## A shield charge absorbed a hit: pop and cool-flash the pip row so the spent
+## charge is visible at a glance (the pip itself disappears in set_shields).
+func flash_shield() -> void:
+	if _shield_panel == null:
+		return
+	_shield_panel.pivot_offset = _shield_panel.size * 0.5
+	_shield_panel.scale = Vector2(1.25, 1.25)
+	_shield_panel.modulate = Color(1.6, 1.9, 2.0, 1.0)
+	var tw := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_shield_panel, "scale", Vector2.ONE, 0.18)
+	tw.parallel().tween_property(_shield_panel, "modulate", Color.WHITE, 0.3)
 
 
 ## Number of visible shield pips, for the test suite.

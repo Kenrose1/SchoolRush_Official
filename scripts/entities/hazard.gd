@@ -17,8 +17,8 @@ var speed: float = GameConfig.RUN_SPEED
 var damage: int = 1
 var requires_slide: bool = false
 
-## Reserved for lane-changing hazards; nothing uses it yet (decision: keep
-## moving obstacles lane-locked for v1).
+## True for kinds that stay in their spawn lane. Every kind is lane-locked:
+## hazards are read at spawn and dodged, never chased across lanes.
 var lane_locked: bool = true
 
 var _data: Dictionary = {}
@@ -97,8 +97,13 @@ func _apply() -> void:
 			art_scale = float(car["scale"]) * GameConfig.CAR_SCALE_MULT
 	var texture := load(texture_path) as Texture2D
 	var clearance := float(_data["clearance"])
+	# The hitbox normally rides with the art; an overhead kind can hang it at
+	# the lethal part instead, so its posts stand on the road while only the
+	# beam (hitbox_y ... hitbox_y + height) can hurt anyone.
+	var box_bottom := float(_data.get("hitbox_y", clearance))
 
 	position.y = GameConfig.lane_y(lane)
+	lane_locked = true
 
 	sprite.texture = texture
 	sprite.flip_h = bool(_data.get("flip_h", false))
@@ -110,4 +115,4 @@ func _apply() -> void:
 	var box := (shape.shape as RectangleShape2D).duplicate()
 	box.size = Vector2(float(_data["hitbox_w"]), float(_data["hitbox_h"]))
 	shape.shape = box
-	shape.position = Vector2(0.0, -clearance - box.size.y * 0.5)
+	shape.position = Vector2(0.0, -box_bottom - box.size.y * 0.5)

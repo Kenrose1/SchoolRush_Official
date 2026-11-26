@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bsignh1vvgqsu"
-path="res://.godot/imported/street.jpg-a00985bab717a2b3f0d97e6f7bc6407d.ctex"
+uid="uid://bf0l3p73f6wa5"
+path="res://.godot/imported/run_9.png-ae6640b2dba4cea9c1b8fa6b8fe7a4e3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/backgrounds/street.jpg"
-dest_files=["res://.godot/imported/street.jpg-a00985bab717a2b3f0d97e6f7bc6407d.ctex"]
+source_file="res://assets/characters/elias/run_9.png"
+dest_files=["res://.godot/imported/run_9.png-ae6640b2dba4cea9c1b8fa6b8fe7a4e3.ctex"]
 
 [params]
 

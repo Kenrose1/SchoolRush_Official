@@ -23,6 +23,7 @@ const CAUGHT_TITLE_TEXT := "CAUGHT!"
 const VICTORY_TITLE_TEXT := "MADE IT TO CLASS!"
 
 const MENU_SCENE := "res://scenes/main_menu.tscn"
+const SHOP_SCENE: PackedScene = preload("res://scenes/shop_panel.tscn")
 
 ## Result medal art, one texture per GameConfig.Medal tier. The gold outline
 ## medal reads best on the dark panel, so it carries the top tier.
@@ -51,6 +52,11 @@ var _medal_flash_tween: Tween
 @onready var new_best_label: Label = $Center/Panel/VBox/NewBest
 @onready var retry_button: Button = $Center/Panel/VBox/Buttons/Retry
 @onready var menu_button: Button = $Center/Panel/VBox/Buttons/Menu
+@onready var buttons_row: Control = $Center/Panel/VBox/Buttons
+## Store access from the report card, so coins earned this run can be spent
+## without a trip back to the menu first.
+var shop_button: Button
+var shop_panel: ShopPanel
 @onready var victory_sfx: AudioStreamPlayer = $VictoryFanfareSfx
 @onready var badge_sfx: AudioStreamPlayer = $BadgeChimeSfx
 @onready var record_sfx: AudioStreamPlayer = $NewRecordSfx
@@ -66,6 +72,52 @@ func _ready() -> void:
 	menu_button.pressed.connect(_on_menu_pressed)
 	_setup_button(retry_button)
 	_setup_button(menu_button)
+	_build_shop_entry()
+
+
+## SPEND COINS sits beside RETRY and opens the same School Store the menu uses.
+func _build_shop_entry() -> void:
+	if buttons_row == null:
+		return
+	shop_button = Button.new()
+	shop_button.name = "Shop"
+	shop_button.text = "SPEND COINS"
+	shop_button.custom_minimum_size = retry_button.custom_minimum_size
+	_copy_button_theme(retry_button, shop_button)
+	shop_button.pressed.connect(_on_shop_pressed)
+	buttons_row.add_child(shop_button)
+	_setup_button(shop_button)
+	shop_panel = SHOP_SCENE.instantiate() as ShopPanel
+	add_child(shop_panel)
+	shop_panel.closed.connect(_on_shop_closed)
+
+
+## The new button borrows RETRY's skin so it reads as part of the same row.
+func _copy_button_theme(source: Button, target: Button) -> void:
+	target.add_theme_font_override("font", source.get_theme_font("font"))
+	target.add_theme_font_size_override(
+		"font_size", source.get_theme_font_size("font_size"))
+	for color_name: String in [
+		"font_color", "font_focus_color", "font_hover_color", "font_pressed_color",
+	]:
+		target.add_theme_color_override(color_name, source.get_theme_color(color_name))
+	for style_name: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+		target.add_theme_stylebox_override(
+			style_name, source.get_theme_stylebox(style_name))
+
+
+func _on_shop_pressed() -> void:
+	# The store is modal; park the row's focus so Tab cannot walk behind it.
+	for btn: Button in [retry_button, menu_button, shop_button]:
+		btn.focus_mode = Control.FOCUS_NONE
+	shop_panel.open()
+
+
+func _on_shop_closed() -> void:
+	for btn: Button in [retry_button, menu_button, shop_button]:
+		btn.focus_mode = Control.FOCUS_ALL
+	if shop_button != null:
+		shop_button.grab_focus()
 
 
 func _setup_button(btn: Button) -> void:
@@ -92,8 +144,11 @@ func show_results(
 	outcome: int, score: int, distance_m: int, zone_name: String, items: int,
 	medal: int, coins: int = 0,
 ) -> void:
+	# Bests persist now, so a score above the saved record is a real new best
+	# even on the first run of a launch. The old "second run onward" rule only
+	# existed because bests used to reset every boot.
 	var previous_best := GameState.best_for_mode()
-	var is_new_best := session_runs > 0 and score > previous_best
+	var is_new_best := score > previous_best
 	GameState.report_score(score)
 	session_runs += 1
 	_outcome = outcome
@@ -118,6 +173,8 @@ func show_results(
 	_set_stat("coins", "%d" % coins)
 	new_best_label.visible = is_new_best
 	set_medal(medal)
+	if shop_panel != null:
+		shop_panel.visible = false
 
 	visible = true
 	retry_button.grab_focus()
@@ -175,6 +232,8 @@ func _play_reveal() -> void:
 		new_best_label.pivot_offset = new_best_label.size * 0.5
 	steps.append(retry_button)
 	steps.append(menu_button)
+	if shop_button != null:
+		steps.append(shop_button)
 	steps.append(medal_plate)
 	for i in steps.size():
 		var node := steps[i]

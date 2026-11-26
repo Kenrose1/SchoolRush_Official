@@ -638,8 +638,22 @@ func _test_input() -> void:
 		_check(InputMap.has_action(action), "action '%s' exists" % action)
 	_check(not InputMap.has_action("dash"), "dash action is not registered (dropped in v1.4)")
 
-	_check_eq(InputMap.action_get_events("lane_up").size(), 2, "lane_up has W and Up")
-	_check_eq(InputMap.action_get_events("lane_down").size(), 2, "lane_down has S and Down")
+	var lane_up_keys := 0
+	var lane_down_keys := 0
+	for event in InputMap.action_get_events("lane_up"):
+		if event is InputEventKey:
+			lane_up_keys += 1
+	for event in InputMap.action_get_events("lane_down"):
+		if event is InputEventKey:
+			lane_down_keys += 1
+	_check_eq(lane_up_keys, 2, "lane_up has W and Up")
+	_check_eq(lane_down_keys, 2, "lane_down has S and Down")
+
+	# Gamepad bindings are added at runtime by the InputSetup autoload, on top of
+	# the keyboard map, so the controller can drive the run and not just menus.
+	_check(InputSetup.gamepad_bindings_added > 0, "pad bindings are registered at runtime")
+	for action: String in ["lane_up", "lane_down", "jump", "slide", "pause"]:
+		_check(_has_pad_event(action), "action '%s' accepts a gamepad" % action)
 
 	var jump := _first_key("jump")
 	_check_eq(jump.physical_keycode, KEY_SPACE, "jump is bound to Space")
@@ -725,7 +739,17 @@ func _test_player() -> void:
 			"sprite frames come from the committed resource (%s)" % frames.resource_path,
 		)
 		_check_eq(frames.get_animation_names().size(), 6, "six Elias animations exist")
-		_check_eq(frames.get_frame_count("run"), 7, "run animation has 7 frames")
+		_check_eq(frames.get_frame_count("run"), 12, "run animation has 12 frames")
+		# The run sheet is re-cut from separate art, so its figure height is held
+		# to the idle figure's: that is the "same size as the other states"
+		# contract, and it is what the canvas height has to make room for.
+		var run_frame := frames.get_frame_texture("run", 0) as Texture2D
+		var idle_frame := frames.get_frame_texture("idle", 0) as Texture2D
+		if run_frame != null and idle_frame != null:
+			var run_h := float(run_frame.get_image().get_used_rect().size.y)
+			var idle_h := float(idle_frame.get_image().get_used_rect().size.y)
+			_check(absf(run_h - idle_h) <= 2.0,
+				"the running figure matches the standing one (%.0f vs %.0f px)" % [run_h, idle_h])
 		_check_eq(frames.get_frame_count("jump"), 3, "jump animation has 3 frames")
 		_check_eq(frames.get_frame_count("slide"), 4, "slide animation has 4 frames")
 		_check_eq(frames.get_frame_count("death"), 8, "death animation has 8 frames")
@@ -734,10 +758,26 @@ func _test_player() -> void:
 		if first_run != null:
 			_check(first_run.resource_path.ends_with("run_0.png"), "run frame 0 is run_0.png")
 		_check(frames.get_animation_loop("run"), "run animation loops")
+		_check_near(frames.get_animation_speed("run"), GameConfig.RUN_ANIM_FPS, 0.001,
+			"the run cycle is timed for the authored ground speed")
 		_check(not frames.get_animation_loop("jump"), "jump animation does not loop")
 		_check(not frames.get_animation_loop("death"), "death animation does not loop")
 	player._physics_process(1.0 / 60.0)
 	_check_eq(player.sprite.animation, &"run", "running animation tracks the ground state")
+	# The cadence follows the road: RunWorld feeds the live speed ratio, so the
+	# feet retime through the ramps, the Speed upgrade and the momentum dip.
+	_check_near(player.sprite.speed_scale, 1.0, 0.0001,
+		"the run cycle starts at the authored cadence")
+	player.set_run_speed_scale(1.2)
+	_check_near(player.sprite.speed_scale, 1.2, 0.0001,
+		"a faster road speeds the run cycle up")
+	player.set_run_speed_scale(3.0)
+	_check_near(player.sprite.speed_scale, GameConfig.RUN_ANIM_SPEED_SCALE_MAX, 0.0001,
+		"the cadence is clamped so the sheet never strobes")
+	player.set_run_speed_scale(0.1)
+	_check_near(player.sprite.speed_scale, GameConfig.RUN_ANIM_SPEED_SCALE_MIN, 0.0001,
+		"the cadence is floored so a dip never reads as a walk")
+	player.set_run_speed_scale(1.0)
 
 	player.queue_free()
 
@@ -934,7 +974,9 @@ func _test_health() -> void:
 	_check(not player.take_damage(), "a shield charge absorbs the hit")
 	_check_eq(player.shield_charges, 0, "the absorbing shield is spent")
 	_check_eq(player.hit_burst_count, flash_before, "a shield absorb does not flash")
+	_check(player.shield_flash_time > 0.0, "a shield absorb starts the cyan block tint")
 	player.reset_health()
+	_check_near(player.shield_flash_time, 0.0, 0.001, "reset clears the block tint")
 
 	# The flash hides itself when the sheet runs out - no lingering sprite.
 	player.hit_burst._process(1.0)
@@ -1018,9 +1060,9 @@ func _test_hazard() -> void:
 		_check_near(box.size.y, float(data["hitbox_h"]), 0.01, "kind %d hitbox height matches data" % kind)
 		_check_near(
 			item.box_y_range().y,
-			-float(data["clearance"]),
+			-float(data.get("hitbox_y", data["clearance"])),
 			0.01,
-			"kind %d bottom edge sits at its clearance" % kind,
+			"kind %d bottom edge sits at its configured height" % kind,
 		)
 		if bool(data["overhead"]):
 			_check(item.requires_slide, "kind %d requires a slide" % kind)
@@ -1031,18 +1073,49 @@ func _test_hazard() -> void:
 			)
 		item.queue_free()
 
-	# The gantry must overlap a standing hitbox and clear a sliding one.
-	var gantry := scene.instantiate() as Hazard
-	add_child(gantry)
-	gantry.set_physics_process(false)
-	gantry.setup(GameConfig.HazardKind.GANTRY, GameConfig.LANE_MIDDLE, 0.0)
-	var span := gantry.box_y_range()
+	# Every overhead kind must overlap a standing hitbox and clear a sliding one:
+	# that band is the whole reason the slide input exists.
 	var standing_top := -GameConfig.HITBOX_SIZE.y
 	var sliding_top := standing_top * GameConfig.SLIDE_HITBOX_HEIGHT_FACTOR
-	_check(span.y > standing_top, "gantry overlaps a standing player")
-	_check(span.y < sliding_top, "gantry clears a sliding player")
-	_check(span.x < span.y, "gantry hitbox has positive height")
-	gantry.queue_free()
+	for kind: int in GameConfig.HAZARD_DATA:
+		if not bool(GameConfig.HAZARD_DATA[kind]["overhead"]):
+			continue
+		var label := String(GameConfig.HazardKind.find_key(kind))
+		var overhead := scene.instantiate() as Hazard
+		add_child(overhead)
+		overhead.set_physics_process(false)
+		overhead.setup(kind, GameConfig.LANE_MIDDLE, 0.0)
+		var span := overhead.box_y_range()
+		_check(span.y > standing_top, "%s overlaps a standing player" % label)
+		_check(span.y < sliding_top, "%s clears a sliding player" % label)
+		_check(span.x < span.y, "%s hitbox has positive height" % label)
+		# A slide has to outlast the pass: the lethal band plus the player's own
+		# box is the road the duck must cover, and it must fit inside one slide.
+		var duck_px := GameConfig.SLIDE_DURATION * GameConfig.RUN_SPEED
+		var pass_px := (
+			float(GameConfig.HAZARD_DATA[kind]["hitbox_w"]) + GameConfig.HITBOX_SIZE.x
+		)
+		_check(pass_px < duck_px,
+			"%s band passes inside a single slide (%.0f px < %.0f px)" % [
+				label, pass_px, duck_px])
+		overhead.queue_free()
+
+	# The road barrier is the slide case and it has to exist in the shipped
+	# zones: it is the only overhead hazard, so without it the slide is dead.
+	_check(
+		GameConfig.hazard_allows_zone(GameConfig.HazardKind.BARRICADE, GameConfig.Zone.STREET),
+		"the road barrier appears on the street (the slide has a job)",
+	)
+	_check(
+		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.BARRICADE, GameConfig.Zone.SCHOOL)
+		and not GameConfig.hazard_allows_zone(GameConfig.HazardKind.BARRICADE, GameConfig.Zone.HOME),
+		"the road barrier stays on the street",
+	)
+	var overhead_kinds := 0
+	for kind: int in GameConfig.HAZARD_DATA:
+		if bool(GameConfig.HAZARD_DATA[kind]["overhead"]):
+			overhead_kinds += 1
+	_check_eq(overhead_kinds, 1, "one overhead kind covers the slide input")
 
 	# Movement: moving kinds close in faster than the world scrolls.
 	var mover := scene.instantiate() as Hazard
@@ -1072,6 +1145,18 @@ func _test_hazard() -> void:
 	alternate_dog._frame_timer = 0.0
 	alternate_dog._process(0.11)
 	_check_eq(alternate_dog.sprite.frame, 1, "dog walk frames animate")
+
+	# The dog stays on the lane it entered on: it is read at spawn, not chased.
+	_check(alternate_dog.lane_locked, "the dog keeps its spawn lane")
+	var dog_start_lane := alternate_dog.lane
+	alternate_dog._physics_process(1.2)
+	_check_eq(alternate_dog.lane, dog_start_lane, "the dog never changes lanes")
+	_check_near(
+		alternate_dog.position.y,
+		GameConfig.lane_y(dog_start_lane),
+		0.01,
+		"the dog stays on its lane baseline",
+	)
 	alternate_dog.queue_free()
 
 	# --- Street car: two variants, one hitbox, faster than the world -----------
@@ -1146,16 +1231,16 @@ func _test_hazard() -> void:
 	add_child(player)
 	player.set_physics_process(false)
 
-	var live_gantry := scene.instantiate() as Hazard
-	add_child(live_gantry)
-	live_gantry.set_physics_process(false)
-	live_gantry.setup(GameConfig.HazardKind.GANTRY, GameConfig.LANE_MIDDLE, 0.0)
-	live_gantry.position.x = GameConfig.PLAYER_X
+	var live_barrier := scene.instantiate() as Hazard
+	add_child(live_barrier)
+	live_barrier.set_physics_process(false)
+	live_barrier.setup(GameConfig.HazardKind.BARRICADE, GameConfig.LANE_MIDDLE, 0.0)
+	live_barrier.position.x = GameConfig.PLAYER_X
 	await _physics_frames(3)
 	_check_eq(
 		player.health,
 		GameConfig.MAX_HEARTS - 1,
-		"the gantry damages a standing player (live physics)",
+		"the road barrier damages a standing player (live physics)",
 	)
 
 	player.reset_health()
@@ -1165,12 +1250,12 @@ func _test_hazard() -> void:
 	_check_eq(
 		player.health,
 		GameConfig.MAX_HEARTS,
-		"a sliding player passes under the gantry (live physics)",
+		"a sliding player passes under the road barrier (live physics)",
 	)
 
 	player.is_sliding = false
 	player._update_hitbox()
-	live_gantry.queue_free()
+	live_barrier.queue_free()
 	await _physics_frames(2)
 
 	var live_manhole := scene.instantiate() as Hazard
@@ -1202,7 +1287,7 @@ func _test_hazard() -> void:
 	var off_lane := scene.instantiate() as Hazard
 	add_child(off_lane)
 	off_lane.set_physics_process(false)
-	off_lane.setup(GameConfig.HazardKind.GANTRY, GameConfig.LANE_TOP, 0.0)
+	off_lane.setup(GameConfig.HazardKind.BARRICADE, GameConfig.LANE_TOP, 0.0)
 	off_lane.position.x = GameConfig.PLAYER_X
 	player.reset_health()
 	player.air_height = GameConfig.JUMP_APEX
@@ -1244,23 +1329,21 @@ func _test_hazard() -> void:
 	)
 	dog_hit.queue_free()
 
-	# Dog hit with pursuer active triggers caught and died instead of normal damage.
+	# A hit always costs one heart. The chase's second-mistake rule lives in the
+	# pursuer (knock_closer), so it is tested there rather than as a hidden
+	# player-level instant loss.
 	player.reset_health()
-	player.pursuer_active = true
-	var dog_chase_hit := scene.instantiate() as Hazard
-	add_child(dog_chase_hit)
-	dog_chase_hit.set_physics_process(false)
-	dog_chase_hit.setup(GameConfig.HazardKind.DOG, GameConfig.LANE_TOP, 0.0)
-	var dog_caught := [0]
-	var dog_died := [0]
-	player.caught.connect(func(): dog_caught[0] += 1)
-	player.died.connect(func(): dog_died[0] += 1)
-	player._on_hitbox_area_entered(dog_chase_hit)
-	_check_eq(dog_caught[0], 1, "dog hit while pursuer is active triggers caught")
-	_check_eq(dog_died[0], 1, "dog hit while pursuer is active triggers died")
-	_check_eq(player.health, GameConfig.MAX_HEARTS, "dog hit while pursuer is active does not deduct hearts")
-	player.pursuer_active = false
-	dog_chase_hit.queue_free()
+	var dog_second_hit := scene.instantiate() as Hazard
+	add_child(dog_second_hit)
+	dog_second_hit.set_physics_process(false)
+	dog_second_hit.setup(GameConfig.HazardKind.DOG, GameConfig.LANE_TOP, 0.0)
+	player._on_hitbox_area_entered(dog_second_hit)
+	_check_eq(
+		player.health,
+		GameConfig.MAX_HEARTS - 1,
+		"a dog hit during a chase costs one heart like any other hit",
+	)
+	dog_second_hit.queue_free()
 
 	# --- Car jump dodge: a timed jump clears the car from SPRING SHOES 3 on -----
 	var pre_jump_levels: Dictionary = GameState.shop_levels.duplicate()
@@ -1349,6 +1432,35 @@ func _test_spawn_director() -> void:
 		GameConfig.ROW_GAP_MIN >= GameConfig.LANE_SWITCH_TIME * GameConfig.RUN_SPEED * 2.0,
 		"the tightest row gap still allows two lane changes",
 	)
+
+	# Endless keeps tightening past the campaign ramp instead of plateauing.
+	_check(
+		GameConfig.row_gap(
+			GameConfig.ROW_GAP_RAMP_DISTANCE * 3.0, GameConfig.RunMode.ENDLESS)
+		< GameConfig.ROW_GAP_MIN,
+		"endless rows tighten past ROW_GAP_MIN",
+	)
+	_check_near(
+		GameConfig.row_gap(200000.0, GameConfig.RunMode.ENDLESS),
+		GameConfig.ENDLESS_ROW_GAP_FLOOR,
+		0.01,
+		"endless row spacing settles at its floor",
+	)
+	_check_near(
+		GameConfig.row_gap(200000.0, GameConfig.RunMode.CAMPAIGN),
+		GameConfig.ROW_GAP_MIN,
+		0.01,
+		"campaign row spacing keeps its floor",
+	)
+	# The speed upgrade widens rows exactly as much as it speeds the world up,
+	# so it cannot quietly double the hazard rate.
+	for level in 5:
+		_check_near(
+			GameConfig.shop_row_gap_scale(level),
+			GameConfig.shop_speed_multiplier(level),
+			0.0001,
+			"speed level %d keeps the row rate constant" % level,
+		)
 
 	# Fuzz: 10,000 rows, every one must leave at least one lane open.
 	var rng := RandomNumberGenerator.new()
@@ -1819,30 +1931,36 @@ func _test_home_hazards() -> void:
 		GameConfig.HazardKind.COFFEE_TABLE, GameConfig.HazardKind.CUSHION,
 		GameConfig.HazardKind.BOOKSHELF, GameConfig.HazardKind.BOXES,
 	]
-	# Street: the six non-moving street props plus the two encounter kinds.
+	# Street: the five non-moving floor props plus the overhead road barrier and
+	# the two encounter kinds. The barrier stays out of street_props because that
+	# list is also the "static prop standing on the floor" contract below.
 	var street_props: Array[int] = [
 		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
-		GameConfig.HazardKind.BARRICADE, GameConfig.HazardKind.BRICKS,
+		GameConfig.HazardKind.BRICKS,
 		GameConfig.HazardKind.CONE, GameConfig.HazardKind.DUMPSTER,
 	]
 	var street_kinds: Array[int] = street_props.duplicate()
+	street_kinds.append(GameConfig.HazardKind.BARRICADE)
 	street_kinds.append(GameConfig.HazardKind.DOG)
 	street_kinds.append(GameConfig.HazardKind.CAR)
 	# The dog never rolls through pick_kind (its own encounter clock spawns it),
-	# so the street's random roll set is the props plus the car.
+	# so the street's random roll set is the props plus both slide cases and the
+	# car.
 	var street_roll_kinds: Array[int] = street_props.duplicate()
+	street_roll_kinds.append(GameConfig.HazardKind.BARRICADE)
 	street_roll_kinds.append(GameConfig.HazardKind.CAR)
-	# School: the gantry is disabled, so only these seven kinds roll indoors.
+	# School: these seven kinds roll indoors. The road barrier is street gear, so
+	# it is not one of them.
 	var school_kinds: Array[int] = [
 		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
 		GameConfig.HazardKind.SIGN,
 		GameConfig.HazardKind.CHAIR, GameConfig.HazardKind.FALBAG,
 		GameConfig.HazardKind.MOP, GameConfig.HazardKind.WETFLOOR,
 	]
-	# Everything that must never appear indoors.
+	# Everything that must never appear in the house.
 	var outdoor: Array[int] = [
 		GameConfig.HazardKind.MANHOLE, GameConfig.HazardKind.DEBRIS,
-		GameConfig.HazardKind.SIGN, GameConfig.HazardKind.GANTRY,
+		GameConfig.HazardKind.SIGN,
 		GameConfig.HazardKind.DOG, GameConfig.HazardKind.CAR,
 		GameConfig.HazardKind.BARRICADE, GameConfig.HazardKind.BRICKS,
 		GameConfig.HazardKind.CONE, GameConfig.HazardKind.DUMPSTER,
@@ -1873,11 +1991,16 @@ func _test_home_hazards() -> void:
 			GameConfig.hazard_allows_zone(kind, GameConfig.Zone.SCHOOL),
 			"%s still appears in the school zone" % kind_name.call(kind),
 		)
+	# The road barrier is the overhead case and it has to exist in the shipped
+	# zones: it is what makes the slide input useful at all.
 	_check(
-		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.GANTRY, GameConfig.Zone.SCHOOL)
-		and not GameConfig.hazard_allows_zone(GameConfig.HazardKind.GANTRY, GameConfig.Zone.STREET)
-		and not GameConfig.hazard_allows_zone(GameConfig.HazardKind.GANTRY, GameConfig.Zone.HOME),
-		"the gantry is disabled in every zone",
+		GameConfig.hazard_allows_zone(GameConfig.HazardKind.BARRICADE, GameConfig.Zone.STREET),
+		"the road barrier is live as the street's slide case",
+	)
+	_check(
+		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.BARRICADE, GameConfig.Zone.SCHOOL)
+		and not GameConfig.hazard_allows_zone(GameConfig.HazardKind.BARRICADE, GameConfig.Zone.HOME),
+		"the road barrier stays on the street",
 	)
 	_check(
 		not GameConfig.hazard_allows_zone(GameConfig.HazardKind.SIGN, GameConfig.Zone.STREET),
@@ -1920,9 +2043,9 @@ func _test_home_hazards() -> void:
 		"street unlocks ignore the home length",
 	)
 	_check(
-		GameConfig.hazard_unlock(GameConfig.HazardKind.GANTRY)
-			== float(GameConfig.HAZARD_UNLOCK[GameConfig.HazardKind.GANTRY]),
-		"the gantry keeps its fixed unlock distance",
+		GameConfig.hazard_unlock(GameConfig.HazardKind.BRICKS)
+			== float(GameConfig.HAZARD_UNLOCK[GameConfig.HazardKind.BRICKS]),
+		"street props keep their fixed unlock distances",
 	)
 	for seconds: float in [5.0, 20.0, 60.0, 300.0]:
 		var tail_len := GameConfig.zone_home_length(seconds)
@@ -1964,9 +2087,8 @@ func _test_home_hazards() -> void:
 		)
 
 	# STREET and SCHOOL never roll a home prop (the inverse freeze guard), and
-	# each zone rolls exactly its own pool: the sign has moved from the street
-	# to the school, the gantry is disabled, and the four new props are
-	# street-only.
+	# each zone rolls exactly its own pool: the sign is school-only, the road
+	# barrier is the street's slide case, and the floor props stay outdoors.
 	var street_rng := RandomNumberGenerator.new()
 	street_rng.seed = 89
 	var street_seen := {}
@@ -1974,13 +2096,16 @@ func _test_home_hazards() -> void:
 		street_seen[SpawnDirector.pick_kind(
 			60000.0, street_rng, GameConfig.Zone.STREET)] = true
 	_check_eq(street_seen.size(), street_roll_kinds.size(),
-		"the street rolls exactly its six props plus the car")
+		"the street rolls exactly its floor props, its slide cases and the car")
 	for kind: int in street_roll_kinds:
 		_check(street_seen.has(kind), "%s rolls in the street" % kind_name.call(kind))
 	_check(
-		not street_seen.has(GameConfig.HazardKind.SIGN)
-		and not street_seen.has(GameConfig.HazardKind.GANTRY),
-		"the sign and gantry never roll in the street",
+		not street_seen.has(GameConfig.HazardKind.SIGN),
+		"the sign never rolls in the street",
+	)
+	_check(
+		street_seen.has(GameConfig.HazardKind.BARRICADE),
+		"the road barrier rolls in the street (the slide has a job)",
 	)
 	for kind: int in home_only:
 		_check(
@@ -1995,6 +2120,10 @@ func _test_home_hazards() -> void:
 			60000.0, school_rng, GameConfig.Zone.SCHOOL)] = true
 	_check_eq(school_seen.size(), school_kinds.size(),
 		"the school rolls all seven of its kinds")
+	_check(
+		not school_seen.has(GameConfig.HazardKind.BARRICADE),
+		"the road barrier never rolls in the school",
+	)
 	for kind: int in school_kinds:
 		_check(
 			school_seen.has(kind),
@@ -2371,6 +2500,16 @@ func _test_game_state() -> void:
 		state.best_for_mode(GameConfig.RunMode.CAMPAIGN), 1200,
 		"best_for_mode can read any mode explicitly",
 	)
+
+	# Bests persist, so the menu readout and the campaign gold-medal rule
+	# survive a restart instead of resetting every launch.
+	var reloaded = load("res://scripts/core/game_state.gd").new()
+	reloaded.save_path = SUITE_SAVE_PATH
+	reloaded._load_wallet()
+	_check_eq(reloaded.best_campaign, 1200, "the campaign best survives a reload")
+	_check_eq(reloaded.best_endless, 900, "the endless best survives a reload")
+	_check_eq(reloaded.coins, state.coins, "the wallet still reloads alongside the bests")
+	reloaded.free()
 
 	state.best_campaign = keep_campaign
 	state.best_endless = keep_endless
@@ -3464,6 +3603,12 @@ func _test_pursuer() -> void:
 		0.01,
 		"chase speed is 407.4 px/s at base",
 	)
+	_check_near(
+		GameConfig.PURSUER_ENTER_SPEED_FACTOR,
+		GameConfig.PURSUER_ENTER_SPEED / GameConfig.RUN_SPEED,
+		0.0001,
+		"the entrance playback factor follows the dash speed",
+	)
 	_check_near(GameConfig.MOMENTUM_DIP_TIME, 1.0, 0.001, "momentum dip lasts 1.0 s")
 	_check_near(GameConfig.PURSUER_CATCH_DISTANCE, 60.0, 0.01, "catch distance is 60 px")
 
@@ -3511,19 +3656,46 @@ func _test_pursuer() -> void:
 		)
 	_check_eq(pursuer.sprite.animation, &"idle", "tanod previews the idle animation")
 
-	# Wake.
+	# Wake: the entrance dash starts off-screen, so a wake is never a sprite
+	# popping into view at the chase gap.
 	var wakes := [0]
 	pursuer.chase_started.connect(func() -> void: wakes[0] += 1)
 	pursuer.wake()
 	_check(pursuer.state == Pursuer.State.CHASE, "wake enters chase")
 	_check(pursuer.visible, "pursuer becomes visible on wake")
 	_check(pursuer.is_active(), "chasing pursuer is active")
-	_check_near(pursuer.gap, GameConfig.PURSUER_WAKE_GAP, 0.01,
-		"wake gap uses the tuned chase distance")
+	_check_near(pursuer.gap, GameConfig.PURSUER_ENTER_GAP, 0.01,
+		"the wake starts the tanod at the off-screen entrance gap")
+	_check(pursuer.position.x < 0.0, "the entrance starts off the left edge")
+	_check_near(pursuer.sprite.speed_scale, GameConfig.PURSUER_ENTER_SPEED_FACTOR, 0.001,
+		"the entrance dash scales the run cycle to the dash speed")
 	_check_eq(wakes[0], 1, "chase_started fires once")
 	pursuer.wake()
 	_check_eq(wakes[0], 1, "wake during chase is a no-op")
-	_check_near(pursuer.gap, GameConfig.PURSUER_WAKE_GAP, 0.01, "wake during chase does not reset gap")
+
+	# The dash in is continuous, and the chase clock waits for it.
+	pursuer._physics_process(GameConfig.PURSUER_ENTER_TIME * 0.5)
+	_check(
+		pursuer.gap > GameConfig.PURSUER_WAKE_GAP
+		and pursuer.gap < GameConfig.PURSUER_ENTER_GAP,
+		"the entrance slides in instead of teleporting",
+	)
+	_check_near(pursuer.chase_time, 0.0, 0.0001,
+		"the chase clock waits for the entrance to finish")
+	_check_near(pursuer.sprite.speed_scale, GameConfig.PURSUER_ENTER_SPEED_FACTOR, 0.001,
+		"the run cycle stays scaled for the whole dash")
+	pursuer._physics_process(GameConfig.PURSUER_ENTER_TIME)
+	_check_near(pursuer.gap, GameConfig.PURSUER_WAKE_GAP, 0.01,
+		"the entrance settles at the tuned chase distance")
+	_check(pursuer.position.x > 0.0, "the tanod is on screen once the entrance ends")
+	_check_near(pursuer.sprite.speed_scale, 1.0, 0.0001,
+		"the run cycle returns to normal once he settles")
+	_check_near(
+		GameConfig.PURSUER_ENTER_GAP - GameConfig.PURSUER_WAKE_GAP,
+		GameConfig.PURSUER_ENTER_SPEED * GameConfig.PURSUER_ENTER_TIME,
+		0.01,
+		"the entrance speed covers the gap in the entrance time",
+	)
 
 	# Gap dynamics: full speed grows the gap (escape), dip shrinks it (pressure).
 	# Both expectations are derived from the tuned factor so retuning the chase
@@ -3570,6 +3742,8 @@ func _test_pursuer() -> void:
 	add_child(chaser)
 	chaser.set_physics_process(false)
 	chaser.wake()
+	# Land the entrance dash first: the checks below are about chase physics.
+	chaser._physics_process(GameConfig.PURSUER_ENTER_TIME)
 	chaser.chase_time = 0.0
 	chaser.set_world_speed(GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR)
 	var slow_gap := chaser.gap
@@ -3577,14 +3751,56 @@ func _test_pursuer() -> void:
 	_check(chaser.gap < slow_gap, "a slowdown below base still lets the tanod gain")
 
 	chaser.chase_time = GameConfig.PURSUER_CHASE_RAMP_TIME
+	chaser.set_base_speed(GameConfig.RUN_SPEED * GameConfig.ENDLESS_RAMP_MAX_MULTIPLIER)
 	chaser.set_world_speed(GameConfig.RUN_SPEED * GameConfig.ENDLESS_RAMP_MAX_MULTIPLIER)
 	var ramp_gap := chaser.gap
 	chaser._physics_process(1.0)
 	_check_near(chaser.gap, ramp_gap, 0.01, "at full endless ramp the tanod keeps pace")
+
+	# A late-run dip still closes the gap: the chase is a fraction of the
+	# un-dipped base speed, not of max(world, RUN_SPEED), which used to let him
+	# outrun the dip once the ramp pushed past base speed.
+	chaser.set_world_speed(GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR)
+	var late_dip_gap := chaser.gap
+	chaser._physics_process(0.1)
+	_check(chaser.gap < late_dip_gap, "a late-run dip still closes the gap")
 	chaser.queue_free()
+
+	# Second-mistake rule: a hit during a chase knocks the tanod closer, and a
+	# knock that reaches the catch distance ends the run in the lunge.
+	var blocker := scene.instantiate() as Pursuer
+	add_child(blocker)
+	blocker.set_physics_process(false)
+	blocker.wake()
+	blocker._physics_process(GameConfig.PURSUER_ENTER_TIME)
+	blocker.gap = 200.0
+	var blocker_catches := [0]
+	blocker.caught.connect(func() -> void: blocker_catches[0] += 1)
+	blocker.knock_closer(GameConfig.PURSUER_HIT_CLOSE_PX)
+	_check(blocker.gap < 200.0, "a hit during the chase knocks the tanod closer")
+	_check_eq(blocker_catches[0], 0, "one knock alone does not catch Elias")
+	blocker.knock_closer(GameConfig.PURSUER_HIT_CLOSE_PX)
+	_check_eq(blocker_catches[0], 1, "a second knock catches Elias")
+	_check(blocker.state == Pursuer.State.LUNGE, "the catch runs the lunge animation")
+	blocker.queue_free()
+
+	# A clean dip looms but never finishes the job.
+	var dipped := scene.instantiate() as Pursuer
+	add_child(dipped)
+	dipped.set_physics_process(false)
+	dipped.wake()
+	dipped._physics_process(GameConfig.PURSUER_ENTER_TIME)
+	dipped.set_world_speed(GameConfig.RUN_SPEED * GameConfig.MOMENTUM_DIP_FACTOR)
+	for i in 5:
+		dipped._physics_process(1.0)
+	_check_near(dipped.gap, GameConfig.PURSUER_ESCAPE_FLOOR, 0.01,
+		"a clean dip stops at the escape floor")
+	_check(dipped.state == Pursuer.State.CHASE, "a clean dip never catches Elias")
+	dipped.queue_free()
 
 	# Catch by gap closing.
 	pursuer.wake()
+	pursuer._physics_process(GameConfig.PURSUER_ENTER_TIME)
 	var catches := [0]
 	pursuer.caught.connect(func() -> void: catches[0] += 1)
 	pursuer.gap = GameConfig.PURSUER_CATCH_DISTANCE - 10.0
@@ -3626,20 +3842,20 @@ func _test_pursuer() -> void:
 	live.setup(GameConfig.HazardKind.MANHOLE, player.lane, 0.0)
 	live.position.x = GameConfig.PLAYER_X
 
-	player.pursuer_active = true
-	player.invulnerable_time_left = 1.0  # i-frames must not save the player
+	# A hazard hit is always normal damage. The tanod's second-mistake rule is a
+	# visible knock applied by RunWorld, not a hidden instant loss.
+	player.invulnerable_time_left = 0.0
 	await _physics_frames(4)
-	_check_eq(caught_count[0], 1, "hazard while chased emits caught")
-	_check_eq(died_count[0], 1, "hazard while chased emits died")
-	_check_eq(damaged_count[0], 0, "hazard while chased never emits damaged")
-	_check_eq(player.health, GameConfig.MAX_HEARTS, "hazard while chased loses no hearts")
+	_check_eq(damaged_count[0], 1, "a hazard hit costs a heart even mid-chase")
+	_check_eq(caught_count[0], 0, "one hazard hit never catches Elias by itself")
+	_check_eq(died_count[0], 0, "one hazard hit never ends the run by itself")
+	_check_eq(player.health, GameConfig.MAX_HEARTS - 1, "the mid-chase hit removes one heart")
 
 	player.reset_health()
 	caught_count[0] = 0
 	died_count[0] = 0
 	damaged_count[0] = 0
 	player.invulnerable_time_left = 0.0
-	player.pursuer_active = false
 	var live2 := (load("res://scenes/hazard.tscn") as PackedScene).instantiate() as Hazard
 	add_child(live2)
 	live2.set_physics_process(false)
@@ -4251,6 +4467,18 @@ func _test_settings() -> void:
 	_check_eq(GameState.debug_overlay, not was_debug, "the debug toggle writes through to GameState")
 	GameState.set_debug_overlay(was_debug)
 
+	# Levels persist: a slider move writes through to the save, and a reload
+	# brings it back. Untouched buses stay at their default.
+	GameState.set_audio_percent(SettingsPanel.BUS_SFX, 40.0)
+	var reloaded_settings = load("res://scripts/core/game_state.gd").new()
+	reloaded_settings.save_path = SUITE_SAVE_PATH
+	reloaded_settings._load_wallet()
+	_check_near(reloaded_settings.sfx_percent, 40.0, 0.01, "the SFX level survives a reload")
+	_check_near(reloaded_settings.master_percent, 100.0, 0.01,
+		"untouched levels stay at their default")
+	reloaded_settings.free()
+	GameState.set_audio_percent(SettingsPanel.BUS_SFX, 100.0)
+
 	# The fullscreen toggle tracks its state (window mode itself is
 	# platform-dependent, so only the control is asserted).
 	var was_fullscreen := panel.fullscreen_check.button_pressed
@@ -4594,6 +4822,9 @@ func _test_scenes() -> void:
 			_check_near(world.speed,
 				world._base_speed() * GameConfig.MOMENTUM_DIP_FACTOR, 0.1,
 				"world holds at 75% of its ramped speed during the dip")
+			_check_near(world.player.sprite.speed_scale,
+				world.speed / GameConfig.RUN_ANIM_REFERENCE_SPEED, 0.001,
+				"the run cycle keeps step with the dipped road speed")
 			for i in 45:
 				world._physics_process(1.0 / 60.0)
 			_check(
@@ -4611,6 +4842,10 @@ func _test_scenes() -> void:
 			world.hazards.add_child(sync_hazard)
 			sync_hazard.setup(GameConfig.HazardKind.MANHOLE, GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
 			sync_hazard.position.x = 1200.0
+			# Park the chase so this damage wakes the tanod again instead of
+			# knocking him into a catch (the knock rule has its own suite).
+			world.pursuer.state = Pursuer.State.DORMANT
+			world.pursuer.gap = GameConfig.PURSUER_DORMANT_GAP
 			world._on_player_damaged(world.player.health - 1)
 			world._physics_process(1.0 / 60.0)
 			sync_hazard._physics_process(1.0 / 60.0)
@@ -4622,14 +4857,28 @@ func _test_scenes() -> void:
 			)
 			sync_hazard.queue_free()
 
-			# Missed item also wakes the pursuer.
+			# A missed item only breaks the chain: it never summons the tanod,
+			# so he cannot appear for a mistake the player did not make.
 			world.pursuer.state = Pursuer.State.DORMANT
 			world.pursuer.visible = false
+			world.score_system.chain = 4
 			world._on_item_missed()
-			_check(world.pursuer.state == Pursuer.State.CHASE, "missed item wakes the pursuer through the world")
+			_check_eq(world.score_system.chain, 0, "a missed item breaks the combo")
+			_check(world.pursuer.state == Pursuer.State.DORMANT,
+				"a missed item does not summon the tanod")
+			_check(not world.pursuer.visible, "a missed item leaves the tanod hidden")
+
+			# A leftover item scrolling past during a zone exit is not a miss:
+			# Elias cannot react while he is sprinting off the boundary.
+			world.score_system.chain = 4
+			world.zone_swap_active = true
+			world._on_item_missed()
+			world.zone_swap_active = false
+			_check_eq(world.score_system.chain, 4,
+				"a miss during a zone exit is ignored")
+			world.score_system.reset_combo()
 
 			# Chase death: hazard while active -> CAUGHT! after the arrest.
-			world.player.pursuer_active = true
 			world._on_player_caught()
 			_check(not world.is_running, "caught stops the run")
 			_check(world.arrest.visible, "caught shows the arrest grab")
@@ -4637,6 +4886,8 @@ func _test_scenes() -> void:
 			world._on_arrest_finished()
 			_check(world.results.visible, "caught shows the game over overlay")
 			_check(world.results.title_label.text == "CAUGHT!", "caught shows CAUGHT!")
+			_check(world.results.shop_button != null,
+				"the report card offers the store so run coins can be spent")
 			_check(
 				world.results.stat_text("score") == "%06d" % world.score_system.score,
 				"caught fills the final score readout",
@@ -4845,6 +5096,17 @@ func _test_scenes() -> void:
 				"rebuilding the rung does not add wallet coins")
 			world.score_system.reset_combo()
 
+			# Shield feedback: a spent charge clinks (the HUD flash rides the same
+			# signal) so the paid upgrade is visible the moment it works.
+			world.player.shield_charges = 1
+			world.player.shield_max = 1
+			world.player.invulnerable_time_left = 0.0
+			var shield_before := world.shield_break_play_count
+			world.player.take_damage()
+			_check_eq(world.shield_break_play_count, shield_before + 1,
+				"a spent shield charge plays its block cue")
+			world.player.shield_charges = 0
+
 			for i in GameConfig.MAX_HEARTS:
 				world.player.invulnerable_time_left = 0.0
 				world.player.take_damage()
@@ -4870,6 +5132,13 @@ func _first_key(action: String) -> InputEventKey:
 	var events := InputMap.action_get_events(action)
 	_check(events.size() > 0, "action '%s' has at least one event" % action)
 	return events[0] as InputEventKey
+
+
+func _has_pad_event(action: String) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+			return true
+	return false
 
 
 func _section(title: String) -> void:

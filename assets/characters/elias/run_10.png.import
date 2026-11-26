@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b3f8qigeucwlu"
-path="res://.godot/imported/haz_tires.png-2c3af10e3f596c47688d5da7f475ce03.ctex"
+uid="uid://b72r5xghcdx24"
+path="res://.godot/imported/run_10.png-1d6eebdd8b1ca74d38a9aaaa988002b9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/hazards/haz_tires.png"
-dest_files=["res://.godot/imported/haz_tires.png-2c3af10e3f596c47688d5da7f475ce03.ctex"]
+source_file="res://assets/characters/elias/run_10.png"
+dest_files=["res://.godot/imported/run_10.png-1d6eebdd8b1ca74d38a9aaaa988002b9.ctex"]
 
 [params]
 

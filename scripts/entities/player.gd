@@ -34,6 +34,10 @@ var slide_time_left: float = 0.0
 var health: int = GameConfig.MAX_HEARTS
 ## Effective heart cap: MAX_HEARTS plus the bought Heart upgrades.
 var max_health: int = GameConfig.MAX_HEARTS
+## Run-cycle cadence relative to the speed the sheet is timed for. RunWorld
+## pushes the live ground speed every frame (see set_run_speed_scale) so the
+## feet keep up with the road instead of skating through ramps and dips.
+var run_speed_scale: float = 1.0
 ## Per-run shield charges (bought in the shop). A charge absorbs one hazard
 ## hit with no heart loss and no combo break.
 var shield_charges: int = 0
@@ -57,13 +61,25 @@ var item_play_count: int = 0
 ## hold the trigger conditions (e.g. shield absorbs must not flash).
 var dust_burst_count: int = 0
 var hit_burst_count: int = 0
-## Set by RunWorld each frame from the pursuer. While true, a hazard hit is an
-## instant loss (hearts and i-frames are ignored).
-var pursuer_active: bool = false
+## Seconds of cyan flash left after a shield absorbed a hit. Presentation only.
+var shield_flash_time: float = 0.0
 
 ## Pitch spread for the jump sound: each launch re-rolls playback pitch in
 ## 1.0 ± this value, so consecutive jumps never sound identical.
 const JUMP_PITCH_VARIATION := 0.05
+
+## How long the cyan "blocked" tint lasts after a shield charge absorbs a hit.
+const SHIELD_FLASH_TIME := 0.25
+
+## Touch: a drag shorter than this counts as a tap (jump). Anything longer is a
+## swipe, resolved on the dominant axis.
+const TOUCH_SWIPE_MIN := 48.0
+
+## Where the current touch started (design-space pixels).
+var _touch_start: Vector2 = Vector2.ZERO
+var _touch_started: bool = false
+## Test counter: touch gestures that turned into a gameplay action.
+var touch_action_count: int = 0
 
 ## Ground dust is presentation only, but takeoff should read lighter than a
 ## landing, so each beat sets its own particle count and launch speed.
@@ -141,6 +157,10 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		_handle_touch(event as InputEventScreenTouch)
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("lane_up"):
 		move_lane(-1)
 		get_viewport().set_input_as_handled()
@@ -155,6 +175,35 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+# --- Touch -------------------------------------------------------------------
+
+## Tap to jump, swipe up/down to change lane, swipe left to slide. A right swipe
+## does nothing (there is nothing to run into on that side), which keeps a
+## stray horizontal drag from firing an action by accident.
+func _handle_touch(event: InputEventScreenTouch) -> void:
+	if event.pressed:
+		_touch_start = event.position
+		_touch_started = true
+		return
+	if not _touch_started:
+		return
+	_touch_started = false
+	var delta := event.position - _touch_start
+	if delta.length() < TOUCH_SWIPE_MIN:
+		if jump():
+			touch_action_count += 1
+		return
+	if absf(delta.x) > absf(delta.y):
+		if delta.x < 0.0 and slide():
+			touch_action_count += 1
+		return
+	if delta.y < 0.0:
+		if move_lane(-1):
+			touch_action_count += 1
+	elif move_lane(1):
+		touch_action_count += 1
+
+
 # --- Public actions ----------------------------------------------------------
 
 ## Step one lane up (-1) or down (+1). Returns false at the outer lanes.
@@ -166,6 +215,16 @@ func move_lane(direction: int) -> bool:
 	lane_changed.emit(lane)
 	_resolve_overlaps()
 	return true
+
+
+## Retime the run cycle to the live ground speed: 1.0 is the authored cadence,
+## 0.75 is a fully dipped momentum frame, 1.4 is the clamp. Cheap enough to
+## call every physics frame; a steady speed never disturbs the playback.
+func set_run_speed_scale(scale: float) -> void:
+	run_speed_scale = clampf(scale,
+		GameConfig.RUN_ANIM_SPEED_SCALE_MIN, GameConfig.RUN_ANIM_SPEED_SCALE_MAX)
+	if _current_anim == &"run" and is_instance_valid(sprite):
+		sprite.speed_scale = run_speed_scale
 
 
 ## Start a jump. Returns false when already airborne or out of bounds.
@@ -209,6 +268,7 @@ func take_damage(amount: int = 1, source_kind: int = -1) -> bool:
 	if shield_charges > 0:
 		shield_charges = maxi(shield_charges - 1, 0)
 		invulnerable_time_left = GameConfig.I_FRAME_TIME
+		shield_flash_time = SHIELD_FLASH_TIME
 		shield_changed.emit(shield_charges, shield_max)
 		shield_used.emit(shield_charges)
 		return false
@@ -295,6 +355,7 @@ func reset_health() -> void:
 	health = max_health
 	shield_charges = shield_max
 	invulnerable_time_left = 0.0
+	shield_flash_time = 0.0
 	_hurt_time_left = 0.0
 	_death_played = false
 	health_changed.emit(health, max_health)
@@ -338,6 +399,8 @@ func _update_slide(delta: float) -> void:
 func _update_invulnerability(delta: float) -> void:
 	if invulnerable_time_left > 0.0:
 		invulnerable_time_left = maxf(invulnerable_time_left - delta, 0.0)
+	if shield_flash_time > 0.0:
+		shield_flash_time = maxf(shield_flash_time - delta, 0.0)
 
 
 func _end_slide() -> void:
@@ -362,11 +425,10 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 func _hit_hazard(hazard: Hazard) -> void:
 	if hazard.lane != lane:
 		return
-	if pursuer_active:
-		# Instant loss while chased: no heart loss, no i-frame check.
-		caught.emit()
-		died.emit()
-		return
+	# A hit always costs a heart. While the tanod is chasing, RunWorld also
+	# knocks him closer (see Pursuer.knock_closer); that visible knock is what
+	# turns a second mistake into the catch, replacing the old silent
+	# instant-loss rule.
 	take_damage(1, hazard.kind)
 
 
@@ -415,12 +477,16 @@ func _apply_pose() -> void:
 	sprite.position = Vector2(0.0, -GameConfig.PLAYER_SPRITE_HEIGHT * sprite_scale.y * 0.5)
 	sprite.rotation = deg_to_rad(_lean)
 
-	# Blink while invulnerable so the i-frame window is readable.
+	# Blink while invulnerable so the i-frame window is readable. A shield
+	# absorb tints him cyan for a beat, so the block reads as a block.
+	var alpha := 1.0
 	if invulnerable_time_left > 0.0:
 		var phase := fmod(invulnerable_time_left * GameConfig.I_FRAME_BLINK_HZ, 1.0)
-		sprite.modulate.a = 0.35 if phase < 0.5 else 1.0
+		alpha = 0.35 if phase < 0.5 else 1.0
+	if shield_flash_time > 0.0:
+		sprite.modulate = Color(0.55, 0.95, 1.0, alpha)
 	else:
-		sprite.modulate.a = 1.0
+		sprite.modulate = Color(1.0, 1.0, 1.0, alpha)
 
 
 func _update_animation() -> void:
@@ -449,6 +515,9 @@ func _update_animation() -> void:
 		_play(&"slide")
 		return
 	_play(&"run")
+	# Re-applied every frame: the zone swap and the victory run-off set their own
+	# exit cadence directly, and this is what brings the cycle back in step.
+	sprite.speed_scale = run_speed_scale
 
 
 func _play(anim: StringName) -> void:

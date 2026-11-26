@@ -12,7 +12,7 @@ const FRAME_PATH := "res://assets/characters/elias/%s_%d.png"
 
 const ANIMATIONS := {
 	"idle": {"frames": 4, "fps": 8.0, "loop": true},
-	"run": {"frames": 7, "fps": 14.0, "loop": true},
+	"run": {"frames": 12, "fps": GameConfig.RUN_ANIM_FPS, "loop": true},
 	"jump": {"frames": 3, "fps": 10.0, "loop": false},
 	"slide": {"frames": 4, "fps": 8.0, "loop": true},
 	"hurt": {"frames": 6, "fps": 10.0, "loop": false},

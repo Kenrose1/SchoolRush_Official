@@ -117,7 +117,9 @@ const PLAYER_START_LANE := LANE_MIDDLE
 const PLAYER_X := 400.0
 const PLAYER_SCALE := 0.6
 
-## Source sprite dimensions, used to keep the feet planted while squashing.
+## Figure dimensions the player hitbox was tuned around: the collision box is
+## this scaled by PLAYER_SCALE and HITBOX_SHRINK, so re-cut art never resizes
+## the box. Art is drawn on PLAYER_ART_HEIGHT instead.
 const PLAYER_SPRITE_WIDTH := 123.0
 const PLAYER_SPRITE_HEIGHT := 189.0
 
@@ -139,11 +141,33 @@ const SLIDE_DURATION := 0.55
 ## Base forward speed, used by every zone.
 const RUN_SPEED := 420.0
 
+## Run cycle timing. The sheet is twelve frames lifted from a 24 fps reference
+## clip, so at the reference speed it plays at its authored 24 fps: two strides
+## a second. Faster starts to strobe the pose art, and the residual foot slip
+## against the road is the compromise every stylised runner makes.
+const RUN_ANIM_FPS := 24.0
+## Ground speed the cadence above is authored for. The sprite's speed_scale is
+## the live ground speed over this, so the endless/campaign ramps, the Speed
+## upgrade and the momentum dip all retime the feet instead of making them skate.
+const RUN_ANIM_REFERENCE_SPEED := RUN_SPEED
+## Cadence clamp. The low end still covers the 75% momentum dip; the high end
+## stops a fully ramped late run from strobing a seven-frame sheet.
+const RUN_ANIM_SPEED_SCALE_MIN := 0.7
+const RUN_ANIM_SPEED_SCALE_MAX := 1.4
+
 ## Endless speed ramp: a linear multiplier on RUN_SPEED that starts at 1.0 and
 ## reaches ENDLESS_RAMP_MAX_MULTIPLIER once ENDLESS_RAMP_DISTANCE px of road
 ## have been travelled.
 const ENDLESS_RAMP_MAX_MULTIPLIER := 1.5
-const ENDLESS_RAMP_DISTANCE := 40000.0
+## The ramp is deliberately longer than a campaign (33,600 px) so the speed
+## keeps climbing well past the point where a campaign would have finished.
+const ENDLESS_RAMP_DISTANCE := 90000.0
+
+## Endless-only long tail for row spacing: past the campaign ramp the rows keep
+## tightening toward ENDLESS_ROW_GAP_FLOOR over ENDLESS_ROW_GAP_RAMP_DISTANCE px,
+## so the mode never plateaus at the difficulty of a finished campaign.
+const ENDLESS_ROW_GAP_FLOOR := 230.0
+const ENDLESS_ROW_GAP_RAMP_DISTANCE := 90000.0
 
 ## Campaign speed ramp: a linear multiplier on RUN_SPEED from 1.0 at the start
 ## line to this at the finish. The course stays fixed in pixels, so the ramp
@@ -208,7 +232,7 @@ const SLIDE_HITBOX_HEIGHT_FACTOR := 0.5
 ## unchanged. The street props sit after the car; the living-room furniture
 ## stays last.
 enum HazardKind {
-	MANHOLE, DEBRIS, SIGN, GANTRY, DOG, CAR,
+	MANHOLE, DEBRIS, SIGN, DOG, CAR,
 	BARRICADE, BRICKS, CONE, DUMPSTER,
 	NIGHTSTAND, ARMCHAIR, COFFEE_TABLE, CUSHION, BOOKSHELF, BOXES, CHAIR, FALBAG, MOP, WETFLOOR,
 }
@@ -268,7 +292,10 @@ const CAR_HONK_PITCH: Array[float] = [1.0, 0.93]
 const CAR_ENGINE_PITCH: Array[float] = [1.0, 0.9]
 
 ## Per-kind art and hitbox data.
-##   clearance    bottom edge sits this far above the lane baseline (overhead)
+##   clearance    the art's bottom edge sits this far above the lane baseline
+##   hitbox_y     the hitbox's bottom edge above the lane baseline; defaults to
+##                clearance, so art and hitbox move together unless a kind
+##                hangs its hitbox at the beam instead of from the road up
 ##   overhead     must be slid under; otherwise it is jumped or dodged
 ##   frames       0 = single image, >0 = horizontal sprite sheet frame count
 ##   extra_speed  added leftward speed for moving hazards
@@ -288,19 +315,12 @@ const HAZARD_DATA := {
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 	},
 	## SIGN is a school-hallway prop now: the street keeps its own six street
-	## props instead. GANTRY is disabled - no zone allows it - but its data and
-	## art remain so it can be re-enabled by restoring its zones list.
+	## props instead.
 	HazardKind.SIGN: {
 		"texture": "res://assets/hazards/haz_sign.png",
 		"scale": 0.8, "hitbox_w": 38.0, "hitbox_h": 64.0,
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.SCHOOL],
-	},
-	HazardKind.GANTRY: {
-		"texture": "res://assets/hazards/haz_gantry.png",
-		"scale": 0.8, "hitbox_w": 150.0, "hitbox_h": 56.0,
-		"clearance": 62.0, "overhead": true, "frames": 0, "extra_speed": 0.0,
-		"zones": [],
 	},
 	HazardKind.DOG: {
 		"texture": DOG_TEXTURES[0],
@@ -322,10 +342,24 @@ const HAZARD_DATA := {
 	## road (clearance 0, jumped like the debris), scaled to read ~96-105 px
 	## tall - the same band as the living-room props, visibly under the 118 px
 	## jump apex - with a uniform 64 px hitbox so one jump timing clears them.
+	## The road barrier is the only overhead hazard: a beam on two posts that
+	## Elias slides under. Its painted beam's underside sits 371/511 of the art
+	## height above the road, so at scale 0.27 the art is 271x138 px and the beam
+	## hangs at ~100 px - head height on a 113 px Elias. The hitbox hangs on the
+	## beam (hitbox_y 92) instead of starting at the road: a standing hitbox
+	## (102 px) overlaps it, a sliding one (51 px) clears it by 41 px.
+	##
+	## The band is 96 px wide, not the art's 271: sliding makes Elias 51 px tall
+	## for SLIDE_DURATION (0.55 s = 231 px of road), and the lethal band plus his
+	## own 66 px box has to pass inside that window. At 150 px the pass took
+	## 0.51 s, so a slide started as the barrier arrived ran out with the beam
+	## still overhead and clipped him. 96 px takes 0.39 s, leaving ~0.16 s of
+	## slack either side of the duck.
 	HazardKind.BARRICADE: {
 		"texture": "res://assets/hazards/haz_barricade.png",
-		"scale": 0.40, "hitbox_w": 70.0, "hitbox_h": 64.0,
-		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
+		"scale": 0.27, "hitbox_w": 96.0, "hitbox_h": 64.0,
+		"clearance": 0.0, "hitbox_y": 92.0,
+		"overhead": true, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.STREET],
 	},
 	HazardKind.BRICKS: {
@@ -427,7 +461,6 @@ const HAZARD_UNLOCK := {
 	HazardKind.CONE: 10000.0,
 	HazardKind.BRICKS: 14000.0,
 	HazardKind.DUMPSTER: 18000.0,
-	HazardKind.GANTRY: 8000.0,
 	HazardKind.SIGN: 12000.0,
 	HazardKind.DOG: DOG_FIRST_DISTANCE,
 	HazardKind.CAR: 0.0,
@@ -445,7 +478,6 @@ const HAZARD_WEIGHT := {
 	HazardKind.CONE: 2.5,
 	HazardKind.BRICKS: 2.0,
 	HazardKind.DUMPSTER: 2.0,
-	HazardKind.GANTRY: 2.5,
 	HazardKind.SIGN: 1.5,
 	## Dogs use the dedicated warned encounter clock, not random hazard rows.
 	HazardKind.DOG: 0.0,
@@ -586,7 +618,7 @@ enum ShopUpgrade { SPEED, LUCK, JUMP, HEARTS, SHIELD }
 ## cost curve (level 1 costs base_cost; level N costs base_cost * growth^(N-1)).
 const SHOP_UPGRADES := {
 	ShopUpgrade.SPEED: {
-		"name": "RUN SPEED", "desc": "+3% world speed per level",
+		"name": "RUN SPEED", "desc": "+3% world speed, hazard spacing scales with it",
 		"max_level": 5, "base_cost": 40, "cost_growth": 1.65,
 	},
 	ShopUpgrade.LUCK: {
@@ -614,6 +646,15 @@ const SHOP_UPGRADES := {
 ## World speed multiplier for a speed level (level 0 = untouched).
 static func shop_speed_multiplier(level: int) -> float:
 	return 1.0 + 0.03 * clampi(level, 0, 5)
+
+
+## Hazard row spacing for a speed level. Rows are spaced in pixels, so a
+## faster world would otherwise pack more hazards into every second and shorten
+## reaction time - the upgrade would be a camouflaged difficulty spike. Scaling
+## the spacing by the same factor keeps the row rate constant, so RUN SPEED
+## buys score rate and only the (intended) shorter reaction window.
+static func shop_row_gap_scale(level: int) -> float:
+	return shop_speed_multiplier(level)
 
 ## Spawn-gap multiplier for a luck level (level 0 = 1.0; higher = denser).
 static func shop_luck_gap_factor(level: int) -> float:
@@ -762,17 +803,38 @@ const DESPAWN_X := -400.0
 
 # --- Pursuer (tanod) ---------------------------------------------------------
 
-## Chase speed as a fraction of RUN_SPEED. 0.97 = 407.4 px/s at base speed.
-## Applied to the faster of the current world speed and RUN_SPEED, so the
-## tanod keeps up with the speed ramps while a momentum dip (world below
-## RUN_SPEED) still lets him close the gap.
+## Chase speed as a fraction of the player's UN-DIPPED base speed (0.97 =
+## 407.4 px/s at base). Using the base rather than the live world speed is what
+## makes the momentum dip close the gap at every ramp speed - tying it to
+## max(world, RUN_SPEED) made him outrun the dip entirely late in a run.
 const PURSUER_CHASE_FACTOR := 0.97
+## Gap (px) a hazard hit takes off while the tanod is already chasing. The
+## chase is a two-mistake window: the first hit starts it, a second one pulls
+## him onto PURSUER_CATCH_DISTANCE and he grabs Elias.
+const PURSUER_HIT_CLOSE_PX := 85.0
+## The momentum dip can never pull him closer than this while Elias keeps
+## running, so a clean chase looms and reads as danger but stays survivable at
+## every speed ramp. Sits just above PURSUER_CATCH_DISTANCE on purpose.
+const PURSUER_ESCAPE_FLOOR := 70.0
 ## Eases toward full speed if a chase drags on (seconds to reach 1.0x).
 const PURSUER_CHASE_RAMP_TIME := 10.0
 ## Gap (px behind the player) at which the tanod catches Elias.
 const PURSUER_CATCH_DISTANCE := 60.0
-## Gap (px) when the tanod wakes up (slides in visible behind the player).
+## Gap (px) the tanod settles at behind Elias once his entrance dash is done.
 const PURSUER_WAKE_GAP := 220.0
+## Gap (px) a wake starts from. 620 puts him fully off the left edge (Elias
+## sits at x 400), so waking is always a visible dash in and never a sprite
+## materialising on screen.
+const PURSUER_ENTER_GAP := 620.0
+## Seconds the entrance dash takes to cover ENTER_GAP -> WAKE_GAP.
+const PURSUER_ENTER_TIME := 0.45
+## Slide-in speed (px/s) derived from the two gaps and the entrance time.
+const PURSUER_ENTER_SPEED := (PURSUER_ENTER_GAP - PURSUER_WAKE_GAP) / PURSUER_ENTER_TIME
+## Playback rate for the entrance dash, relative to the 1.0 run cycle that
+## depicts RUN_SPEED of ground. The dash carries him at ENTER_SPEED, so the run
+## cycle is scaled by the same ratio and his feet keep the ground instead of
+## skating - the same trick the finish run-off and zone exit use for Elias.
+const PURSUER_ENTER_SPEED_FACTOR := PURSUER_ENTER_SPEED / RUN_SPEED
 ## Dormant gap (px behind the player, off-screen left).
 const PURSUER_DORMANT_GAP := 1000.0
 ## Seconds of chase survived before the tanod gives up and fades.
@@ -892,10 +954,17 @@ static func lane_y(lane: int) -> float:
 
 
 ## Distance between hazard rows after travelling [param distance] pixels,
-## easing from ROW_GAP_START down to ROW_GAP_MIN.
-static func row_gap(distance: float) -> float:
+## easing from ROW_GAP_START down to ROW_GAP_MIN. ENDLESS keeps tightening past
+## the campaign ramp toward ENDLESS_ROW_GAP_FLOOR, so the mode has a long tail
+## instead of plateauing once a campaign-length course is behind you.
+static func row_gap(distance: float, mode: int = RunMode.CAMPAIGN) -> float:
 	var t := clampf(distance / ROW_GAP_RAMP_DISTANCE, 0.0, 1.0)
-	return lerpf(ROW_GAP_START, ROW_GAP_MIN, t)
+	var gap := lerpf(ROW_GAP_START, ROW_GAP_MIN, t)
+	if mode != RunMode.ENDLESS:
+		return gap
+	var endless_t := clampf(
+		(distance - ROW_GAP_RAMP_DISTANCE) / ENDLESS_ROW_GAP_RAMP_DISTANCE, 0.0, 1.0)
+	return lerpf(gap, ENDLESS_ROW_GAP_FLOOR, endless_t)
 
 
 ## Score multiplier for a pickup chain length.

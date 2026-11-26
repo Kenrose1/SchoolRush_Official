@@ -1,64 +1,69 @@
 [gd_resource type="SpriteFrames" format=3]
 
-[ext_resource type="Texture2D" path="res://assets/characters/elias/death_0.png" id="1_td6qi"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/death_1.png" id="2_1g36s"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/death_2.png" id="3_dmqop"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/death_3.png" id="4_v0h0v"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/death_4.png" id="5_ff7x1"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/death_5.png" id="6_1ivwn"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/death_6.png" id="7_b02i4"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/death_7.png" id="8_uuqor"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_0.png" id="9_k2lkc"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_1.png" id="10_4gq1t"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_2.png" id="11_3geqm"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_3.png" id="12_2wl5b"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_4.png" id="13_dbahl"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_5.png" id="14_lxu2p"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_0.png" id="15_eceh1"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_1.png" id="16_ks0kc"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_2.png" id="17_qrtah"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_3.png" id="18_rxrg8"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/jump_0.png" id="19_0x6oe"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/jump_1.png" id="20_o6mo5"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/jump_2.png" id="21_e1cml"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/run_0.png" id="22_8kh18"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/run_1.png" id="23_lp264"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/run_2.png" id="24_t4t1o"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/run_3.png" id="25_qa5ia"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/run_4.png" id="26_uxrj6"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/run_5.png" id="27_2t7yb"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/run_6.png" id="28_s73b1"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_0.png" id="29_sxcw8"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_1.png" id="30_0cnyt"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_2.png" id="31_c6mfa"]
-[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_3.png" id="32_8mdh4"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/death_0.png" id="1_1ivwn"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/death_1.png" id="2_b02i4"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/death_2.png" id="3_uuqor"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/death_3.png" id="4_k2lkc"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/death_4.png" id="5_4gq1t"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/death_5.png" id="6_3geqm"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/death_6.png" id="7_2wl5b"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/death_7.png" id="8_dbahl"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_0.png" id="9_lxu2p"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_1.png" id="10_eceh1"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_2.png" id="11_ks0kc"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_3.png" id="12_qrtah"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_4.png" id="13_rxrg8"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/hurt_5.png" id="14_0x6oe"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_0.png" id="15_o6mo5"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_1.png" id="16_e1cml"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_2.png" id="17_8kh18"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/idle_3.png" id="18_lp264"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/jump_0.png" id="19_t4t1o"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/jump_1.png" id="20_qa5ia"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/jump_2.png" id="21_uxrj6"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_0.png" id="22_2t7yb"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_1.png" id="23_s73b1"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_2.png" id="24_sxcw8"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_3.png" id="25_0cnyt"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_4.png" id="26_c6mfa"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_5.png" id="27_8mdh4"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_6.png" id="28_fy57n"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_7.png" id="29_r6bmt"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_8.png" id="30_yldgu"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_9.png" id="31_yu61b"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_10.png" id="32_qh48f"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/run_11.png" id="33_164aq"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_0.png" id="34_aenks"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_1.png" id="35_fqav2"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_2.png" id="36_6lhk4"]
+[ext_resource type="Texture2D" path="res://assets/characters/elias/slide_3.png" id="37_jk1m1"]
 
 [resource]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("1_td6qi")
+"texture": ExtResource("1_1ivwn")
 }, {
 "duration": 1.0,
-"texture": ExtResource("2_1g36s")
+"texture": ExtResource("2_b02i4")
 }, {
 "duration": 1.0,
-"texture": ExtResource("3_dmqop")
+"texture": ExtResource("3_uuqor")
 }, {
 "duration": 1.0,
-"texture": ExtResource("4_v0h0v")
+"texture": ExtResource("4_k2lkc")
 }, {
 "duration": 1.0,
-"texture": ExtResource("5_ff7x1")
+"texture": ExtResource("5_4gq1t")
 }, {
 "duration": 1.0,
-"texture": ExtResource("6_1ivwn")
+"texture": ExtResource("6_3geqm")
 }, {
 "duration": 1.0,
-"texture": ExtResource("7_b02i4")
+"texture": ExtResource("7_2wl5b")
 }, {
 "duration": 1.0,
-"texture": ExtResource("8_uuqor")
+"texture": ExtResource("8_dbahl")
 }],
 "loop": 0,
 "name": &"death",
@@ -66,22 +71,22 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("9_k2lkc")
+"texture": ExtResource("9_lxu2p")
 }, {
 "duration": 1.0,
-"texture": ExtResource("10_4gq1t")
+"texture": ExtResource("10_eceh1")
 }, {
 "duration": 1.0,
-"texture": ExtResource("11_3geqm")
+"texture": ExtResource("11_ks0kc")
 }, {
 "duration": 1.0,
-"texture": ExtResource("12_2wl5b")
+"texture": ExtResource("12_qrtah")
 }, {
 "duration": 1.0,
-"texture": ExtResource("13_dbahl")
+"texture": ExtResource("13_rxrg8")
 }, {
 "duration": 1.0,
-"texture": ExtResource("14_lxu2p")
+"texture": ExtResource("14_0x6oe")
 }],
 "loop": 0,
 "name": &"hurt",
@@ -89,16 +94,16 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("15_eceh1")
+"texture": ExtResource("15_o6mo5")
 }, {
 "duration": 1.0,
-"texture": ExtResource("16_ks0kc")
+"texture": ExtResource("16_e1cml")
 }, {
 "duration": 1.0,
-"texture": ExtResource("17_qrtah")
+"texture": ExtResource("17_8kh18")
 }, {
 "duration": 1.0,
-"texture": ExtResource("18_rxrg8")
+"texture": ExtResource("18_lp264")
 }],
 "loop": 1,
 "name": &"idle",
@@ -106,13 +111,13 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("19_0x6oe")
+"texture": ExtResource("19_t4t1o")
 }, {
 "duration": 1.0,
-"texture": ExtResource("20_o6mo5")
+"texture": ExtResource("20_qa5ia")
 }, {
 "duration": 1.0,
-"texture": ExtResource("21_e1cml")
+"texture": ExtResource("21_uxrj6")
 }],
 "loop": 0,
 "name": &"jump",
@@ -120,42 +125,57 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("22_8kh18")
+"texture": ExtResource("22_2t7yb")
 }, {
 "duration": 1.0,
-"texture": ExtResource("23_lp264")
+"texture": ExtResource("23_s73b1")
 }, {
 "duration": 1.0,
-"texture": ExtResource("24_t4t1o")
+"texture": ExtResource("24_sxcw8")
 }, {
 "duration": 1.0,
-"texture": ExtResource("25_qa5ia")
+"texture": ExtResource("25_0cnyt")
 }, {
 "duration": 1.0,
-"texture": ExtResource("26_uxrj6")
+"texture": ExtResource("26_c6mfa")
 }, {
 "duration": 1.0,
-"texture": ExtResource("27_2t7yb")
+"texture": ExtResource("27_8mdh4")
 }, {
 "duration": 1.0,
-"texture": ExtResource("28_s73b1")
+"texture": ExtResource("28_fy57n")
+}, {
+"duration": 1.0,
+"texture": ExtResource("29_r6bmt")
+}, {
+"duration": 1.0,
+"texture": ExtResource("30_yldgu")
+}, {
+"duration": 1.0,
+"texture": ExtResource("31_yu61b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("32_qh48f")
+}, {
+"duration": 1.0,
+"texture": ExtResource("33_164aq")
 }],
 "loop": 1,
 "name": &"run",
-"speed": 14.0
+"speed": 24.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("29_sxcw8")
+"texture": ExtResource("34_aenks")
 }, {
 "duration": 1.0,
-"texture": ExtResource("30_0cnyt")
+"texture": ExtResource("35_fqav2")
 }, {
 "duration": 1.0,
-"texture": ExtResource("31_c6mfa")
+"texture": ExtResource("36_6lhk4")
 }, {
 "duration": 1.0,
-"texture": ExtResource("32_8mdh4")
+"texture": ExtResource("37_jk1m1")
 }],
 "loop": 1,
 "name": &"slide",

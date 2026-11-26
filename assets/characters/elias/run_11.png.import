@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bcp4ch8eihv2s"
-path="res://.godot/imported/haz_pothole.png-ae6d36468f88c6d84d5bfdfc9324fadc.ctex"
+uid="uid://chj62my54n4lr"
+path="res://.godot/imported/run_11.png-99ea6bdc74f89c155eccdeaba451d2af.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/hazards/haz_pothole.png"
-dest_files=["res://.godot/imported/haz_pothole.png-ae6d36468f88c6d84d5bfdfc9324fadc.ctex"]
+source_file="res://assets/characters/elias/run_11.png"
+dest_files=["res://.godot/imported/run_11.png-99ea6bdc74f89c155eccdeaba451d2af.ctex"]
 
 [params]
 

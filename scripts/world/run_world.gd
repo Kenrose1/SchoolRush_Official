@@ -23,6 +23,10 @@ const LANE_COLORS: Array[Color] = [Color("#3c4757"), Color("#46536b"), Color("#4
 const LANE_EDGE := Color("#fff6e0")
 const GROUND_TICK := Color(1.0, 1.0, 1.0, 0.85)
 
+const SHIELD_BLOCK_SFX := preload("res://assets/sounds/tier_up.wav")
+const SHIELD_BLOCK_DB := -8.0
+const SHIELD_BLOCK_PITCH := 1.45
+
 const SKY_TEXTURE := "res://assets/backgrounds/sky.png"
 const STREET_TEXTURE := "res://assets/backgrounds/Designer (1).png"
 const SKY_PARALLAX := 0.09
@@ -81,6 +85,9 @@ var _school_background_texture: Texture2D
 @onready var tier_sfx: AudioStreamPlayer = $TierSfx
 @onready var fail_sting: AudioStreamPlayer = $FailStingSfx
 @onready var fail_music: AudioStreamPlayer = $FailMusicSfx
+## Shield block clink. Built in code so the scene does not need another node;
+## it reuses the short bright riser, pitched up to read as a metal block.
+var shield_sfx: AudioStreamPlayer
 @onready var countdown: CountdownOverlay = $Hud/HudRoot/Countdown
 @onready var hud: HeartsHud = $Hud/HudRoot/Hearts
 @onready var score_hud: ScoreHud = $Hud/HudRoot/Score
@@ -167,6 +174,8 @@ var dog_bark_run_play_count: int = 0
 var tier_up_play_count: int = 0
 ## Test counter: the failure cue is queued exactly once per run.
 var fail_cue_play_count: int = 0
+## Test counter: shield charges actually absorbed a hit and clinked.
+var shield_break_play_count: int = 0
 ## Per-bark jitter source, so three barks in one encounter never sound like
 ## the same sample three times.
 var _bark_rng := RandomNumberGenerator.new()
@@ -202,8 +211,17 @@ func _ready() -> void:
 	player.caught.connect(_on_player_caught)
 	player.item_collected.connect(_on_item_collected)
 	player.damaged.connect(_on_player_damaged)
-	# Shield pips live on their own panel; pushed on every charge change.
+	# Shield pips live on their own panel; pushed on every charge change. A
+	# spent charge also gets its own clink and HUD flash, so the paid upgrade is
+	# visible the moment it does its job.
 	player.shield_changed.connect(hud.set_shields)
+	player.shield_used.connect(_on_shield_used)
+	shield_sfx = AudioStreamPlayer.new()
+	shield_sfx.name = "ShieldSfx"
+	shield_sfx.stream = SHIELD_BLOCK_SFX
+	shield_sfx.bus = &"SFX"
+	shield_sfx.volume_db = SHIELD_BLOCK_DB
+	add_child(shield_sfx)
 	pursuer.caught.connect(_on_pursuer_caught)
 	pursuer.lunge_finished.connect(_on_lunge_finished)
 	arrest.animation_finished.connect(_on_arrest_finished)
@@ -463,6 +481,10 @@ func _physics_process(delta: float) -> void:
 	for child in hazards.get_children():
 		if child is Hazard or child is Collectible:
 			child.speed = speed
+	# The run sheet is timed for RUN_SPEED, so hand Elias the live ratio: the
+	# speed ramps, the Speed upgrade and the momentum dip all retime his feet
+	# instead of letting him glide over the road.
+	player.set_run_speed_scale(speed / GameConfig.RUN_ANIM_REFERENCE_SPEED)
 	distance += speed * delta
 	_update_zone()
 	if zone_swap_active:
@@ -475,13 +497,14 @@ func _physics_process(delta: float) -> void:
 			_finish_campaign()
 			return
 		if distance < campaign_finish_distance - GameConfig.CAMPAIGN_SPAWN_CUTOFF_PX:
-			director.tick(delta, speed, distance, current_zone, home_zone_length)
+			director.tick(
+				delta, speed, distance, current_zone, home_zone_length, mode)
 	else:
-		director.tick(delta, speed, distance, current_zone, home_zone_length)
+		director.tick(delta, speed, distance, current_zone, home_zone_length, mode)
 	score_system.add_distance(distance)
 	pursuer.set_world_speed(speed)
+	pursuer.set_base_speed(base)
 	pursuer.track(player.lane_y)
-	player.pursuer_active = pursuer.is_active()
 	queue_redraw()
 	_update_debug()
 
@@ -676,12 +699,33 @@ func _on_player_damaged(_remaining: int) -> void:
 	score_system.reset_combo()
 	momentum_time_left = GameConfig.MOMENTUM_DIP_TIME
 	momentum_recover_time_left = 0.0
-	pursuer.wake()
+	if pursuer.is_active():
+		# Already being chased: a second mistake pulls him onto Elias instead
+		# of the old silent instant loss, so the catch is something you see
+		# coming and the arrest animation carries it.
+		pursuer.knock_closer(GameConfig.PURSUER_HIT_CLOSE_PX)
+	else:
+		pursuer.wake()
 
 
+## A shield ate a hit: clink, flash the pip row, keep the run going.
+func _on_shield_used(_charges: int) -> void:
+	shield_break_play_count += 1
+	if shield_sfx != null:
+		shield_sfx.pitch_scale = SHIELD_BLOCK_PITCH
+		shield_sfx.play()
+	if hud != null:
+		hud.flash_shield()
+
+
+## A missed School Item only breaks the pickup chain - it never summons the
+## tanod, so he can never appear for a mistake the player did not make. A miss
+## that lands while the world is mid-transition is ignored outright: Elias is
+## sprinting off a zone boundary there and cannot react to a leftover item.
 func _on_item_missed() -> void:
+	if not is_running or zone_swap_active:
+		return
 	score_system.reset_combo()
-	pursuer.wake()
 
 
 func _on_player_caught() -> void:
@@ -840,7 +884,7 @@ func _update_debug() -> void:
 		player.air_height,
 		"yes" if player.is_sliding else "no",
 		player.health,
-		GameConfig.MAX_HEARTS,
+		player.max_health,
 		player.invulnerable_time_left,
 		score_system.score,
 		GameConfig.combo_multiplier(score_system.chain),

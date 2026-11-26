@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0foauib04dl5"
-path="res://.godot/imported/898364382_2320910651808989_5536476398350919106_n.png-e7248c05a5a0ae523b0ca6a4fd29c2ba.ctex"
+uid="uid://13ice8cwaf6v"
+path="res://.godot/imported/run_8.png-175887ef3ad85d62ac6a7064d7655715.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icon/898364382_2320910651808989_5536476398350919106_n.png"
-dest_files=["res://.godot/imported/898364382_2320910651808989_5536476398350919106_n.png-e7248c05a5a0ae523b0ca6a4fd29c2ba.ctex"]
+source_file="res://assets/characters/elias/run_8.png"
+dest_files=["res://.godot/imported/run_8.png-175887ef3ad85d62ac6a7064d7655715.ctex"]
 
 [params]
 

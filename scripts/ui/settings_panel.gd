@@ -63,21 +63,18 @@ func _sync_controls() -> void:
 	master_slider.set_value_no_signal(bus_volume_percent(BUS_MASTER))
 	music_slider.set_value_no_signal(bus_volume_percent(BUS_MUSIC))
 	sfx_slider.set_value_no_signal(bus_volume_percent(BUS_SFX))
-	fullscreen_check.set_pressed_no_signal(
-		get_window().mode == Window.MODE_FULLSCREEN
-	)
+	fullscreen_check.set_pressed_no_signal(GameState.fullscreen)
 	debug_check.set_pressed_no_signal(GameState.debug_overlay)
 
 
+## Slider moves apply AND persist, so levels survive a restart. The pure
+## helpers below stay side-effect free for callers that only need the mixer.
 func _on_volume_changed(percent: float, bus: int) -> void:
-	set_bus_volume_percent(bus, percent)
+	GameState.set_audio_percent(bus, percent)
 
 
 func _on_fullscreen_toggled(pressed: bool) -> void:
-	var window := get_window()
-	if window == null:
-		return
-	window.mode = Window.MODE_FULLSCREEN if pressed else Window.MODE_WINDOWED
+	GameState.set_fullscreen(pressed)
 
 
 func _on_debug_toggled(pressed: bool) -> void:
@@ -86,17 +83,14 @@ func _on_debug_toggled(pressed: bool) -> void:
 
 # --- Bus volume helpers ------------------------------------------------------
 
-## A bus's volume as a 0-100 percent, readable back by the slider.
+## A bus's volume as a 0-100 percent, readable back by the slider. Delegates to
+## GameState so persistence and the UI share one implementation.
 static func bus_volume_percent(bus: int) -> float:
-	var db := AudioServer.get_bus_volume_db(bus)
-	if db <= -60.0:
-		return 0.0
-	return clampf(db_to_linear(db) * 100.0, 0.0, 100.0)
+	return GameState.bus_percent(bus)
 
 
 ## Set a bus's volume from a 0-100 percent. Zero also mutes the bus so the
-## slider bottom acts as an off switch.
+## slider bottom acts as an off switch. Does not touch the save; the slider
+## handler persists through GameState.set_audio_percent.
 static func set_bus_volume_percent(bus: int, percent: float) -> void:
-	var clamped := clampf(percent, 0.0, 100.0)
-	AudioServer.set_bus_mute(bus, clamped <= 0.0)
-	AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(clamped / 100.0, 0.0001)))
+	GameState.set_bus_percent(bus, percent)
