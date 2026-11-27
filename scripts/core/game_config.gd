@@ -207,6 +207,11 @@ const I_FRAME_TIME := 1.5
 ## How long the hurt animation overrides the movement animation.
 const HURT_ANIM_TIME := 0.35
 
+## Seconds the results card is held back after a fatal bite or car hit, so the
+## death sheet (8 frames at 12 fps, ~0.67 s) plays out on screen instead of
+## being covered by the overlay on its first frame.
+const DEATH_HOLD_TIME := 0.8
+
 ## How many times the sprite blinks per second while invulnerable.
 const I_FRAME_BLINK_HZ := 7.0
 
@@ -301,6 +306,8 @@ const CAR_ENGINE_PITCH: Array[float] = [1.0, 0.9]
 ##   extra_speed  added leftward speed for moving hazards
 ##   flip_h       art faces right; flip it so the hazard travels leftward
 ##   zone         street-only kinds skip every zone but Zone.STREET
+##   death_anim   a fatal hit from this kind plays Elias's death sheet instead
+##                of the generic hurt pose
 const HAZARD_DATA := {
 	HazardKind.MANHOLE: {
 		"texture": "res://assets/hazards/haz_manhole.png",
@@ -322,11 +329,13 @@ const HAZARD_DATA := {
 		"clearance": 0.0, "overhead": false, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.SCHOOL],
 	},
+	## A bite is one of the two "got you" endings: a fatal bite plays the death
+	## sheet, the same way a car hit does, instead of the generic hurt pose.
 	HazardKind.DOG: {
 		"texture": DOG_TEXTURES[0],
 		"scale": 3.0, "hitbox_w": 40.0, "hitbox_h": 40.0,
 		"clearance": 0.0, "overhead": false, "frames": 6, "extra_speed": 200.0,
-		"flip_h": true, "zones": [Zone.STREET],
+		"flip_h": true, "zones": [Zone.STREET], "death_anim": true,
 	},
 	## Dodge-only until SPRING SHOES 3: at extra_speed 700 the car sweeps past
 	## in (280 + player hitbox) / 1120 ≈ 0.31 s, which fits inside the
@@ -336,7 +345,7 @@ const HAZARD_DATA := {
 		"texture": CAR_TEXTURES[0],
 		"scale": 1.20, "hitbox_w": 280.0, "hitbox_h": 100.0,
 		"clearance": 0.0, "overhead": false, "frames": 8, "extra_speed": 700.0,
-		"flip_h": true, "zones": [Zone.STREET],
+		"flip_h": true, "zones": [Zone.STREET], "death_anim": true,
 	},
 	## Street-only props: the street zone's non-moving hazards. All stand on the
 	## road (clearance 0, jumped like the debris), scaled to read ~96-105 px
@@ -533,6 +542,15 @@ static func hazard_allows_zone(kind: int, zone: int) -> bool:
 	if data.has("zones"):
 		return (data["zones"] as Array).has(zone)
 	return zone != Zone.HOME
+
+
+## True when a fatal hit from [param kind] should play Elias's death sheet
+## rather than the generic hurt pose: the car and the dog are the two endings
+## that read as "got you" instead of "ouch". Unknown kinds (-1) return false.
+static func hazard_uses_death_anim(kind: int) -> bool:
+	if not HAZARD_DATA.has(kind):
+		return false
+	return bool(HAZARD_DATA[kind].get("death_anim", false))
 
 
 ## First kind by declaration order that [param zone] allows, used as the

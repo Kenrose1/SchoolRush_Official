@@ -112,6 +112,9 @@ var momentum_time_left: float = 0.0
 var momentum_recover_time_left: float = 0.0
 ## True once the chase-ending lunge has started (caught or hazard-hit mid-chase).
 var _caught: bool = false
+## Seconds left before the held-back results card is revealed after a fatal
+## bite or car hit, so the death sheet plays out first (see _on_player_died).
+var death_hold_time_left: float = 0.0
 ## True once the failure cue has been queued, so a double game-over call (the
 ## lunge fallback plus the arrest callback) cannot restart the sting or bed.
 var _fail_cue_started: bool = false
@@ -346,9 +349,9 @@ func _stop_music() -> void:
 	_music_tween.tween_callback(music.stop)
 
 
-## Failure presentation: the sting and the sad bed start together, so the
-## reveal lands on one hit instead of a hand-off. Guarded so the lunge fallback
-## and the arrest callback cannot queue it twice.
+## Failure presentation: the sting and the sad bed start together, so the hit
+## and its reveal land on one cue instead of a hand-off. Guarded so a death
+## beat, the lunge fallback and the arrest callback cannot queue it twice.
 func _play_fail_cue() -> void:
 	if _fail_cue_started:
 		return
@@ -444,6 +447,13 @@ func _base_speed() -> float:
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
+	# A fatal bite or car hit freezes the run, then holds the card for a beat so
+	# the death sheet reads before the overlay covers it. Stepped here (not a
+	# tween) so a paused tree freezes it and the suite can drive it.
+	if death_hold_time_left > 0.0:
+		death_hold_time_left = maxf(death_hold_time_left - delta, 0.0)
+		if death_hold_time_left <= 0.0:
+			_show_game_over(ResultsScreen.Outcome.OUT_OF_HEARTS)
 	if is_counting_down:
 		countdown.advance(delta)
 		# The GO beat unlocks the run inside advance(); returning here keeps the
@@ -700,6 +710,11 @@ func _on_player_damaged(_remaining: int) -> void:
 	momentum_time_left = GameConfig.MOMENTUM_DIP_TIME
 	momentum_recover_time_left = 0.0
 	if pursuer.is_active():
+		# A last-heart bite or car hit already ends the run with Elias's death
+		# sheet, so it skips the second-mistake knock: the tanod must not turn
+		# that crash into an arrest and swallow the death animation.
+		if player.died_by_death_anim():
+			return
 		# Already being chased: a second mistake pulls him onto Elias instead
 		# of the old silent instant loss, so the catch is something you see
 		# coming and the arrest animation carries it.
@@ -768,6 +783,15 @@ func _on_player_died() -> void:
 	if _caught:
 		return  # The lunge flow shows the CAUGHT! overlay.
 	_freeze_world()
+	# A crash or bite runs Elias's death sheet: hold the card for a beat so the
+	# animation plays out on screen instead of landing under the overlay.
+	if player.death_anim_playing():
+		death_hold_time_left = GameConfig.DEATH_HOLD_TIME
+		# The sting leads the beat instead of trailing it, so the hold reads as
+		# the hit landing rather than 0.8 s of silence. The reveal's own
+		# _play_fail_cue call is a no-op after this.
+		_play_fail_cue()
+		return
 	_show_game_over(ResultsScreen.Outcome.OUT_OF_HEARTS)
 
 
@@ -777,6 +801,8 @@ func _freeze_world() -> void:
 	# A failure landing on the same frame as the finish line cancels the victory
 	# lap, so the results card that follows cannot be overwritten by a win.
 	run_off_active = false
+	# A catch during the death beat wins: clear the pending card reveal.
+	death_hold_time_left = 0.0
 	_stop_music()
 	countdown.dismiss()
 	hazards.process_mode = Node.PROCESS_MODE_DISABLED

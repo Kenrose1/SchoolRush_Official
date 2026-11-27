@@ -47,8 +47,13 @@ var invulnerable_time_left: float = 0.0
 var hurt_play_count: int = 0
 ## Test counter: how many times the car-death animation actually fired.
 var death_play_count: int = 0
-## Once a fatal car hit plays the knockdown, nothing may swap it back to hurt.
+## Once a fatal car hit or dog bite plays the death sheet, nothing may swap it
+## back to hurt.
 var _death_played: bool = false
+## Hazard kind of the last hit that actually cost a heart (-1 when the damage
+## came from a plain call). RunWorld reads it to tell a fatal car/dog hit from
+## an ordinary last heart.
+var last_damage_kind: int = -1
 ## Counted for the test suite; pitch is re-rolled per launch (see below).
 var jump_play_count: int = 0
 ## Test counters: how many times each pickup sound actually fired. A coin
@@ -273,6 +278,7 @@ func take_damage(amount: int = 1, source_kind: int = -1) -> bool:
 		shield_used.emit(shield_charges)
 		return false
 	health = maxi(health - amount, 0)
+	last_damage_kind = source_kind
 	invulnerable_time_left = GameConfig.I_FRAME_TIME
 	_hurt_time_left = GameConfig.HURT_ANIM_TIME
 	_play_hurt_sound()
@@ -280,22 +286,36 @@ func take_damage(amount: int = 1, source_kind: int = -1) -> bool:
 	damaged.emit(health)
 	health_changed.emit(health, max_health)
 	if health == 0:
-		if source_kind == GameConfig.HazardKind.CAR:
+		if GameConfig.hazard_uses_death_anim(source_kind):
 			_play_death()
 		died.emit()
 	return true
 
 
-## Hurt sound fires only when a heart is actually lost - shield absorbs and
-## i-frame-blocked hits stay silent. Counted for the test suite.
-## Car impacts swap the generic hurt pose for the dedicated knockdown sheet.
-## Counted so the suite can prove it only fires for a fatal car hit.
+## True when the hit that just landed took the last heart and belongs to a
+## death-sheet kind (car or dog). RunWorld uses it to keep the tanod from
+## turning that ending into an arrest.
+func died_by_death_anim() -> bool:
+	return health <= 0 and GameConfig.hazard_uses_death_anim(last_damage_kind)
+
+
+## True while the dedicated death sheet is on screen (a fatal car hit or bite).
+## RunWorld holds the results card back for this so the animation can play.
+func death_anim_playing() -> bool:
+	return _death_played
+
+
+## A fatal car hit or dog bite swaps the generic hurt pose for the dedicated
+## death sheet (see GameConfig.HAZARD_DATA's death_anim). Counted so the suite
+## can prove it fires only for those endings.
 func _play_death() -> void:
 	death_play_count += 1
 	_death_played = true
 	_play(&"death")
 
 
+## Hurt sound fires only when a heart is actually lost - shield absorbs and
+## i-frame-blocked hits stay silent. Counted for the test suite.
 func _play_hurt_sound() -> void:
 	hurt_play_count += 1
 	hurt_sfx.play()
@@ -358,6 +378,7 @@ func reset_health() -> void:
 	shield_flash_time = 0.0
 	_hurt_time_left = 0.0
 	_death_played = false
+	last_damage_kind = -1
 	health_changed.emit(health, max_health)
 	shield_changed.emit(shield_charges, shield_max)
 

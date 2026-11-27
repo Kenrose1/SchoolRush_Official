@@ -945,24 +945,51 @@ func _test_health() -> void:
 	_check(not player.take_damage(), "a player at zero hearts cannot be hit again")
 	_check_eq(deaths[0], 1, "died does not fire twice")
 	_check_eq(player.death_play_count, 0,
-		"ordinary fatal hits do not play the car-death animation")
+		"ordinary fatal hits do not play the death animation")
+	# The death sheet belongs to the two "got you" endings: the car and the dog.
+	_check(
+		GameConfig.hazard_uses_death_anim(GameConfig.HazardKind.CAR)
+		and GameConfig.hazard_uses_death_anim(GameConfig.HazardKind.DOG),
+		"cars and dogs are the two death-sheet endings",
+	)
+	_check(not GameConfig.hazard_uses_death_anim(GameConfig.HazardKind.MANHOLE),
+		"an ordinary hazard keeps the hurt pose on the last heart")
 
-	# A fatal car hit swaps to the dedicated knockdown sheet.
+	# A fatal car hit swaps to the dedicated death sheet.
 	player.reset_health()
 	player.health = 1
 	_check(player.take_damage(1, GameConfig.HazardKind.CAR),
 		"the fatal car hit lands")
 	_check_eq(player.death_play_count, 1,
-		"a fatal car hit plays the car-death animation")
+		"a fatal car hit plays the death animation")
 	_check_eq(String(player.sprite.animation), "death",
 		"the sprite switches to the death animation")
 	_check_eq(deaths[0], 2, "the car death also fires died once")
+
+	# A fatal bite is the other "got you" ending: same sheet, not the hurt pose.
+	player.reset_health()
+	player.health = 1
+	_check(player.take_damage(1, GameConfig.HazardKind.DOG),
+		"the fatal dog bite lands")
+	_check_eq(player.death_play_count, 2,
+		"a fatal dog bite plays the death animation")
+	_check_eq(String(player.sprite.animation), "death",
+		"the sprite switches to the death animation on a fatal bite")
+	_check_eq(deaths[0], 3, "the dog death also fires died once")
+
+	# Any other kind still reads as a normal hit, not a scripted death.
+	player.reset_health()
+	player.health = 1
+	_check(player.take_damage(1, GameConfig.HazardKind.MANHOLE),
+		"the fatal manhole hit lands")
+	_check_eq(player.death_play_count, 2,
+		"an ordinary fatal hit keeps the hurt pose")
 
 	player.reset_health()
 	_check(not player._death_played, "reset clears the death-animation guard")
 
 	# Other assertions in this section share `deaths`; put it back to the value
-	# they expect now that the car-death case has been counted.
+	# they expect now that the death cases have been counted.
 	deaths[0] = 1
 	player.reset_health()
 	_check_eq(player.health, GameConfig.MAX_HEARTS, "reset_health restores every heart")
@@ -4878,6 +4905,52 @@ func _test_scenes() -> void:
 				"a miss during a zone exit is ignored")
 			world.score_system.reset_combo()
 
+			# A last-heart bite or car hit keeps its death sheet even mid-chase:
+			# the second-mistake knock is skipped, so the tanod cannot turn the
+			# crash into an arrest and swallow the death animation.
+			world.pursuer.state = Pursuer.State.CHASE
+			world.pursuer._enter_time = 0.0
+			world.pursuer.gap = GameConfig.PURSUER_CATCH_DISTANCE \
+				+ GameConfig.PURSUER_HIT_CLOSE_PX * 0.5
+			var fatal_gap := world.pursuer.gap
+			var cue_before := world.fail_cue_play_count
+			world.player.reset_health()
+			# A shield charge would eat the hit before the last heart goes.
+			world.player.shield_charges = 0
+			world.player.health = 1
+			_check(world.player.take_damage(1, GameConfig.HazardKind.DOG),
+				"a last-heart bite lands while the tanod is chasing")
+			_check_near(world.pursuer.gap, fatal_gap, 0.01,
+				"a fatal bite skips the second-mistake knock")
+			_check(not world._caught, "a fatal bite is not reported as a catch")
+			_check(not world.arrest.visible,
+				"a fatal bite never shows the arrest grab")
+			_check(world.player.sprite.visible,
+				"the death sheet stays on screen during the chase")
+			_check_eq(String(world.player.sprite.animation), "death",
+				"the death animation plays instead of the arrest")
+			_check(not world.results.visible,
+				"the results card waits for the death sheet to play")
+			_check_near(world.death_hold_time_left, GameConfig.DEATH_HOLD_TIME, 0.001,
+				"a fatal bite holds the card for one death beat")
+			# The cue belongs to the beat, not the card: the hold is not silent.
+			_check_eq(world.fail_cue_play_count, cue_before + 1,
+				"the fail cue starts with the death beat, not the card")
+			_check(world.fail_sting.playing, "the fail sting fills the death beat")
+			var death_steps := int(ceil(GameConfig.DEATH_HOLD_TIME * 60.0)) + 2
+			for i in death_steps:
+				world._physics_process(1.0 / 60.0)
+			_check(world.results.visible,
+				"the results card lands once the death beat is over")
+			_check_eq(world.results.title_label.text, "OUT OF HEARTS",
+				"a fatal bite ends OUT OF HEARTS, not CAUGHT!")
+			_check_eq(world.fail_cue_play_count, cue_before + 1,
+				"the reveal does not restart the fail cue")
+			# Later scene checks reuse this player, so hand it back alive.
+			world.player.reset_health()
+			world.pursuer.state = Pursuer.State.DORMANT
+			world.pursuer.gap = GameConfig.PURSUER_DORMANT_GAP
+
 			# Chase death: hazard while active -> CAUGHT! after the arrest.
 			world._on_player_caught()
 			_check(not world.is_running, "caught stops the run")
@@ -5113,6 +5186,8 @@ func _test_scenes() -> void:
 			_check_eq(world.player.health, 0, "three hits empty the hearts")
 			_check(not world.is_running, "the run stops when the last heart is lost")
 			_check(world.results.visible, "the game over overlay appears on death")
+			_check_near(world.death_hold_time_left, 0.0, 0.0001,
+				"an ordinary death reveals the card at once, with no death beat")
 			_check_eq(
 				world.hud.get_heart_texture(0).resource_path,
 				"res://assets/heart/heart_empty.png",
