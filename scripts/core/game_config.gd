@@ -352,13 +352,20 @@ const HAZARD_DATA := {
 	## tall - the same band as the living-room props, visibly under the 118 px
 	## jump apex - with a uniform 64 px hitbox so one jump timing clears them.
 	## The road barrier is the only overhead hazard: a beam on two posts that
-	## Elias slides under. Its painted beam's underside sits 371/511 of the art
-	## height above the road, so at scale 0.27 the art is 271x138 px and the beam
-	## hangs at ~100 px - head height on a 113 px Elias. The hitbox hangs on the
-	## beam (hitbox_y 92) instead of starting at the road: a standing hitbox
-	## (102 px) overlaps it, a sliding one (51 px) clears it by 41 px.
+	## Elias slides under. The art is a 3/4 view - the near post stands on the
+	## road and the painted beam runs downhill toward it - so the sprite's bottom
+	## edge is the near base and the far base rides higher, which is what makes
+	## the gate read as angled rather than flat-on. The beam crosses the hitbox
+	## at 398/978 of the art height, so at scale 0.22 the art is 301x215 px and
+	## that low end of the beam hangs at ~88 px - head height on a 113 px Elias -
+	## while its far end climbs to ~175 px. The hitbox hangs on the beam
+	## (hitbox_y 88) instead of starting at the road: a standing hitbox (102 px)
+	## overlaps it by 14 px, a sliding one (51 px) clears it by 37 px, and the
+	## crouched slide art (top ~68 px) stays ~20 px under it. The band is 36 px
+	## tall, matching the painted beam's thickness at its low end instead of
+	## standing proud of the art.
 	##
-	## The band is 96 px wide, not the art's 271: sliding makes Elias 51 px tall
+	## The band is 96 px wide, not the art's 301: sliding makes Elias 51 px tall
 	## for SLIDE_DURATION (0.55 s = 231 px of road), and the lethal band plus his
 	## own 66 px box has to pass inside that window. At 150 px the pass took
 	## 0.51 s, so a slide started as the barrier arrived ran out with the beam
@@ -366,8 +373,8 @@ const HAZARD_DATA := {
 	## slack either side of the duck.
 	HazardKind.BARRICADE: {
 		"texture": "res://assets/hazards/haz_barricade.png",
-		"scale": 0.27, "hitbox_w": 96.0, "hitbox_h": 64.0,
-		"clearance": 0.0, "hitbox_y": 92.0,
+		"scale": 0.22, "hitbox_w": 96.0, "hitbox_h": 36.0,
+		"clearance": 0.0, "hitbox_y": 88.0,
 		"overhead": true, "frames": 0, "extra_speed": 0.0,
 		"zones": [Zone.STREET],
 	},
