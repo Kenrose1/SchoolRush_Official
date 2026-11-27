@@ -352,13 +352,15 @@ const HAZARD_DATA := {
 	## tall - the same band as the living-room props, visibly under the 118 px
 	## jump apex - with a uniform 64 px hitbox so one jump timing clears them.
 	## The road barrier is the only overhead hazard: a beam on two posts that
-	## Elias slides under. The art is a 3/4 view - the near post stands on the
-	## road and the painted beam runs downhill toward it - so the sprite's bottom
-	## edge is the near base and the far base rides higher, which is what makes
-	## the gate read as angled rather than flat-on. The beam crosses the hitbox
-	## at 398/978 of the art height, so at scale 0.22 the art is 301x215 px and
-	## that low end of the beam hangs at ~88 px - head height on a 113 px Elias -
-	## while its far end climbs to ~175 px. The hitbox hangs on the beam
+	## Elias slides under. The art is a 3/4 view with the beam running downhill
+	## toward the near post, so the gate reads as angled rather than flat-on.
+	## That perspective painted the far base ~310 sheet px above the near one,
+	## which made it hover over the lane; the sheet is built with the far post
+	## stretched down to the same ground line so both bases sit on the road and
+	## the sprite's bottom edge is the ground contact. The beam still crosses the
+	## hitbox at 398/978 of the art height, so at scale 0.22 the art is 301x215 px
+	## and that low end of the beam hangs at ~88 px - head height on a 113 px
+	## Elias - while its far end climbs to ~175 px. The hitbox hangs on the beam
 	## (hitbox_y 88) instead of starting at the road: a standing hitbox (102 px)
 	## overlaps it by 14 px, a sliding one (51 px) clears it by 37 px, and the
 	## crouched slide art (top ~68 px) stays ~20 px under it. The band is 36 px

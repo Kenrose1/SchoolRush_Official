@@ -90,7 +90,7 @@ func _ready() -> void:
 	_score_label.add_theme_constant_override("outline_size", 4)
 	_score_label.add_theme_constant_override("shadow_offset_x", 3)
 	_score_label.add_theme_constant_override("shadow_offset_y", 3)
-	_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_score_label)
 
 	_combo_label = Label.new()
@@ -101,7 +101,7 @@ func _ready() -> void:
 	_combo_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
 	_combo_label.add_theme_constant_override("shadow_offset_x", 2)
 	_combo_label.add_theme_constant_override("shadow_offset_y", 2)
-	_combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_combo_label)
 
 	_items_label = Label.new()
@@ -112,15 +112,15 @@ func _ready() -> void:
 	_items_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
 	_items_label.add_theme_constant_override("shadow_offset_x", 2)
 	_items_label.add_theme_constant_override("shadow_offset_y", 2)
-	_items_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_items_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_items_label)
 
-	# Coin wallet row: golden coin icon + amber count, right-aligned with the
-	# rest of the card. Updated only via set_coins (event-driven, never polled).
+	# Coin wallet row: golden coin icon + amber count, centred with the rest of
+	# the card. Updated only via set_coins (event-driven, never polled).
 	var coin_row := HBoxContainer.new()
 	coin_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	coin_row.add_theme_constant_override("separation", 8)
-	coin_row.alignment = BoxContainer.ALIGNMENT_END
+	coin_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(coin_row)
 
 	var coin_icon := TextureRect.new()
@@ -182,9 +182,9 @@ func _pop(label: Label, scale: float, up_time: float, down_time: float) -> void:
 	if _combo_tween != null and _combo_tween.is_valid():
 		_combo_tween.kill()
 	label.scale = Vector2.ONE
-	# Right-aligned text: grow from its right edge so the readout stays put
-	# while the digits to its left swell.
-	label.pivot_offset = Vector2(label.size.x, label.size.y * 0.5)
+	# Centred text: grow from the middle so the readout stays on the card's
+	# centre line while it swells.
+	label.pivot_offset = label.size * 0.5
 	_combo_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_combo_tween.tween_property(label, "scale", Vector2(scale, scale), up_time)
 	_combo_tween.tween_property(label, "scale", Vector2.ONE, down_time)
