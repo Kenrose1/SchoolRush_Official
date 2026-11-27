@@ -23,10 +23,18 @@ $cells = @(2, 3, 4, 5, 6)
 $cellSize = 200
 # Ground line (y) shared by every cell in the sheet.
 $sheetGround = 180
-# Painted height of the sheet's standing pose (cell 7) and the height every
-# other Elias state is drawn at.
+# Painted height of the sheet's standing pose (cell 7) and the height these
+# frames are drawn at.
+#
+# Deliberately shorter than the 185 px standing art: the only thing Elias slides
+# under is the road barrier, whose painted beam underside hangs (511 - 141) px
+# of its 511 px height above the road - 99.6 px at its 0.27 scale. The Player
+# node renders the sprite at 0.6 x 1.3 = 0.78, so art taller than ~128 canvas px
+# pokes through the beam while the 51 px slide hitbox still clears it. At 140
+# the crouch entry is 113 canvas px (88 px on screen), a real duck under the
+# beam, and the lying poses land near the old slide art's height.
 $sheetFigure = 166
-$targetFigure = 185
+$targetFigure = 140
 # Output canvas: as tall as the other states, wide enough for the extended
 # lying pose, with the ground line where the idle frames put it.
 $canvasW = 180
