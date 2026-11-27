@@ -1,6 +1,9 @@
 extends SceneTree
 ## Builds the Elias SpriteFrames resource from the per-frame PNGs.
 ##
+## The slide frames are cut from tools/sources/elias_slide_sheet.png by
+## tools/build_elias_slide.ps1; every other animation is drawn per frame.
+##
 ## Run after adding, removing, or re-timing frames:
 ##   godot --headless --path . --script res://tools/build_elias_frames.gd
 ##
@@ -14,7 +17,7 @@ const ANIMATIONS := {
 	"idle": {"frames": 4, "fps": 8.0, "loop": true},
 	"run": {"frames": 12, "fps": GameConfig.RUN_ANIM_FPS, "loop": true},
 	"jump": {"frames": 3, "fps": 10.0, "loop": false},
-	"slide": {"frames": 4, "fps": 8.0, "loop": true},
+	"slide": {"frames": 5, "fps": 9.0, "loop": true},
 	"hurt": {"frames": 6, "fps": 10.0, "loop": false},
 	"death": {"frames": 8, "fps": 12.0, "loop": false},
 }

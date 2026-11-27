@@ -751,7 +751,7 @@ func _test_player() -> void:
 			_check(absf(run_h - idle_h) <= 2.0,
 				"the running figure matches the standing one (%.0f vs %.0f px)" % [run_h, idle_h])
 		_check_eq(frames.get_frame_count("jump"), 3, "jump animation has 3 frames")
-		_check_eq(frames.get_frame_count("slide"), 4, "slide animation has 4 frames")
+		_check_eq(frames.get_frame_count("slide"), 5, "slide animation has 5 frames")
 		_check_eq(frames.get_frame_count("death"), 8, "death animation has 8 frames")
 		var first_run := frames.get_frame_texture("run", 0)
 		_check(first_run != null, "run frame 0 has a texture")
