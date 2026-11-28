@@ -14,6 +14,11 @@ const FRAME_FPS := 10.0
 var kind: GameConfig.HazardKind = GameConfig.HazardKind.MANHOLE
 var lane: int = GameConfig.LANE_MIDDLE
 var speed: float = GameConfig.RUN_SPEED
+## The spawn director holds the dog back through these two: while
+## speed_override is false the kind's own extra_speed applies, and once it is
+## true extra_speed is used verbatim (0 trails a row, -speed stands still).
+var speed_override: bool = false
+var extra_speed: float = 0.0
 var damage: int = 1
 var requires_slide: bool = false
 
@@ -59,7 +64,9 @@ func setup(
 
 
 func _physics_process(delta: float) -> void:
-	position.x -= (speed + float(_data.get("extra_speed", 0.0))) * delta
+	var extra := extra_speed if speed_override \
+		else float(_data.get("extra_speed", 0.0))
+	position.x -= (speed + extra) * delta
 	if not _passed and position.x < GameConfig.PLAYER_X:
 		_passed = true
 		passed_player.emit()

@@ -123,6 +123,12 @@ func _ready() -> void:
 	_section("Scenes")
 	_test_scenes()
 
+	_section("Row gap guard")
+	await _test_dog_row_gap()
+
+	_section("Endless autoplay bot")
+	await _test_solvability_bot()
+
 	# Hand the player's real save back before exiting.
 	GameState.save_path = _real_save_path
 	GameState.coins = _real_coins
@@ -5237,6 +5243,279 @@ func _check_ne(actual: Variant, expected: Variant, label: String) -> void:
 
 func _check_near(actual: float, expected: float, tolerance: float, label: String) -> void:
 	_check(absf(actual - expected) <= tolerance, "%s (expected %.3f, got %.3f)" % [label, expected, actual])
+
+
+## The autoplay bot's decision maths. A live sweep is the tool's job
+## (tools/solvability_bot.tscn); here the boxes, the timings and the lane choice
+## are pinned so a change to either side fails loudly.
+## The three-lane wall, and the two guards that stop it.
+##
+## A dog runs 200 px/s faster than the rows, so left alone it catches the row it
+## was spawned behind. The dog's lane is reserved away from rows, which means a
+## two-lane row plus the dog shuts all three lanes at the same x - no lane change
+## survives that. The director now holds the dog behind the nearest hazard ahead
+## (a real distance gap, since a dog at row speed is still a chase).
+##
+## A car cannot be slowed that way: it is 700 px/s faster and exists to sweep
+## past, so a throttled car would trail its own row for the whole encounter.
+## The equivalent guarantee is on the rows instead - while a car is on the road
+## no row may close a second lane, so the car's lane plus one row lane still
+## leaves a lane open at every x.
+func _test_dog_row_gap() -> void:
+	var scene := load("res://scenes/hazard.tscn") as PackedScene
+	var box := Node2D.new()
+	add_child(box)
+	var director := SpawnDirector.new()
+	add_child(director)
+	director.setup(box, 7)
+
+	# 1. Left alone, the dog closes a 300 px gap to nothing.
+	# The world travels leftwards, so "behind the row" is the larger x.
+	var row_a := _place_hazard(scene, box, GameConfig.HazardKind.DUMPSTER, 1,
+		GameConfig.PLAYER_X + 1200.0)
+	var row_b := _place_hazard(scene, box, GameConfig.HazardKind.DUMPSTER, 2,
+		GameConfig.PLAYER_X + 1200.0)
+	var dog := _place_hazard(scene, box, GameConfig.HazardKind.DOG, 0,
+		GameConfig.PLAYER_X + 1500.0)
+	var opening := dog.position.x - row_a.position.x
+	_check_near(opening, 300.0, 1.0, "the dog starts 300 px behind the row")
+	await _physics_frames(90)
+	var closed_to := dog.position.x - row_a.position.x
+	_check(closed_to < 40.0 and closed_to > -40.0,
+		"left alone the dog catches the row it was spawned behind (%+.0f px)" % closed_to)
+
+	# 2. Level with the row, it is a wall: all three lanes hold a hazard in his
+	# box at the same x, so no lane change can save him. The row alone is fair.
+	var wall_a := _place_hazard(scene, box, GameConfig.HazardKind.DUMPSTER, 1,
+		GameConfig.PLAYER_X)
+	var wall_b := _place_hazard(scene, box, GameConfig.HazardKind.DUMPSTER, 2,
+		GameConfig.PLAYER_X)
+	var wall_dog := _place_hazard(scene, box, GameConfig.HazardKind.DOG, 0,
+		GameConfig.PLAYER_X + 30.0)
+	_check_eq(_lanes_closed_at([wall_a, wall_b], GameConfig.PLAYER_X), 2,
+		"a two-lane row leaves the third lane open")
+	_check_eq(_lanes_closed_at([wall_a, wall_b, wall_dog], GameConfig.PLAYER_X), 3,
+		"a two-lane row with the dog level with it closes all three lanes")
+	_check(not wall_dog.requires_slide and not wall_a.requires_slide,
+		"and none of them is duckable, so nothing on the body saves him either")
+
+	# 3. Held back, the dog never closes on the row at all.
+	box.queue_free()
+	await _physics_frames(2)
+	var box2 := Node2D.new()
+	add_child(box2)
+	director.hazards = box2
+	var lead := _place_hazard(scene, box2, GameConfig.HazardKind.DUMPSTER, 1,
+		GameConfig.PLAYER_X + 1800.0)
+	var guard := _place_hazard(scene, box2, GameConfig.HazardKind.DOG, 0,
+		GameConfig.PLAYER_X + 2400.0)
+	var closest := INF
+	for i in 200:
+		director.keep_dog_behind_rows(guard)
+		await _physics_frames(1)
+		closest = minf(closest, guard.position.x - lead.position.x)
+	_check(closest >= SpawnDirector.DOG_ROW_GAP - 25.0,
+		"held back, the dog never gets closer than the row gap (%.0f px)" % closest)
+	_check(guard.position.x > lead.position.x,
+		"and it is still behind the row when the run ends")
+
+	# 4. The car bunches the same way, and the car wall has the same shape.
+	var car_row := _place_hazard(scene, box2, GameConfig.HazardKind.DUMPSTER, 1,
+		GameConfig.PLAYER_X + 1200.0)
+	var chase_car := _place_hazard(scene, box2, GameConfig.HazardKind.CAR, 0,
+		GameConfig.PLAYER_X + 1800.0)
+	await _physics_frames(60)
+	_check(chase_car.position.x < car_row.position.x - 20.0,
+		"left alone the car overtakes the row it was spawned behind")
+	var car_wall_a := _place_hazard(scene, box2, GameConfig.HazardKind.DUMPSTER, 1,
+		GameConfig.PLAYER_X)
+	var car_wall_b := _place_hazard(scene, box2, GameConfig.HazardKind.DUMPSTER, 2,
+		GameConfig.PLAYER_X)
+	var car_level := _place_hazard(scene, box2, GameConfig.HazardKind.CAR, 0,
+		GameConfig.PLAYER_X + 40.0)
+	_check_eq(_lanes_closed_at([car_wall_a, car_wall_b, car_level], GameConfig.PLAYER_X), 3,
+		"a two-lane row with the car level with it closes all three lanes")
+	_check_eq(_lanes_closed_at([car_wall_a, car_level], GameConfig.PLAYER_X), 2,
+		"a single-lane row with the car level with it still leaves a lane open")
+
+	# 5. So while a car is out, spawn_row never closes a second lane.
+	director._start_car_warning(1, GameConfig.RUN_SPEED)
+	_check(director.car_on_road(), "a warned car counts as a car on the road")
+	var widest := 0
+	for i in 60:
+		var row: Array[int] = director.spawn_row(GameConfig.CAR_FIRST_DISTANCE,
+			GameConfig.RUN_SPEED)
+		widest = maxi(widest, row.size())
+	_check_eq(widest, 1, "no row closes a second lane while a car is on the road")
+	for i in range(director._car_warnings.size() - 1, -1, -1):
+		var warning := director._car_warnings[i].get("warning") as Node
+		if is_instance_valid(warning):
+			warning.queue_free()
+	director._car_warnings = []
+	_check(not director.car_on_road(), "with the car gone the rows may widen again")
+
+	# 6. A dog that starts too close is held until the gap opens, so even a
+	# badly-placed entry cannot arrive on top of the row.
+	var crowded := _place_hazard(scene, box2, GameConfig.HazardKind.DOG, 0,
+		lead.position.x + 60.0)
+	director.keep_dog_behind_rows(crowded)
+	_check(crowded.speed_override, "the guard takes the dog's speed over")
+	_check_near(crowded.extra_speed, -crowded.speed, 0.01,
+		"a dog that starts on a row's tail is held still until the gap opens")
+	box2.queue_free()
+	director.queue_free()
+	await _physics_frames(2)
+
+
+func _place_hazard(scene: PackedScene, parent: Node2D, kind: GameConfig.HazardKind,
+		lane: int, x: float) -> Hazard:
+	var hazard := scene.instantiate() as Hazard
+	parent.add_child(hazard)
+	hazard.setup(kind, lane, GameConfig.RUN_SPEED)
+	hazard.position.x = x
+	return hazard
+
+
+## Lanes holding a non-duckable hazard whose box overlaps Elias's box at [param
+## x]. Three means no lane change can save him.
+func _lanes_closed_at(hazards: Array, x: float) -> int:
+	var closed := {}
+	for child in hazards:
+		var hazard := child as Hazard
+		if hazard == null or hazard.requires_slide:
+			continue
+		var half := (hazard.shape.shape as RectangleShape2D).size.x * 0.5
+		if absf(hazard.position.x - x) <= half + GameConfig.HITBOX_SIZE.x * 0.5:
+			closed[hazard.lane] = true
+	return closed.size()
+
+
+func _test_solvability_bot() -> void:
+	_check_near(SolvabilityBot.air_height_at(0.0), 0.0, 0.0001,
+		"a jump starts on the road")
+	_check_near(SolvabilityBot.air_height_at(GameConfig.JUMP_AIRTIME * 0.5),
+		GameConfig.JUMP_APEX, 0.5, "the jump arc peaks at JUMP_APEX at half airtime")
+	_check(SolvabilityBot.slide_covers(0.05, 0.39),
+		"a slide covers the barricade's pass")
+	_check(not SolvabilityBot.slide_covers(0.05, GameConfig.SLIDE_DURATION + 0.05),
+		"a slide cannot cover a pass longer than the duck")
+	_check(SolvabilityBot.slide_can_cover(0.40, 0.787),
+		"ducking on time still covers a beam first seen 0.4 s out")
+	_check(not SolvabilityBot.slide_can_cover(0.05, 0.55),
+		"a pass longer than the duck is never plan-able")
+
+	var scene := load("res://scenes/hazard.tscn") as PackedScene
+	var cone := scene.instantiate() as Hazard
+	add_child(cone)
+	cone.set_physics_process(false)
+	cone.setup(GameConfig.HazardKind.CONE, GameConfig.LANE_MIDDLE, GameConfig.RUN_SPEED)
+	cone.position.x = GameConfig.PLAYER_X + 500.0
+	var beam := scene.instantiate() as Hazard
+	add_child(beam)
+	beam.set_physics_process(false)
+	beam.setup(GameConfig.HazardKind.BARRICADE, GameConfig.LANE_TOP, GameConfig.RUN_SPEED)
+	beam.position.x = GameConfig.PLAYER_X + 900.0
+	var car := scene.instantiate() as Hazard
+	add_child(car)
+	car.set_physics_process(false)
+	car.setup(GameConfig.HazardKind.CAR, GameConfig.LANE_BOTTOM, GameConfig.RUN_SPEED)
+	car.position.x = GameConfig.PLAYER_X + 1400.0
+	await _physics_frames(2)
+
+	_check_near(cone.box_y_range().x, -64.0, 0.01,
+		"the cone's box starts 64 px above the road")
+	_check_near(beam.box_y_range().x, -124.0, 0.01,
+		"the barricade's lethal band hangs under the beam")
+	_check_near(beam.box_y_range().y, -88.0, 0.01,
+		"and its underside sits at Elias's head height")
+	_check_near(car.box_y_range().x, -100.0, 0.01, "the car's box is 100 px tall")
+
+	# Contact is measured on his *lean-widened* box: the 6 degree lane lean adds
+	# ~12 px a side, and trusting the unrotated width is how a lane reads clear
+	# while its corner is already touching.
+	_check_eq(SolvabilityBot.CONTACT_SLACK, 12.0,
+		"the contact model pads Elias's box for the lane lean")
+	var cone_times := SolvabilityBot.overlap_times(cone)
+	_check_near(cone_times.x, 1.023, 0.002,
+		"a cone 500 px out reaches Elias in ~1.02 s at base speed")
+	_check_near(cone_times.y - cone_times.x,
+		(GameConfig.HITBOX_SIZE.x + 50.0 + SolvabilityBot.CONTACT_SLACK * 2.0)
+			/ GameConfig.RUN_SPEED, 0.002,
+		"its pass is the cone's width plus Elias's lean-widened box")
+	var car_times := SolvabilityBot.overlap_times(car)
+	_check_near(car_times.y - car_times.x,
+		(GameConfig.HITBOX_SIZE.x + 280.0 + SolvabilityBot.CONTACT_SLACK * 2.0)
+			/ (GameConfig.RUN_SPEED + 700.0), 0.002,
+		"the car's pass is a third of a second of road even at base speed")
+
+	_check(SolvabilityBot.jump_covers(cone, 0.10, 0.377),
+		"a jump clears a 64 px road prop")
+	_check(not SolvabilityBot.jump_covers(car, 0.0, 0.31),
+		"a jump cannot clear the car's sweep")
+	_check(not SolvabilityBot.jump_covers(beam, 0.10, 0.377),
+		"a jump never clears the overhead beam")
+	_check(SolvabilityBot.jump_can_clear(cone, 1.0, 1.28),
+		"the plan-ahead check clears a cone from any distance")
+	_check(not SolvabilityBot.jump_can_clear(car, 1.0, 1.31),
+		"the plan-ahead check never plans a jump over a car")
+	# The debris is 96 px wide, so its pass is longer than the arc above it:
+	# the bot has to dodge it rather than jump it at base speed.
+	var debris := scene.instantiate() as Hazard
+	add_child(debris)
+	debris.set_physics_process(false)
+	debris.setup(GameConfig.HazardKind.DEBRIS, GameConfig.LANE_TOP, GameConfig.RUN_SPEED)
+	debris.position.x = GameConfig.PLAYER_X + 1000.0
+	await _physics_frames(1)
+	var debris_window := SolvabilityBot.overlap_times(debris)
+	_check(not SolvabilityBot.jump_can_clear(debris, debris_window.x, debris_window.y),
+		"the wide debris pass outlasts the jump arc, so it must be dodged")
+	debris.queue_free()
+
+	var threats := SolvabilityBot.lane_threats([cone, beam, car] as Array[Hazard])
+	_check_eq(threats[GameConfig.LANE_MIDDLE]["hazard"], cone,
+		"the nearest hazard in a lane is that lane's threat")
+	_check_eq(threats[GameConfig.LANE_TOP]["hazard"], beam,
+		"the beam is the top lane's threat")
+	_check_eq(threats[GameConfig.LANE_BOTTOM]["hazard"], car,
+		"the car is the bottom lane's threat")
+	var calm: Array[Dictionary] = []
+	for lane in GameConfig.LANE_COUNT:
+		calm.append({
+			"time": 1.2 if lane == GameConfig.LANE_MIDDLE else 1.4,
+			"start": 1.2, "end": 1.5, "hazard": null,
+		})
+	_check_eq(SolvabilityBot.best_lane(calm, GameConfig.LANE_MIDDLE),
+		GameConfig.LANE_MIDDLE, "a lane with over a second of road is kept")
+	_check(SolvabilityBot.lane_time(threats, GameConfig.LANE_TOP) > 0.0,
+		"a lane with an arriving hazard still has positive time")
+	var boxed: Array[Dictionary] = [
+		{"time": 0.0, "start": 0.0, "end": 0.2, "hazard": beam},
+		{"time": 0.0, "start": 0.0, "end": 0.2, "hazard": cone},
+		{"time": 0.0, "start": 0.0, "end": 0.2, "hazard": car},
+	]
+	_check(SolvabilityBot.lane_time(boxed, GameConfig.LANE_TOP) > 0.0,
+		"a lane already under the beam is still livable, because a duck is instant")
+	_check_near(SolvabilityBot.lane_time(boxed, GameConfig.LANE_MIDDLE), 0.0, 0.0001,
+		"a lane already inside a ground prop's box is a dead end")
+
+	var clear: Array[Dictionary] = []
+	for lane in GameConfig.LANE_COUNT:
+		clear.append({"time": INF, "start": INF, "end": INF, "hazard": null})
+	_check_eq(SolvabilityBot.best_lane(clear, GameConfig.LANE_MIDDLE),
+		GameConfig.LANE_MIDDLE, "a clear lane is kept, so the bot never weaves")
+	clear[GameConfig.LANE_MIDDLE] = {
+		"time": 0.05, "start": 0.05, "end": 0.3, "hazard": cone,
+	}
+	_check_eq(SolvabilityBot.best_lane(clear, GameConfig.LANE_MIDDLE),
+		GameConfig.LANE_TOP, "a threatened lane is left for an open one")
+
+	cone.position.x = GameConfig.PLAYER_X - 500.0
+	_check(SolvabilityBot.overlap_times(cone).y < 0.0,
+		"a hazard already behind Elias is not a threat")
+	cone.queue_free()
+	beam.queue_free()
+	car.queue_free()
+	await _physics_frames(2)
 
 
 func _report() -> void:

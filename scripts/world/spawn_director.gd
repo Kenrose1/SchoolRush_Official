@@ -33,6 +33,14 @@ const CAR_WARNING_TEXTURE := preload(
 ## spread evenly across lanes instead of randomly loading one lane over time.
 const LANE_BALANCE_WINDOW := 6
 
+## How far behind the nearest hazard the dog is held. The dog runs 200 px/s
+## faster than the rows, so left alone it catches the row it was spawned behind
+## and arrives on the player's box at the same instant as a two-lane row - and
+## with the dog's lane reserved, that shuts all three lanes at once. Anything
+## past one prop plus the player's box (~190 px) decouples them in time; 420
+## leaves a comfortable gap even for the widest row prop.
+const DOG_ROW_GAP := 420.0
+
 var hazards: Node2D = null
 var _rng := RandomNumberGenerator.new()
 ## Blocked-lane lists from the last LANE_BALANCE_WINDOW rows, newest last.
@@ -55,6 +63,9 @@ var _next_dog_distance: float = GameConfig.DOG_FIRST_DISTANCE
 var _dog_reserved_lane: int = -1
 var _dog_warning: HazardWarning = null
 var _active_dog: Hazard = null
+## Cars currently on the road (warned ones are tracked separately). A car
+## overtakes rows, so while one is out the rows are held to a single lane.
+var _active_cars: Array[Hazard] = []
 ## Variant of the dog currently running (fixed at its spawn), used for the
 ## chase-bark pitch.
 var _active_dog_variant: int = 0
@@ -104,6 +115,7 @@ func setup(parent: Node2D, seed_value: int = 0) -> void:
 	_dog_reserved_lane = -1
 	_dog_warning = null
 	_active_dog = null
+	_active_cars = []
 	_next_dog_variant = 0
 	_dog_speed = GameConfig.RUN_SPEED
 	_car_warnings = []
@@ -126,6 +138,7 @@ func reset_for_zone_swap(distance: float) -> void:
 
 	_dog_warning = null
 	_active_dog = null
+	_active_cars = []
 	_active_dog_variant = 0
 	_dog_barks_fired = 0
 	_dog_reserved_lane = -1
@@ -167,6 +180,8 @@ func tick(
 	if hazards == null:
 		return
 	_refresh_dog_reservation()
+	_refresh_cars()
+	keep_dog_behind_rows()
 	_update_dog_barks()
 	_refresh_coin_reservation()
 	if distance >= _next_dog_distance and _dog_reserved_lane < 0:
@@ -216,6 +231,15 @@ func spawn_row(
 	var lanes := generate_pattern(
 		distance, _rng, _dog_reserved_lane, _coin_run_lane, _car_reserved_lanes(),
 		recent_counts)
+	# The car's version of the dog's row gap. It runs 700 px/s faster than the
+	# rows and overtakes them, so slowing it like the dog would leave it
+	# trailing its own row for the whole encounter and the pass it exists for
+	# would never happen. Instead no row may close a second lane while a car is
+	# out: the car's lane plus one row lane still leaves a lane open at every x,
+	# which is the same guarantee the dog's gap gives by distance.
+	var lane_cap := 1 if car_on_road() else GameConfig.LANE_COUNT - 1
+	while lanes.size() > lane_cap:
+		lanes.pop_back()
 	_recent_blocked_rows.append(lanes.duplicate())
 	if _recent_blocked_rows.size() > LANE_BALANCE_WINDOW:
 		_recent_blocked_rows.pop_front()
@@ -360,6 +384,7 @@ func _on_car_warning_finished(lane: int) -> void:
 	)
 	car.position.x = GameConfig.SPAWN_X
 	car.passed_player.connect(_on_hazard_passed)
+	_active_cars.append(car)
 	car_entered.emit(lane, int(entry.get("variant", 0)))
 
 
@@ -394,6 +419,65 @@ func _try_start_dog_encounter(distance: float, speed: float, zone: int = -1) -> 
 	# Cue 1: the double-bark telegraph, right as the exclamation appears.
 	dog_warning_started.emit(_dog_reserved_lane, _next_dog_variant)
 	return true
+
+
+## Hold the active dog back so it never arrives on top of a row. Once it is
+## within DOG_ROW_GAP of the nearest hazard ahead the extra speed bleeds off,
+## so it settles in behind that row and reaches the player after it. The gap is
+## preserved by construction: both then travel at the world speed.
+## [param dog] defaults to the live encounter's dog; the suite passes its own so
+## the guard can be exercised without waiting for a real warning.
+func keep_dog_behind_rows(dog: Hazard = null) -> void:
+	var mover := dog if dog != null else _active_dog
+	if not is_instance_valid(mover) or mover.is_queued_for_deletion() or hazards == null:
+		return
+	dog = mover
+	var closest := -1.0
+	for child in hazards.get_children():
+		if not (child is Hazard) or child == dog:
+			continue
+		var other := child as Hazard
+		# Everything travels left and the dog travels fastest, so a hazard
+		# "ahead" of it is one further left.
+		if other.position.x >= dog.position.x:
+			continue
+		var gap := dog.position.x - other.position.x
+		if closest < 0.0 or gap < closest:
+			closest = gap
+	var cruise := float(GameConfig.HAZARD_DATA[GameConfig.HazardKind.DOG].get(
+		"extra_speed", 0.0))
+	dog.speed_override = true
+	if closest < 0.0:
+		dog.extra_speed = cruise
+		return
+	if closest < DOG_ROW_GAP:
+		# Already too close to trail cleanly. Only happens at the spawn point,
+		# where the dog is still off screen: stand still until the row ahead has
+		# opened the gap, then run. It can never close on a row, because from the
+		# gap line it only ever bleeds speed off.
+		dog.extra_speed = -dog.speed
+		return
+	# Bleed the extra off over the last stretch so it does not chatter
+	# between full speed and none at the gap line.
+	dog.extra_speed = cruise * clampf((closest - DOG_ROW_GAP) / 140.0, 0.0, 1.0)
+
+
+## True while a car is warned or driving: rows must not close a second lane.
+func car_on_road() -> bool:
+	if not _car_reserved_lanes().is_empty():
+		return true
+	for car in _active_cars:
+		if is_instance_valid(car) and not car.is_queued_for_deletion():
+			return true
+	return false
+
+
+## Drop cars that have despawned (a freed instance compares equal to null).
+func _refresh_cars() -> void:
+	for i in range(_active_cars.size() - 1, -1, -1):
+		var car := _active_cars[i]
+		if not is_instance_valid(car) or car.is_queued_for_deletion():
+			_active_cars.remove_at(i)
 
 
 func _occupied_dog_entry_lanes() -> Array[int]:
