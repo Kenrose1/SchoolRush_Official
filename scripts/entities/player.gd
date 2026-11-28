@@ -446,6 +446,7 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 func _hit_hazard(hazard: Hazard) -> void:
 	if hazard.lane != lane:
 		return
+
 	# A hit always costs a heart. While the tanod is chasing, RunWorld also
 	# knocks him closer (see Pursuer.knock_closer); that visible knock is what
 	# turns a second mistake into the catch, replacing the old silent
@@ -496,7 +497,11 @@ func _apply_pose() -> void:
 	var sprite_scale := Vector2(GameConfig.PLAYER_SCALE, GameConfig.PLAYER_SCALE)
 	sprite.scale = sprite_scale
 	sprite.position = Vector2(0.0, -GameConfig.PLAYER_SPRITE_HEIGHT * sprite_scale.y * 0.5)
-	sprite.rotation = deg_to_rad(_lean)
+	# A crouched slide drags along the road instead of banking: the lean is
+	# decorative, and 6 degrees of it swings the crouch's top corner into the
+	# barricade beam (see the art clearance test - 88.9 px of art under an
+	# 88 px beam leaves no room for a lean).
+	sprite.rotation = deg_to_rad(0.0 if is_sliding else _lean)
 
 	# Blink while invulnerable so the i-frame window is readable. A shield
 	# absorb tints him cyan for a beat, so the block reads as a block.

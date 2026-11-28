@@ -48,6 +48,9 @@ func _ready() -> void:
 	_section("Player")
 	await _test_player()
 
+	_section("Art clearance")
+	await _test_art_clearance()
+
 	_section("Health")
 	_test_health()
 
@@ -5516,6 +5519,127 @@ func _test_solvability_bot() -> void:
 	beam.queue_free()
 	car.queue_free()
 	await _physics_frames(2)
+
+
+# --- Art clearance -----------------------------------------------------------
+
+## How far a frame's drawn top may sit inside a hazard's painted band before it
+## counts as clipping: get_used_rect() includes the frame's faint anti-aliased
+## edge, which is sub-pixel at the scale the art is drawn.
+const ART_EDGE_PX := 2.0
+
+
+## Per-frame art-vs-hazard clearance, in world pixels above the lane baseline.
+##
+## The Player node is scaled 1.3 in scenes/player.tscn and both his art and his
+## hitbox are children of it, so everything about him is 1.3x the figure written
+## in GameConfig - while a hazard's band is written in world pixels directly.
+## Comparing a node-space crouch (68 px) with a world-space beam (88 px) is how
+## the slide was declared clear by 20 px while its head was actually level with
+## the beam. These checks measure what is drawn, in one space.
+func _test_art_clearance() -> void:
+	var scene := load("res://scenes/player.tscn") as PackedScene
+	_check(scene != null, "player scene loads for the clearance check")
+	if scene == null:
+		return
+	var player := scene.instantiate() as Player
+	add_child(player)
+	var frames := player.sprite.sprite_frames
+	var node_scale := player.scale.y
+	_check_near(node_scale, 1.3, 0.001, "the player node carries the 1.3 art scale")
+
+	var beam := GameConfig.HAZARD_DATA[GameConfig.HazardKind.BARRICADE]
+	var underside := float(beam["hitbox_y"])
+	var band_top := underside + float(beam["hitbox_h"])
+	var standing_box := GameConfig.HITBOX_SIZE.y * node_scale
+	var sliding_box := standing_box * GameConfig.SLIDE_HITBOX_HEIGHT_FACTOR
+
+	# Gameplay first: the sliding box has to pass under the beam, and a standing
+	# one has to reach into it, or the hazard stops reading as "duck".
+	_check(sliding_box <= underside - 16.0,
+		"the sliding hitbox clears the beam (%.1f px box, beam at %.1f)"
+			% [sliding_box, underside])
+	_check(standing_box > band_top - 8.0,
+		"a standing hitbox reaches the beam's band (%.1f px box, band to %.1f)"
+			% [standing_box, band_top])
+
+	# Then the art. The crouch is the only pose that has to fit under the beam,
+	# and it is drawn without a lane lean (Player._apply_pose), so its flat top
+	# is the one that ships.
+	var worst_slide := -INF
+	var worst_frame := -1
+	for i in frames.get_frame_count(&"slide"):
+		var top := _frame_top_above_feet(
+			frames.get_frame_texture(&"slide", i), node_scale, 0.0)
+		if top > worst_slide:
+			worst_slide = top
+			worst_frame = i
+	_check(worst_slide <= underside + ART_EDGE_PX,
+		"every crouched slide frame clears the beam (worst: frame %d at %.1f px, beam %.1f)"
+			% [worst_frame, worst_slide, underside])
+
+	# Every standing pose must be tall enough to read as hitting the beam rather
+	# than sailing under it, lean included. Hurt is left out on purpose: it is a
+	# reaction pose played while the i-frames hold, not a pose he approaches in.
+	for anim in [&"run", &"idle"]:
+		var shortest := INF
+		for i in frames.get_frame_count(anim):
+			shortest = minf(shortest, _frame_top_above_feet(
+				frames.get_frame_texture(anim, i), node_scale,
+				GameConfig.LANE_LEAN_DEGREES))
+		_check(shortest > underside + 8.0,
+			"the standing %s art reaches the beam (%.1f px vs %.1f)"
+				% [String(anim), shortest, underside])
+
+	# The jump has to read over the tallest road prop, not just over the low ones.
+	var tallest_prop := 0.0
+	for kind in GameConfig.HAZARD_DATA:
+		var data: Dictionary = GameConfig.HAZARD_DATA[kind]
+		if bool(data.get("overhead", false)):
+			continue
+		var zones: Array = data.get("zones", [])
+		if not zones.has(GameConfig.Zone.STREET):
+			continue
+		tallest_prop = maxf(tallest_prop,
+			float(data.get("hitbox_y", data["clearance"])) + float(data["hitbox_h"]))
+	_check(GameConfig.JUMP_APEX > tallest_prop + 8.0,
+		"the jump apex clears the tallest street prop (%.1f px apex, %.1f px prop)"
+			% [GameConfig.JUMP_APEX, tallest_prop])
+
+	# And hold the pose the art checks assume: a crouch never banks its art into
+	# the beam, while a standing lane change still leans.
+	player.slide()
+	player.move_lane(1)
+	await _physics_frames(6)
+	_check(player.is_sliding, "the slide is running for the lean check")
+	_check_near(player.sprite.rotation, 0.0, 0.0001,
+		"a crouched slide does not bank its art into the beam")
+	await _physics_frames(30)
+	_check(not player.is_sliding, "the slide is over for the lean check")
+	player.move_lane(-1)
+	await _physics_frames(4)
+	_check(absf(rad_to_deg(player.sprite.rotation)) > 1.0,
+		"a standing lane change still leans")
+	player.queue_free()
+	await _physics_frames(2)
+
+
+## Drawn top of one sprite frame, in world px above the feet, with the sprite
+## centred, scaled by PLAYER_SCALE, rotated by [param lean_deg] about its centre
+## and offset by half the nominal figure height - the transform _apply_pose sets.
+func _frame_top_above_feet(tex: Texture2D, node_scale: float, lean_deg: float) -> float:
+	var img := tex.get_image()
+	var size := Vector2(img.get_size())
+	var used := img.get_used_rect()
+	var rect := Rect2(Vector2(used.position) - size * 0.5, used.size)
+	var top := INF
+	for corner in [rect.position, rect.position + Vector2(rect.size.x, 0.0),
+			rect.position + Vector2(0.0, rect.size.y), rect.end]:
+		var p: Vector2 = (corner as Vector2) * GameConfig.PLAYER_SCALE
+		p = p.rotated(deg_to_rad(lean_deg))
+		p.y -= GameConfig.PLAYER_SPRITE_HEIGHT * GameConfig.PLAYER_SCALE * 0.5
+		top = minf(top, p.y)
+	return -top * node_scale
 
 
 func _report() -> void:
